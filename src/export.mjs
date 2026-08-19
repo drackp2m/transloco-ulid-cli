@@ -3,8 +3,21 @@ import { c } from '../lint/lint-report.mjs';
 
 import { collectUsages, readScopes } from './collect.mjs';
 import { DEFAULTS, listOf, readLanguages, valueOf } from './config.mjs';
+import { readContext } from './context.mjs';
 import { printExportHeader, printExported, printHint } from './transfer-report.mjs';
 import { DEFAULT_OUT_DIR, buildExport, exportLangs, writeExport } from './transfer.mjs';
+
+function filterOf(argv) {
+	if (argv.includes('--pending')) {
+		return 'pending';
+	}
+
+	if (argv.includes('--stale')) {
+		return 'stale';
+	}
+
+	return argv.includes('--missing') ? 'missing' : 'all';
+}
 
 function parseExportArgs(argv) {
 	const languageFile = valueOf(argv, '--languages');
@@ -16,7 +29,7 @@ function parseExportArgs(argv) {
 		out: valueOf(argv, '--out') ?? DEFAULT_OUT_DIR,
 		requested: listOf(argv, '--lang') ?? [],
 		only: listOf(argv, '--scope') ?? [],
-		missingOnly: argv.includes('--missing'),
+		filter: filterOf(argv),
 	};
 }
 
@@ -45,7 +58,8 @@ if (0 === targets.length) {
 printExportHeader(targets, options.defaultLang);
 
 const { usages } = collectUsages(options.sourceDirs);
-const built = targets.map((lang) => buildExport({ ...options, scopes, lang, usages }));
+const context = readContext(options);
+const built = targets.map((lang) => buildExport({ ...options, scopes, lang, usages, context }));
 const empty = built.filter((document) => 0 === document.total);
 const documents = built
 	.filter((document) => 0 !== document.total)

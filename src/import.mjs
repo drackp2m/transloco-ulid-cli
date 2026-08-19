@@ -11,6 +11,7 @@ import { applyImport, planImport } from './merge.mjs';
 import {
 	printHint,
 	printImportHeader,
+	printOutdated,
 	printPlan,
 	printProblemList,
 	printUpdates,
@@ -117,16 +118,19 @@ async function run(options) {
 
 	if (options.dryRun) {
 		printHint('--dry-run: nothing was written.');
+		printOutdated(plan.outdated, CHANGE_LIMIT);
 		printProblemList(plan.problems);
 
 		return 0;
 	}
 
-	printWrittenFiles(applyImport({ plan, scopes, defaultLang: options.defaultLang, accepted }));
+	printWrittenFiles(applyImport({ ...options, plan, scopes, accepted }));
 
 	if (0 !== accepted.length) {
 		printHint('New keys landed in keys.ts — run "pnpm i18n:check --fix" to refresh params.ts.');
 	}
+
+	printOutdated(plan.outdated, CHANGE_LIMIT);
 
 	printProblemList(plan.problems);
 
