@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 import { c } from '../lint/lint-report.mjs';
 
-import { collectUsages, readScopes } from './collect.mjs';
-import { DEFAULTS, listOf, readLanguages, valueOf } from './config.mjs';
-import { readContext } from './context.mjs';
-import { printExportHeader, printExported, printHint } from './transfer-report.mjs';
-import { DEFAULT_OUT_DIR, buildExport, exportLangs, writeExport } from './transfer.mjs';
+import { collectUsages, readScopes } from './catalogue/collect.mjs';
+import { DEFAULTS, listOf, readLanguages, valueOf } from './catalogue/config.mjs';
+import { readContext } from './catalogue/context.mjs';
+import { DEFAULT_OUT_DIR, buildExport, exportLangs, writeExport } from './transfer/build.mjs';
+import { printExportHeader, printExported, printHint } from './transfer/report.mjs';
 
 function filterOf(argv) {
 	if (argv.includes('--pending')) {
@@ -30,6 +30,7 @@ function parseExportArgs(argv) {
 		requested: listOf(argv, '--lang') ?? [],
 		only: listOf(argv, '--scope') ?? [],
 		filter: filterOf(argv),
+		blank: argv.includes('--blank'),
 	};
 }
 
@@ -56,6 +57,10 @@ if (0 === targets.length) {
 }
 
 printExportHeader(targets, options.defaultLang);
+
+if (options.blank) {
+	printHint('Targets go out empty — no existing translation travels with the file.');
+}
 
 const { usages } = collectUsages(options.sourceDirs);
 const context = readContext(options);

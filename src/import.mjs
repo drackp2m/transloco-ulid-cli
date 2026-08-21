@@ -5,9 +5,10 @@ import path from 'node:path';
 import { c, plural } from '../lint/lint-report.mjs';
 import { selectFromList } from '../util/select-list.mjs';
 
-import { readScopes } from './collect.mjs';
-import { DEFAULTS, listOf, readLanguages, valueOf } from './config.mjs';
-import { applyImport, planImport } from './merge.mjs';
+import { readScopes } from './catalogue/collect.mjs';
+import { DEFAULTS, listOf, readLanguages, valueOf } from './catalogue/config.mjs';
+import { DEFAULT_OUT_DIR } from './transfer/build.mjs';
+import { applyImport, planImport } from './transfer/merge.mjs';
 import {
 	printHint,
 	printImportHeader,
@@ -16,9 +17,8 @@ import {
 	printProblemList,
 	printUpdates,
 	printWrittenFiles,
-} from './transfer-report.mjs';
-import { DEFAULT_OUT_DIR } from './transfer.mjs';
-import { readXliff } from './xliff.mjs';
+} from './transfer/report.mjs';
+import { readXliff } from './transfer/xliff.mjs';
 
 const EXTENSIONS = new Set(['.xlf', '.xliff']);
 const CHANGE_LIMIT = 20;

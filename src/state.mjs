@@ -3,9 +3,16 @@ import path from 'node:path';
 
 import { c, plural } from '../lint/lint-report.mjs';
 
-import { readScopes } from './collect.mjs';
-import { DEFAULTS, listOf, readLanguages, valueOf } from './config.mjs';
-import { STATUSES, freshnessOf, hashOf, readState, sealed, writeState } from './freshness.mjs';
+import { readScopes } from './catalogue/collect.mjs';
+import { DEFAULTS, listOf, readLanguages, valueOf } from './catalogue/config.mjs';
+import {
+	STATUSES,
+	freshnessOf,
+	hashOf,
+	readState,
+	sealed,
+	writeState,
+} from './catalogue/freshness.mjs';
 
 const COLORS = { fresh: c.green, stale: c.yellow, missing: c.red, unknown: c.dim };
 
