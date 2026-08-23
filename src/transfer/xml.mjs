@@ -1,7 +1,5 @@
-// A tolerant pull parser, small enough to keep XLIFF a dependency-free format:
-// what comes back from a TMS is well-formed but unpredictable in shape (extra
-// attributes, <group> nesting, split segments), so the tree is walked by name
-// rather than by position.
+// A tolerant pull parser, small enough to keep XLIFF dependency-free. What a TMS returns is
+// well-formed but unpredictable in shape, so the tree is walked by name and not position.
 const ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
 const ATTRIBUTE = /([\w.:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
 const TAG_NAME = /^\/?\s*([\w.:-]+)/;

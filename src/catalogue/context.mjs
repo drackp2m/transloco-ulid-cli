@@ -136,9 +136,8 @@ function resolve({ app, languages, scopes }, scopeName, keyName, lang) {
 
 const patterns = new Map();
 
-// A glossary term is a hint for whoever translates, not a rule to enforce, so
-// it matches whole words case-insensitively and tolerates the plural: a source
-// saying "jugadas" still pulls in "jugada".
+// A glossary term is a hint and not a rule, so it matches whole words case-insensitively
+// and tolerates the plural: "jugadas" still pulls in "jugada".
 function termPattern(term) {
 	if (!patterns.has(term)) {
 		const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, (char) => `\\${char}`);

@@ -94,9 +94,8 @@ function fileNotes(scope, { context, lang, units }) {
 	return [...notes, ...glossaryNote(context, sources, lang)];
 }
 
-// Everything the translator needs to place the string without opening the repo:
-// the constant they would type in the code, where it is rendered, the type
-// behind each placeholder, what the key is for and which terms it is bound to.
+// Everything the translator needs to place the string without opening the repo: the
+// constant, where it is rendered, each placeholder's type, and the terms it is bound to.
 function notesFor(scope, entry, options) {
 	const { declared, usages, root, context, lang, source } = options;
 	const terms = termsIn(context.glossary, [source]);
@@ -114,9 +113,8 @@ function notesFor(scope, entry, options) {
 			: [{ category: 'term', text: terms.map((term) => termLine(term, lang)).join(', ') }]),
 	];
 }
-// --blank hands the unit over as if it had never been translated: the note and
-// the sub-state that describe the old target go with it, so nothing in the file
-// can seed a machine translator or pass for its answer.
+// --blank hands the unit over as if never translated, note and sub-state included, so
+// nothing in the file can seed a machine translator or pass for its answer.
 
 function unitFor(scope, entry, options) {
 	const { source, target, state, lang, blank } = options;

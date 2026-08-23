@@ -56,10 +56,8 @@ function targetScopes(scopes, only) {
 	return 0 === only.length ? owned : owned.filter((scope) => only.includes(scope.name));
 }
 
-// The value goes back to "" instead of the key being dropped: a ULID missing
-// from a <lang>.json is a missing-translation error that "pnpm i18n:check --fix"
-// puts back as an empty string anyway, so this writes the shape the catalogue
-// settles on — and leaves a diff of values alone.
+// The value goes back to "" rather than the key being dropped, which is the shape
+// `i18n:check --fix` settles on anyway, and it leaves the diff to values alone.
 function clearedIn(translation) {
 	const entries = Object.entries(translation.data);
 	const filled = entries.filter(([, value]) => '' !== String(value).trim());
@@ -91,9 +89,8 @@ function planFor(scopes, langs) {
 	return plans;
 }
 
-// Only under --unseal: an empty target already reads as "missing" before any
-// hash is consulted, so a leftover seal changes nothing — dropping it just keeps
-// state/ from vouching for a translation that is no longer there.
+// Only under --unseal: an empty target already reads as missing before any hash, so this
+// only stops state/ vouching for a translation that is gone.
 function unsealed(data, langs) {
 	return Object.fromEntries(
 		Object.entries(data).map(([ulid, hashes]) => [

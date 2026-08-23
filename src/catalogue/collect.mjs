@@ -271,9 +271,8 @@ function htmlCommentRanges(content) {
 	]);
 }
 
-// Split each file into its "real" code (comments blanked out, so a key merely
-// mentioned in a comment never counts as usage) and its comments alone (so a
-// key that only shows up there can still be flagged, separately, as such).
+// Each file is split into real code, so a key merely mentioned in a comment is not usage,
+// and its comments alone, so one appearing only there can still be flagged.
 function splitComments(content, file) {
 	const ranges =
 		'.html' === path.extname(file) ? htmlCommentRanges(content) : tsCommentRanges(content);

@@ -61,9 +61,8 @@ function printFixable(findings) {
 	}
 }
 
-// Infos are surfaced but kept out of "Problems" entirely — they never reach
-// the tally, the --fix hint, or the exit code, so 0 problems always means CI
-// exits 0 even when notes are printed above it.
+// Infos are surfaced but never reach the tally, the --fix hint or the exit code, so zero
+// problems always means CI exits 0 even with notes printed above.
 export function printFindings(findings, { scopes, langs, fix }) {
 	printTable(scopes, findings, langs);
 

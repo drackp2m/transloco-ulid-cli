@@ -92,9 +92,8 @@ function positionOf(text, ulid) {
 	return -1 === line ? {} : { line: line + 1, col: lines[line].indexOf(`"${ulid}"`) + 1 };
 }
 
-// Nothing to point at in the file that lacks the entry, so the location is the
-// one the check read it from: the default language, or keys.ts when that one is
-// missing it too.
+// Nothing to point at in the file that lacks the entry, so the location is where the check
+// read it from: the default language, or keys.ts when that lacks it too.
 function missingAt(scope, entry, source) {
 	if (source?.data && entry.ulid in source.data) {
 		return { file: source.file, ...positionOf(source.text, entry.ulid) };

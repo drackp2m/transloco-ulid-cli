@@ -6,9 +6,8 @@ const STATES = new Set(['initial', 'translated', 'reviewed', 'final']);
 
 const indent = (depth) => '\t'.repeat(depth);
 
-// One <data> per distinct interpolation, referenced from both sides: the
-// translator sees an atomic placeholder chip instead of "{{ index }}" they can
-// typo, and the import resolves it back to the exact original text.
+// One <data> per distinct interpolation, referenced from both sides: the translator sees an
+// atomic chip instead of typo-able text, and the import resolves it back exactly.
 function dataOf(texts) {
 	const data = new Map();
 
@@ -86,8 +85,7 @@ function unitOf(unit, depth) {
 	];
 }
 
-// The <file> notes carry what every unit below them shares — the app, the
-// language, the scope and the glossary — so the block is allowed to be long
+// The <file> notes carry what every unit below shares, so the block is allowed to be long
 // where a unit note is not.
 function fileOf(file, depth) {
 	const original = undefined === file.original ? '' : ` original="${encodeXml(file.original)}"`;
@@ -163,9 +161,8 @@ const noteEntry = (note) => ({
 	text: textOf(note, new Map()),
 });
 
-// Read from the element's own <notes> block rather than with findAll, which
-// recurses: a <file> asked for its notes would otherwise collect every note of
-// every unit below it.
+// Read from the element's own <notes> block and not with findAll, which recurses: a <file>
+// would otherwise collect every note below it.
 function ownNotes(node) {
 	const block = firstNamed(node, 'notes');
 

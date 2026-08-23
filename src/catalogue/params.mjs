@@ -95,9 +95,8 @@ function driftOf(entries, declared, text) {
 	];
 }
 
-// A scope with no interpolation anywhere needs no params.ts at all, so the file
-// is only rendered when it would hold something or already exists (in which case
-// emptying it is what keeps it in step).
+// A scope with no interpolation needs no params.ts, so the file is only rendered when it
+// would hold something or already exists, where emptying it is what keeps it in step.
 export function buildScopeParams(scope, defaultLang) {
 	const file = paramsFile(scope.dir);
 	const current = existsSync(file) ? readFileSync(file, 'utf8') : null;
