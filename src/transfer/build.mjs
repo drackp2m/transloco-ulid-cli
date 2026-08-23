@@ -114,13 +114,16 @@ function notesFor(scope, entry, options) {
 			: [{ category: 'term', text: terms.map((term) => termLine(term, lang)).join(', ') }]),
 	];
 }
+// --blank hands the unit over as if it had never been translated: the note and
+// the sub-state that describe the old target go with it, so nothing in the file
+// can seed a machine translator or pass for its answer.
 
 function unitFor(scope, entry, options) {
-	const { source, target, state, lang } = options;
+	const { source, target, state, lang, blank } = options;
 	const text = source[entry.ulid] ?? '';
 	const value = target[entry.ulid] ?? '';
 	const status = statusOf(state, entry.ulid, lang, text, value);
-	const outdated = 'stale' === status;
+	const outdated = 'stale' === status && !blank;
 
 	return {
 		id: entry.value,
@@ -130,17 +133,18 @@ function unitFor(scope, entry, options) {
 			{ category: 'srcHash', text: hashOf(text) },
 		],
 		source: text,
-		target: value,
+		target: blank ? '' : value,
 		status,
 		...(outdated ? { state: 'initial', subState: OUTDATED_SUB_STATE } : {}),
 	};
 }
 
-function unitsOf(scope, { defaultLang, lang, filter, usages, root, context, state }) {
+function unitsOf(scope, options) {
+	const { defaultLang, lang, filter, usages, root, context, state, blank } = options;
 	const source = scope.translations.get(defaultLang)?.data ?? {};
 	const target = scope.translations.get(lang)?.data ?? {};
 	const declared = readDeclaredParams(paramsFile(scope.dir));
-	const shared = { declared, usages, root, context, lang, source, target, state };
+	const shared = { declared, usages, root, context, lang, source, target, state, blank };
 	const keep = KEEPERS[filter] ?? KEEPERS.all;
 
 	return scope.keys.entries
@@ -168,13 +172,13 @@ function countOf(files, status) {
 }
 
 export function buildExport(options) {
-	const { scopes, defaultLang, lang, filter, usages, only, root = null } = options;
+	const { scopes, defaultLang, lang, filter, usages, only, root = null, blank = false } = options;
 	const context = options.context ?? readContext(options);
 	const wanted = scopes.filter(
 		(scope) => scope.keys && (!only?.length || only.includes(scope.name)),
 	);
 	const states = options.states ?? readStates(options.i18nDir, wanted);
-	const shared = { defaultLang, lang, filter, usages, root, context };
+	const shared = { defaultLang, lang, filter, usages, root, context, blank };
 	const files = wanted
 		.map((scope) => fileOf(scope, { ...shared, state: states.get(scope.name) }))
 		.filter((file) => 0 !== file.units.length);
