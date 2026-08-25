@@ -20,6 +20,8 @@ const finding = (type, scope, file, message, where = {}) => ({
 
 const paramsOf = (value) => new Set([...String(value).matchAll(PARAM_PATTERN)].map(([, n]) => n));
 
+const isBlank = (value) => '' === String(value).trim();
+
 const expectedValue = (scope, ulid) => (scope.prefixed ? `${scope.name}.${ulid}` : ulid);
 
 function checkLangFiles(scope, langs) {
@@ -114,7 +116,7 @@ function checkDeclared(scope, translation, lang, source) {
 			const message = `${label} has no "${lang}" entry`;
 
 			findings.push(finding('missing-translation', scope.name, at.file, message, { ...at, lang }));
-		} else if ('' === String(value).trim()) {
+		} else if (isBlank(value)) {
 			const at = { ...positionOf(translation.text, entry.ulid), lang };
 
 			findings.push(finding('empty-translation', scope.name, translation.file, label, at));
@@ -217,7 +219,7 @@ function comparePairs(base, translation, lang, { scope, params }) {
 	const findings = [];
 
 	for (const [ulid, value] of Object.entries(translation.data)) {
-		if (!(ulid in base)) {
+		if (!(ulid in base) || isBlank(value)) {
 			continue;
 		}
 
