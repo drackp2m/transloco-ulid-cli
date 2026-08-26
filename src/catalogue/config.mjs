@@ -68,5 +68,6 @@ export function parseArgs(argv) {
 		...(languageFile ? { languageFile, ...readLanguages(languageFile) } : {}),
 		...(langs?.length ? { langs, defaultLang: langs[0] } : {}),
 		fix: argv.includes('--fix'),
+		verbose: argv.includes('--verbose') || argv.includes('-v'),
 	};
 }

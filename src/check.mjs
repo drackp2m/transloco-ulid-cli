@@ -6,8 +6,16 @@ import { applyFix } from './check/fix.mjs';
 import { writeI18nSummary, writeSkippedSummary } from './check/github-summary.mjs';
 import { printFindings, printWritten } from './check/report.mjs';
 import { buildFindings } from './check/rules.mjs';
+import { printUsage } from './check/usage.mjs';
 
-const options = parseArgs(process.argv.slice(2));
+const argv = process.argv.slice(2);
+
+if (argv.includes('--help') || argv.includes('-h')) {
+	printUsage();
+	process.exit(0);
+}
+
+const options = parseArgs(argv);
 const scopes = readScopes(options);
 
 if (!scopes.length) {

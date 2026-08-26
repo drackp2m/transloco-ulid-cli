@@ -61,19 +61,45 @@ function printFixable(findings) {
 	}
 }
 
-// Infos are surfaced but never reach the tally, the --fix hint or the exit code, so zero
-// problems always means CI exits 0 even with notes printed above.
-export function printFindings(findings, { scopes, langs, fix }) {
+// Warnings and notes never reach the exit code, so they stay counted but unlisted:
+// only errors are printed unless --verbose asks for the whole picture.
+function printHidden(warnings, notes) {
+	const parts = [
+		0 !== warnings ? plural(warnings, 'warning') : null,
+		0 !== notes ? plural(notes, 'note') : null,
+	].filter((part) => null !== part);
+
+	if (0 === parts.length) {
+		return;
+	}
+
+	const hint = `${parts.join(' · ')} hidden — re-run with --verbose to list them`;
+
+	console.log(`\n  ${c.dim}${hint}${c.reset}`);
+}
+
+function printInfos(infos) {
+	console.log(`\n${c.bold}${c.cyan}━━ Info ━━${c.reset}`);
+	printProblems(infos);
+	console.log(`\n  ${c.blue}ℹ${c.reset} ${plural(infos.length, 'note')}`);
+}
+
+export function printFindings(findings, { scopes, langs, fix, verbose }) {
 	printTable(scopes, findings, langs);
 
 	const infos = toProblems(findings.filter((item) => 'info' === severityOf(item.type)));
 	const problems = toProblems(findings.filter((item) => 'info' !== severityOf(item.type)));
+	const listed = verbose ? problems : problems.filter(({ severity }) => 'error' === severity);
 
 	if (0 === problems.length) {
 		console.log(`\n  ${c.green}✔ Every key is declared, translated and used.${c.reset}`);
 	} else {
 		console.log(`\n${c.bold}${c.cyan}━━ Problems ━━${c.reset}`);
-		printProblems(problems);
+
+		if (0 !== listed.length) {
+			printProblems(listed);
+		}
+
 		printTally(problems);
 
 		if (!fix) {
@@ -81,11 +107,11 @@ export function printFindings(findings, { scopes, langs, fix }) {
 		}
 	}
 
-	if (0 !== infos.length) {
-		console.log(`\n${c.bold}${c.cyan}━━ Info ━━${c.reset}`);
-		printProblems(infos);
-		console.log(`\n  ${c.blue}ℹ${c.reset} ${plural(infos.length, 'note')}`);
+	if (verbose && 0 !== infos.length) {
+		printInfos(infos);
 	}
+
+	printHidden(problems.length - listed.length, verbose ? 0 : infos.length);
 
 	return problems.some(({ severity }) => 'error' === severity) ? 1 : 0;
 }
