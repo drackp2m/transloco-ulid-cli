@@ -18,6 +18,7 @@ import {
 	printUpdates,
 	printWrittenFiles,
 } from './transfer/report.mjs';
+import { printImportUsage } from './transfer/usage.mjs';
 import { readXliff } from './transfer/xliff.mjs';
 
 const EXTENSIONS = new Set(['.xlf', '.xliff']);
@@ -35,7 +36,7 @@ function parseImportArgs(argv) {
 	const languageFile = valueOf(argv, '--languages');
 	const flagged = new Set(['--dir', '--languages', '--langs']);
 	const positional = argv.filter(
-		(arg, index) => !arg.startsWith('--') && !flagged.has(argv[index - 1]),
+		(arg, index) => !arg.startsWith('-') && !flagged.has(argv[index - 1]),
 	);
 
 	return {
@@ -46,6 +47,7 @@ function parseImportArgs(argv) {
 		inputs: 0 === positional.length ? [DEFAULT_OUT_DIR] : positional,
 		newKeys: newKeyMode(argv),
 		dryRun: argv.includes('--dry-run'),
+		verbose: argv.includes('--verbose') || argv.includes('-v'),
 	};
 }
 
@@ -112,13 +114,13 @@ async function run(options) {
 	const plan = planImport({ ...options, scopes, documents: readDocuments(files) });
 
 	printPlan(plan);
-	printUpdates(plan.updates, CHANGE_LIMIT);
+	printUpdates(plan.updates, CHANGE_LIMIT, options.verbose);
 
 	const accepted = await chooseNewKeys(plan.added, options.newKeys);
 
 	if (options.dryRun) {
 		printHint('--dry-run: nothing was written.');
-		printOutdated(plan.outdated, CHANGE_LIMIT);
+		printOutdated(plan.outdated, CHANGE_LIMIT, options.verbose);
 		printProblemList(plan.problems);
 
 		return 0;
@@ -130,17 +132,24 @@ async function run(options) {
 		printHint('New keys landed in keys.ts — run "pnpm i18n:check --fix" to refresh params.ts.');
 	}
 
-	printOutdated(plan.outdated, CHANGE_LIMIT);
+	printOutdated(plan.outdated, CHANGE_LIMIT, options.verbose);
 
 	printProblemList(plan.problems);
 
 	return 0;
 }
 
+const argv = process.argv.slice(2);
+
+if (argv.includes('--help') || argv.includes('-h')) {
+	printImportUsage();
+	process.exit(0);
+}
+
 let exitCode;
 
 try {
-	exitCode = await run(parseImportArgs(process.argv.slice(2)));
+	exitCode = await run(parseImportArgs(argv));
 } catch (error) {
 	console.error(`  ${c.red}✖ ${error.message}${c.reset}`);
 	exitCode = 1;

@@ -6,6 +6,7 @@ import { DEFAULTS, listOf, readLanguages, valueOf } from './catalogue/config.mjs
 import { readContext } from './catalogue/context.mjs';
 import { DEFAULT_OUT_DIR, buildExport, exportLangs, writeExport } from './transfer/build.mjs';
 import { printExportHeader, printExported, printHint } from './transfer/report.mjs';
+import { printExportUsage } from './transfer/usage.mjs';
 
 function filterOf(argv) {
 	if (argv.includes('--pending')) {
@@ -34,7 +35,14 @@ function parseExportArgs(argv) {
 	};
 }
 
-const options = parseExportArgs(process.argv.slice(2));
+const argv = process.argv.slice(2);
+
+if (argv.includes('--help') || argv.includes('-h')) {
+	printExportUsage();
+	process.exit(0);
+}
+
+const options = parseExportArgs(argv);
 const scopes = readScopes(options);
 
 if (0 === scopes.length) {

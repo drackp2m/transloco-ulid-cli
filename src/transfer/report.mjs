@@ -4,6 +4,8 @@ import { c, plural } from '../../lint/lint-report.mjs';
 
 const fullPath = (file) => path.resolve(file);
 
+export const printHint = (message) => console.log(`\n  ${c.dim}${message}${c.reset}`);
+
 export function printExportHeader(langs, defaultLang) {
 	const details = `${plural(langs.length, 'language')} · source ${defaultLang}`;
 
@@ -66,8 +68,18 @@ export function printPlan(plan) {
 	}
 }
 
-export function printUpdates(updates, limit) {
+// Changed and outdated units are notes, never a failure: they stay counted but unlisted
+// unless --verbose asks for them one by one.
+export function printUpdates(updates, limit, verbose) {
 	if (0 === updates.length) {
+		return;
+	}
+
+	if (!verbose) {
+		printHint(
+			`${plural(updates.length, 'translation')} changed — re-run with --verbose to list them`,
+		);
+
 		return;
 	}
 
@@ -114,7 +126,7 @@ export function printWrittenFiles(written) {
 	console.log(`\n  ${c.green}✔ ${plural(new Set(written).size, 'file')} updated${c.reset}`);
 }
 
-export function printOutdated(outdated, limit) {
+export function printOutdated(outdated, limit, verbose) {
 	if (0 === outdated.length) {
 		return;
 	}
@@ -122,6 +134,12 @@ export function printOutdated(outdated, limit) {
 	const message = `${plural(outdated.length, 'unit')} came back translated from an older source`;
 
 	console.log(`\n  ${c.yellow}⚠ ${message} — left outdated${c.reset}`);
+
+	if (!verbose) {
+		console.log(`      ${c.dim}re-run with --verbose to list them${c.reset}`);
+
+		return;
+	}
 
 	for (const { scope, key, lang } of outdated.slice(0, limit)) {
 		console.log(`      ${c.dim}${scope}.${key} · ${lang}${c.reset}`);
@@ -131,5 +149,3 @@ export function printOutdated(outdated, limit) {
 		console.log(`      ${c.dim}… and ${outdated.length - limit} more${c.reset}`);
 	}
 }
-
-export const printHint = (message) => console.log(`\n  ${c.dim}${message}${c.reset}`);

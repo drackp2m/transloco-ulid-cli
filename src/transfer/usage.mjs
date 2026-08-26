@@ -1,0 +1,61 @@
+import { c } from '../../lint/lint-report.mjs';
+
+const EXPORT_LINES = [
+	`${c.bold}Usage:${c.reset} pnpm i18n:export [options]`,
+	'',
+	'Writes one bilingual XLIFF 2.0 file per target language into translations/,',
+	'carrying the ULID as the unit id, the context notes and each {{ param }} as an',
+	'<originalData>/<ph> pair.',
+	'',
+	`${c.bold}Options:${c.reset}`,
+	`  ${c.cyan}--lang${c.reset} <codes>     comma-separated target languages (default: every one but`,
+	'                     the source)',
+	`  ${c.cyan}--scope${c.reset} <names>    comma-separated scopes to export (default: all of them)`,
+	`  ${c.cyan}--out${c.reset} <path>       directory the files are written to (default: translations)`,
+	`  ${c.cyan}--missing${c.reset}          only the units with no translation yet`,
+	`  ${c.cyan}--stale${c.reset}            only the units translated before the source moved`,
+	`  ${c.cyan}--pending${c.reset}          both of the above`,
+	`  ${c.cyan}--blank${c.reset}            send every unit with an empty <target> and without its`,
+	'                     outdated note, so the file cannot seed a machine translator',
+	`  ${c.cyan}--dir${c.reset} <path>       catalogue directory (default: apps/web/src/app/i18n)`,
+	`  ${c.cyan}--languages${c.reset} <file> file LANGUAGES / DEFAULT_LANGUAGE are read from`,
+	`  ${c.cyan}--help${c.reset}, ${c.cyan}-h${c.reset}         print this text`,
+	'',
+	'With no selection flag the whole catalogue travels.',
+	'',
+	`${c.bold}Examples:${c.reset}`,
+	`  ${c.dim}pnpm i18n:export --lang en-GB --pending${c.reset}`,
+	`  ${c.dim}pnpm i18n:export --lang en-GB --blank --scope training${c.reset}`,
+];
+
+const IMPORT_LINES = [
+	`${c.bold}Usage:${c.reset} pnpm i18n:import [files|directories...] [options]`,
+	'',
+	'Reads the translated XLIFF files back and merges their targets into the <lang>.json',
+	'files, in keys.ts order. Only ever adds: a ULID the file does not carry keeps the',
+	'value it had, and a unit that came back empty is counted and skipped.',
+	'',
+	`${c.bold}Arguments:${c.reset}`,
+	'  files or directories to read (default: translations)',
+	'',
+	`${c.bold}Options:${c.reset}`,
+	`  ${c.cyan}--all-new${c.reset}          add every ULID keys.ts does not know, without asking`,
+	`  ${c.cyan}--no-new${c.reset}           skip them all instead`,
+	`  ${c.cyan}--dry-run${c.reset}          report what would change and write nothing`,
+	`  ${c.cyan}--verbose${c.reset}, ${c.cyan}-v${c.reset}      list the changed and outdated units one by one — they are`,
+	'                     only counted otherwise',
+	`  ${c.cyan}--dir${c.reset} <path>       catalogue directory (default: apps/web/src/app/i18n)`,
+	`  ${c.cyan}--languages${c.reset} <file> file LANGUAGES / DEFAULT_LANGUAGE are read from`,
+	`  ${c.cyan}--langs${c.reset} <codes>    comma-separated languages, the first one the source`,
+	`  ${c.cyan}--help${c.reset}, ${c.cyan}-h${c.reset}         print this text`,
+	'',
+	'Accepting a new key appends it to keys.ts — run "pnpm i18n:check --fix" afterwards.',
+	'',
+	`${c.bold}Examples:${c.reset}`,
+	`  ${c.dim}pnpm i18n:import --dry-run --verbose${c.reset}`,
+	`  ${c.dim}pnpm i18n:import translations/en-GB.xlf --all-new${c.reset}`,
+];
+
+export const printExportUsage = () => console.log(EXPORT_LINES.join('\n'));
+
+export const printImportUsage = () => console.log(IMPORT_LINES.join('\n'));
