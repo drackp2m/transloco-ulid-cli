@@ -2,7 +2,7 @@ import path from 'node:path';
 
 import { c, plural, printProblems, printTally } from '../../lint/lint-report.mjs';
 
-import { FIXABLE_TYPES, cellsOf, columnsOf, severityOf } from './findings.mjs';
+import { FIXABLE_TYPES, cellsOf, columnOf, columnsOf, severityOf } from './findings.mjs';
 
 const NAME_COLUMN = 'scope';
 const ICONS = {
@@ -36,8 +36,22 @@ function printTable(scopes, findings, langs) {
 	}
 }
 
-function toProblems(findings) {
+// The listing follows the table: scope by scope, and inside each one the keys
+// column, then params, then every language in its column order. Anything the
+// table has no row or column for (the barrel, the glossary) trails behind.
+function rankOf(item, { scopes, columns }) {
+	const scope = scopes.indexOf(item.scope);
+	const column = columns.indexOf(columnOf(item));
+
+	return {
+		scope: -1 === scope ? scopes.length : scope,
+		column: -1 === column ? columns.length : column,
+	};
+}
+
+function toProblems(findings, { scopes, langs }) {
 	const order = [...new Set(findings.map(({ file }) => file))];
+	const ranking = { scopes: scopes.map(({ name }) => name), columns: columnsOf(langs) };
 
 	return findings
 		.map((item) => ({
@@ -47,8 +61,15 @@ function toProblems(findings) {
 			message: item.message,
 			rule: item.type,
 			order: order.indexOf(item.file),
+			rank: rankOf(item, ranking),
 		}))
-		.sort((left, right) => left.order - right.order || (left.line ?? 0) - (right.line ?? 0));
+		.sort(
+			(left, right) =>
+				left.rank.scope - right.rank.scope ||
+				left.rank.column - right.rank.column ||
+				left.order - right.order ||
+				(left.line ?? 0) - (right.line ?? 0),
+		);
 }
 
 function printFixable(findings) {
@@ -100,8 +121,15 @@ function printInfos(infos) {
 export function printFindings(findings, { scopes, langs, fix, verbose }) {
 	printTable(scopes, findings, langs);
 
-	const infos = toProblems(findings.filter((item) => 'info' === severityOf(item.type)));
-	const problems = toProblems(findings.filter((item) => 'info' !== severityOf(item.type)));
+	const sorting = { scopes, langs };
+	const infos = toProblems(
+		findings.filter((item) => 'info' === severityOf(item.type)),
+		sorting,
+	);
+	const problems = toProblems(
+		findings.filter((item) => 'info' !== severityOf(item.type)),
+		sorting,
+	);
 	const listed = verbose ? problems : problems.filter(({ severity }) => 'error' === severity);
 
 	if (verbose && 0 !== infos.length) {
