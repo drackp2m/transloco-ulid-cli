@@ -6,6 +6,7 @@ import { buildScopeParams, entryLineOf, paramsName } from '../catalogue/params.m
 
 const PARAM_PATTERN = /\{\{\s*([\w.]+)\s*\}\}/g;
 const PARAMS = 'params';
+const FILE_START = { line: 1, col: 1 };
 
 const finding = (type, scope, file, message, where = {}) => ({
 	type,
@@ -22,6 +23,14 @@ const paramsOf = (value) => new Set([...String(value).matchAll(PARAM_PATTERN)].m
 
 const isBlank = (value) => '' === String(value).trim();
 
+const JSON_POSITION = /\bline (\d+) column (\d+)\b/;
+
+function jsonAt(error) {
+	const found = JSON_POSITION.exec(String(error));
+
+	return found ? { line: Number(found[1]), col: Number(found[2]) } : {};
+}
+
 const expectedValue = (scope, ulid) => (scope.prefixed ? `${scope.name}.${ulid}` : ulid);
 
 function checkLangFiles(scope, langs) {
@@ -33,7 +42,7 @@ function checkLangFiles(scope, langs) {
 		if (!exists) {
 			findings.push(finding('missing-lang-file', scope.name, file, 'file not found', { lang }));
 		} else if (error) {
-			findings.push(finding('invalid-json', scope.name, file, error, { lang }));
+			findings.push(finding('invalid-json', scope.name, file, error, { ...jsonAt(error), lang }));
 		}
 	}
 
@@ -53,8 +62,9 @@ function checkStructure(scope, langs) {
 
 	if (scope.keys.constName !== expected) {
 		const message = `exports "${scope.keys.constName}", expected "${expected}"`;
+		const at = scope.keys.constAt ?? {};
 
-		findings.push(finding('bad-const-name', scope.name, scope.keysFile, message));
+		findings.push(finding('bad-const-name', scope.name, scope.keysFile, message, at));
 	}
 
 	return findings;
@@ -175,7 +185,7 @@ function checkFreshness(scope, { langs, defaultLang, i18nDir }) {
 	const state = readState(i18nDir, scope.name);
 
 	if (state.error) {
-		return [finding('invalid-json', scope.name, state.file, state.error)];
+		return [finding('invalid-json', scope.name, state.file, state.error, jsonAt(state.error))];
 	}
 
 	return freshnessOf(scope, state, { langs, defaultLang })
@@ -213,17 +223,7 @@ function comparePair(base, value, ulid) {
 	];
 }
 
-// The declaration of that key when there is one; the translation that diverges
-// when the scope has no params file to point at.
-function mismatchAt(scope, params, translation, ulid) {
-	if (params.exists) {
-		return { file: params.file, ...entryLineOf(params.current, expectedValue(scope, ulid)) };
-	}
-
-	return { file: translation.file, ...positionOf(translation.text, ulid) };
-}
-
-function comparePairs(base, translation, lang, { scope, params, drifting }) {
+function comparePairs(base, translation, lang, { scope, drifting }) {
 	const findings = [];
 
 	for (const [ulid, value] of Object.entries(translation.data)) {
@@ -232,8 +232,8 @@ function comparePairs(base, translation, lang, { scope, params, drifting }) {
 		}
 
 		for (const message of comparePair(base[ulid], value, ulid)) {
-			const { file, ...at } = mismatchAt(scope, params, translation, ulid);
-			const where = { ...at, lang, column: PARAMS };
+			const where = { ...positionOf(translation.text, ulid), lang, column: PARAMS };
+			const file = translation.file;
 
 			findings.push(finding('param-mismatch', scope.name, file, `${message} in "${lang}"`, where));
 		}
@@ -256,7 +256,7 @@ function checkParams(scope, langs, defaultLang, params) {
 		const translation = scope.translations.get(lang);
 
 		if (translation.data) {
-			findings.push(...comparePairs(base, translation, lang, { scope, params, drifting }));
+			findings.push(...comparePairs(base, translation, lang, { scope, drifting }));
 		}
 	}
 
@@ -268,7 +268,7 @@ function driftFinding(scope, params, { key, removed }) {
 	const message = removed
 		? `${key} is no longer declared`
 		: `${entry?.name ?? key} (${key}) does not match the default language`;
-	const at = { ...entryLineOf(params.current, key), column: PARAMS };
+	const at = { ...FILE_START, ...entryLineOf(params.current, key), column: PARAMS };
 
 	return finding('stale-params', scope.name, params.file, message, at);
 }
@@ -288,8 +288,9 @@ function checkParamsFile(scope, params) {
 
 	if (0 === params.drift.length) {
 		const message = `${paramsName(scope.name)} needs regenerating`;
+		const at = { ...FILE_START, column: PARAMS };
 
-		return [finding('stale-params', scope.name, params.file, message, { column: PARAMS })];
+		return [finding('stale-params', scope.name, params.file, message, at)];
 	}
 
 	return params.drift.map((item) => driftFinding(scope, params, item));
@@ -308,7 +309,7 @@ function barrelFindings(scope, barrel, params) {
 
 	if (params.exists && !barrel.params.has(paramsName(scope.name))) {
 		const message = `${paramsName(scope.name)} is never added to the I18nParams union`;
-		const at = { ...barrel.paramsAt, column: PARAMS };
+		const at = { line: barrel.line, col: barrel.col, ...barrel.paramsAt, column: PARAMS };
 
 		findings.push(finding('unregistered-params', scope.name, barrel.file, message, at));
 	}
@@ -345,7 +346,9 @@ function checkContextKeys(context, scopes) {
 // own to-do list, in the column of the language that still needs the word.
 function checkGlossary({ glossary }, langs, defaultLang) {
 	if (glossary.error) {
-		return [finding('invalid-json', GLOSSARY, glossary.file, glossary.error)];
+		const at = jsonAt(glossary.error);
+
+		return [finding('invalid-json', GLOSSARY, glossary.file, glossary.error, at)];
 	}
 
 	return glossary.terms.flatMap(({ term, translations, line, col }) =>

@@ -35,7 +35,7 @@ function collectEntries(source) {
 	return entries;
 }
 
-function findConstName(source) {
+function findConstDeclaration(source) {
 	for (const statement of source.statements) {
 		if (!ts.isVariableStatement(statement)) {
 			continue;
@@ -44,7 +44,7 @@ function findConstName(source) {
 		const [declaration] = statement.declarationList.declarations;
 
 		if (declaration && ts.isIdentifier(declaration.name)) {
-			return declaration.name.text;
+			return declaration.name;
 		}
 	}
 
@@ -54,8 +54,13 @@ function findConstName(source) {
 function readKeysFile(file) {
 	const content = readFileSync(file, 'utf8');
 	const source = ts.createSourceFile(file, content, ts.ScriptTarget.Latest, true);
+	const constant = findConstDeclaration(source);
 
-	return { constName: findConstName(source), entries: collectEntries(source) };
+	return {
+		constName: constant?.text ?? null,
+		constAt: positionOf(source, constant),
+		entries: collectEntries(source),
+	};
 }
 
 const BARREL_CONST = 'I18n';

@@ -78,6 +78,19 @@ function printHidden(warnings, notes) {
 	console.log(`\n  ${c.dim}${hint}${c.reset}`);
 }
 
+function printListed(listed) {
+	const errors = listed.filter(({ severity }) => 'error' === severity);
+	const rest = listed.filter(({ severity }) => 'error' !== severity);
+
+	if (0 !== rest.length) {
+		printProblems(rest);
+	}
+
+	if (0 !== errors.length) {
+		printProblems(errors);
+	}
+}
+
 function printInfos(infos) {
 	console.log(`\n${c.bold}${c.cyan}━━ Info ━━${c.reset}`);
 	printProblems(infos);
@@ -91,24 +104,21 @@ export function printFindings(findings, { scopes, langs, fix, verbose }) {
 	const problems = toProblems(findings.filter((item) => 'info' !== severityOf(item.type)));
 	const listed = verbose ? problems : problems.filter(({ severity }) => 'error' === severity);
 
+	if (verbose && 0 !== infos.length) {
+		printInfos(infos);
+	}
+
 	if (0 === problems.length) {
 		console.log(`\n  ${c.green}✔ Every key is declared, translated and used.${c.reset}`);
 	} else {
 		console.log(`\n${c.bold}${c.cyan}━━ Problems ━━${c.reset}`);
 
-		if (0 !== listed.length) {
-			printProblems(listed);
-		}
-
+		printListed(listed);
 		printTally(problems);
 
 		if (!fix) {
 			printFixable(findings);
 		}
-	}
-
-	if (verbose && 0 !== infos.length) {
-		printInfos(infos);
 	}
 
 	printHidden(problems.length - listed.length, verbose ? 0 : infos.length);
