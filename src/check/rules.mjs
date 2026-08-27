@@ -104,19 +104,27 @@ function missingAt(scope, entry, source) {
 	return { file: scope.keysFile, line: entry.line, col: entry.col };
 }
 
+const pendingAtSource = (source, ulid) =>
+	Boolean(source?.data) && (!(ulid in source.data) || isBlank(source.data[ulid]));
+
 function checkDeclared(scope, translation, lang, source) {
 	const findings = [];
 
 	for (const entry of scope.keys.entries) {
-		const label = `${entry.name} (${entry.ulid})`;
 		const value = translation.data[entry.ulid];
+
+		if ((undefined !== value && !isBlank(value)) || pendingAtSource(source, entry.ulid)) {
+			continue;
+		}
+
+		const label = `${entry.name} (${entry.ulid})`;
 
 		if (undefined === value) {
 			const at = missingAt(scope, entry, source);
 			const message = `${label} has no "${lang}" entry`;
 
 			findings.push(finding('missing-translation', scope.name, at.file, message, { ...at, lang }));
-		} else if (isBlank(value)) {
+		} else {
 			const at = { ...positionOf(translation.text, entry.ulid), lang };
 
 			findings.push(finding('empty-translation', scope.name, translation.file, label, at));
@@ -215,11 +223,11 @@ function mismatchAt(scope, params, translation, ulid) {
 	return { file: translation.file, ...positionOf(translation.text, ulid) };
 }
 
-function comparePairs(base, translation, lang, { scope, params }) {
+function comparePairs(base, translation, lang, { scope, params, drifting }) {
 	const findings = [];
 
 	for (const [ulid, value] of Object.entries(translation.data)) {
-		if (!(ulid in base) || isBlank(value)) {
+		if (!(ulid in base) || isBlank(value) || drifting.has(expectedValue(scope, ulid))) {
 			continue;
 		}
 
@@ -238,15 +246,17 @@ function checkParams(scope, langs, defaultLang, params) {
 	const base = scope.translations.get(defaultLang)?.data;
 	const findings = [];
 
-	if (!base) {
+	if (!base || (params.required && !params.exists)) {
 		return findings;
 	}
+
+	const drifting = new Set(params.drift.map(({ key }) => key));
 
 	for (const lang of langs.filter((entry) => entry !== defaultLang)) {
 		const translation = scope.translations.get(lang);
 
 		if (translation.data) {
-			findings.push(...comparePairs(base, translation, lang, { scope, params }));
+			findings.push(...comparePairs(base, translation, lang, { scope, params, drifting }));
 		}
 	}
 
@@ -400,8 +410,8 @@ export function buildFindings({ scopes, usages, commented, langs, defaultLang, i
 		findings.push(...checkTranslations(scope, langs, defaultLang));
 		findings.push(...checkFreshness(scope, { langs, defaultLang, i18nDir }));
 		findings.push(...checkUsage(scope, usages, commented));
-		findings.push(...checkParams(scope, langs, defaultLang, params));
 		findings.push(...checkParamsFile(scope, params));
+		findings.push(...checkParams(scope, langs, defaultLang, params));
 	}
 
 	return findings;
