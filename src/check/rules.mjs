@@ -2,7 +2,7 @@ import { readBarrel } from '../catalogue/collect.mjs';
 import { isUlid, toPascalCase } from '../catalogue/config.mjs';
 import { matchesKey, readContext } from '../catalogue/context.mjs';
 import { freshnessOf, readState } from '../catalogue/freshness.mjs';
-import { buildScopeParams, entryLineOf, paramsName } from '../catalogue/params.mjs';
+import { buildScopeParams, entryLineOf, fieldLineOf, paramsName } from '../catalogue/params.mjs';
 
 const PARAM_PATTERN = /\{\{\s*([\w.]+)\s*\}\}/g;
 const PARAMS = 'params';
@@ -211,10 +211,12 @@ function checkUsage(scope, usages, commented) {
 
 const listOf = (names) => `{{ ${names.join(' }}, {{ ')} }}`;
 
-function comparePair(base, value, ulid) {
+// A param the source does not have is this language's own to answer for, even while
+// params.ts lags behind; one it has yet to pick up is only the drift showing through.
+function comparePair(base, value, ulid, drifting) {
 	const expected = paramsOf(base);
 	const actual = paramsOf(value);
-	const dropped = [...expected].filter((name) => !actual.has(name));
+	const dropped = drifting ? [] : [...expected].filter((name) => !actual.has(name));
 	const added = [...actual].filter((name) => !expected.has(name));
 
 	return [
@@ -227,12 +229,14 @@ function comparePairs(base, translation, lang, { scope, drifting }) {
 	const findings = [];
 
 	for (const [ulid, value] of Object.entries(translation.data)) {
-		if (!(ulid in base) || isBlank(value) || drifting.has(expectedValue(scope, ulid))) {
+		if (!(ulid in base) || isBlank(value)) {
 			continue;
 		}
 
-		for (const message of comparePair(base[ulid], value, ulid)) {
-			const where = { ...positionOf(translation.text, ulid), lang, column: PARAMS };
+		const drifts = drifting.has(expectedValue(scope, ulid));
+
+		for (const message of comparePair(base[ulid], value, ulid, drifts)) {
+			const where = { ...positionOf(translation.text, ulid), lang };
 			const file = translation.file;
 
 			findings.push(finding('param-mismatch', scope.name, file, `${message} in "${lang}"`, where));
@@ -263,17 +267,53 @@ function checkParams(scope, langs, defaultLang, params) {
 	return findings;
 }
 
-function driftFinding(scope, params, { key, removed }) {
-	const entry = scope.keys.entries.find((item) => item.value === key);
-	const message = removed
-		? `${key} is no longer declared`
-		: `${entry?.name ?? key} (${key}) does not match the default language`;
-	const at = { ...FILE_START, ...entryLineOf(params.current, key), column: PARAMS };
+// Where the param is written inside the value, so a long sentence does not send
+// the developer hunting for the one interpolation that moved.
+function paramPositionOf(text, ulid, name) {
+	const at = positionOf(text, ulid);
+	const line = String(text ?? '').split('\n')[at.line - 1] ?? '';
+	const found = [...line.matchAll(PARAM_PATTERN)].find(([, param]) => param === name);
 
-	return finding('stale-params', scope.name, params.file, message, at);
+	return found ? { line: at.line, col: found.index + 1 } : at;
 }
 
-function checkParamsFile(scope, params) {
+const declaresFindings = (scope, params, drift, label) =>
+	drift.extra.map((name) => {
+		const message = `${paramsName(scope.name)} declares {{ ${name} }} for ${label}, absent from the default language`;
+		const at = { ...FILE_START, ...fieldLineOf(params.current, drift.key, name), column: PARAMS };
+
+		return finding('stale-params', scope.name, params.file, message, at);
+	});
+
+const usesFindings = (scope, source, drift, entry, label) =>
+	drift.missing.map((name) => {
+		const message = `${label} uses {{ ${name} }}, not declared in ${paramsName(scope.name)}`;
+		const at = { ...paramPositionOf(source.text, entry.ulid, name), column: PARAMS };
+
+		return finding('stale-params', scope.name, source.file, message, at);
+	});
+
+// A key whose params moved is one problem per param, in the file that can answer
+// for it: what the source writes where it is written, what params.ts still
+// declares on the very field that declares it.
+function driftFindings(scope, params, source, drift) {
+	const entry = scope.keys.entries.find((item) => item.value === drift.key);
+	const label = entry ? `${entry.name} (${drift.key})` : drift.key;
+
+	if (drift.removed) {
+		const at = { ...FILE_START, ...entryLineOf(params.current, drift.key), column: PARAMS };
+		const message = `${drift.key} is no longer declared`;
+
+		return [finding('stale-params', scope.name, params.file, message, at)];
+	}
+
+	return [
+		...usesFindings(scope, source, drift, entry, label),
+		...declaresFindings(scope, params, drift, label),
+	];
+}
+
+function checkParamsFile(scope, params, source) {
 	if (!params.exists) {
 		const message = `params.ts not found, ${paramsName(scope.name)} is not generated yet`;
 
@@ -293,7 +333,7 @@ function checkParamsFile(scope, params) {
 		return [finding('stale-params', scope.name, params.file, message, at)];
 	}
 
-	return params.drift.map((item) => driftFinding(scope, params, item));
+	return params.drift.flatMap((item) => driftFindings(scope, params, source, item));
 }
 
 // Only what the barrel itself can be blamed for: a params file that is not there
@@ -413,7 +453,7 @@ export function buildFindings({ scopes, usages, commented, langs, defaultLang, i
 		findings.push(...checkTranslations(scope, langs, defaultLang));
 		findings.push(...checkFreshness(scope, { langs, defaultLang, i18nDir }));
 		findings.push(...checkUsage(scope, usages, commented));
-		findings.push(...checkParamsFile(scope, params));
+		findings.push(...checkParamsFile(scope, params, scope.translations.get(defaultLang)));
 		findings.push(...checkParams(scope, langs, defaultLang, params));
 	}
 

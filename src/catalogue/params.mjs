@@ -42,6 +42,21 @@ export function entryLineOf(text, key) {
 	return -1 === line ? {} : { line: line + 1, col: 2 };
 }
 
+// The offending field itself, not the heading it hangs from: an entry can carry
+// enough params that its first line says nothing about which one is wrong.
+export function fieldLineOf(text, key, name) {
+	const at = entryLineOf(text, key);
+	const lines = String(text ?? '').split('\n');
+
+	for (let index = at.line ?? lines.length; FIELD_LINE.test(lines[index] ?? ''); index += 1) {
+		if (FIELD_LINE.exec(lines[index])[1] === name) {
+			return { line: index + 1, col: 3 };
+		}
+	}
+
+	return at;
+}
+
 function namesOf(text) {
 	return [...new Set([...String(text).matchAll(PARAM_PATTERN)].map(([, name]) => name))];
 }
@@ -80,6 +95,17 @@ const changed = (names, current) =>
 	names.length !== current.size ||
 	names.some((name) => !current.has(name));
 
+// Which side each key disagrees on: what the source writes and params.ts has not
+// learnt yet, and what params.ts still declares after the source dropped it.
+function driftSides(names, current) {
+	const fields = current ?? new Map();
+
+	return {
+		missing: names.filter((name) => !fields.has(name)),
+		extra: [...fields.keys()].filter((name) => !names.includes(name)),
+	};
+}
+
 // Which keys the generated file disagrees on, so the report can point at each
 // one instead of at the file as a whole.
 function driftOf(entries, declared, text) {
@@ -88,10 +114,19 @@ function driftOf(entries, declared, text) {
 	return [
 		...entries
 			.filter(({ key, names }) => changed(names, declared.get(key)))
-			.map(({ key }) => ({ key, removed: false })),
+			.map(({ key, names }) => ({
+				key,
+				removed: false,
+				...driftSides(names, declared.get(key)),
+			})),
 		...[...declared.keys()]
 			.filter((key) => !expected.has(key))
-			.map((key) => ({ key, removed: true, ...entryLineOf(text, key) })),
+			.map((key) => ({
+				key,
+				removed: true,
+				...driftSides([], declared.get(key)),
+				...entryLineOf(text, key),
+			})),
 	];
 }
 
