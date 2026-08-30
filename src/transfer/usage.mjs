@@ -4,7 +4,7 @@ const EXPORT_LINES = [
 	`${c.bold}Usage:${c.reset} pnpm i18n:export [options]`,
 	'',
 	'Writes one bilingual XLIFF 2.0 file per target language into translations/,',
-	'carrying the ULID as the unit id, the context notes and each {{ param }} as an',
+	'carrying the ULID as the unit id, the context notes and each {param} as an',
 	'<originalData>/<ph> pair.',
 	'',
 	`${c.bold}Options:${c.reset}`,

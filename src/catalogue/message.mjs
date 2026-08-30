@@ -1,40 +1,5 @@
 import { parse as parseIcu } from '@messageformat/parser';
 
-const PARAM_PATTERN = /\{\{\s*([\w.]+)\s*\}\}/g;
-
-export const paramTag = (name) => `{{ ${name} }}`;
-
-export function paramsIn(text) {
-	return [...String(text ?? '').matchAll(PARAM_PATTERN)].map((match) => ({
-		name: match[1],
-		text: match[0],
-		index: match.index,
-		length: match[0].length,
-	}));
-}
-
-export const paramNamesOf = (text) => [...new Set(paramsIn(text).map(({ name }) => name))];
-
-export function paramDiff(base, value) {
-	const expected = paramNamesOf(base);
-	const actual = paramNamesOf(value);
-
-	return {
-		dropped: expected.filter((name) => !actual.includes(name)),
-		added: actual.filter((name) => !expected.includes(name)),
-	};
-}
-
-export function sameParams(base, value) {
-	const { dropped, added } = paramDiff(base, value);
-
-	return 0 === dropped.length && 0 === added.length;
-}
-
-// The five functions above read `{{ param }}`, the Transloco-era syntax still on disk. Everything
-// below reads ICU instead, ahead of the codemod that switches the catalogue over. Both surfaces
-// stay until each caller migrates in its own phase (see ideas/i18n/ICU en el catálogo i18n.md).
-
 const CATEGORY_ORDER = ['zero', 'one', 'two', 'few', 'many', 'other'];
 const BRANCHING_TYPES = new Set(['plural', 'select', 'selectordinal']);
 const POSITION_PATTERN = /at line (\d+) col (\d+):/;
@@ -111,6 +76,71 @@ export function paramsOf(text) {
 	collectParams(parse(text), params);
 
 	return params;
+}
+
+export const paramTag = (name) => `{${name}}`;
+
+function collectPlaces(tokens, places) {
+	for (const token of tokens) {
+		if ('argument' === token.type) {
+			places.push({
+				name: token.arg,
+				text: token.ctx.text,
+				index: token.ctx.offset,
+				length: token.ctx.text.length,
+			});
+		} else if (BRANCHING_TYPES.has(token.type)) {
+			for (const kase of token.cases) {
+				collectPlaces(kase.tokens, places);
+			}
+		}
+	}
+
+	return places;
+}
+
+function tokensOrNone(text) {
+	try {
+		return parse(text);
+	} catch {
+		return null;
+	}
+}
+
+export function paramsIn(text) {
+	const tokens = tokensOrNone(text);
+
+	return null === tokens ? [] : collectPlaces(tokens, []);
+}
+
+export function paramNamesOf(text) {
+	const tokens = tokensOrNone(text);
+
+	if (null === tokens) {
+		return [];
+	}
+
+	const params = new Map();
+
+	collectParams(tokens, params);
+
+	return [...params.keys()];
+}
+
+export function paramDiff(base, value) {
+	const expected = paramNamesOf(base);
+	const actual = paramNamesOf(value);
+
+	return {
+		dropped: expected.filter((name) => !actual.includes(name)),
+		added: actual.filter((name) => !expected.includes(name)),
+	};
+}
+
+export function sameParams(base, value) {
+	const { dropped, added } = paramDiff(base, value);
+
+	return 0 === dropped.length && 0 === added.length;
 }
 
 function leavesOfTokens(tokens) {
