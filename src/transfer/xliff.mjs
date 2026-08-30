@@ -1,7 +1,8 @@
+import { paramsIn } from '../catalogue/message.mjs';
+
 import { childrenNamed, encodeXml, findAll, firstNamed, parseXml } from './xml.mjs';
 
 const NAMESPACE = 'urn:oasis:names:tc:xliff:document:2.0';
-const PARAM_PATTERN = /\{\{\s*([\w.]+)\s*\}\}/g;
 const STATES = new Set(['initial', 'translated', 'reviewed', 'final']);
 
 const indent = (depth) => '\t'.repeat(depth);
@@ -12,9 +13,9 @@ function dataOf(texts) {
 	const data = new Map();
 
 	for (const text of texts) {
-		for (const [match, name] of String(text ?? '').matchAll(PARAM_PATTERN)) {
-			if (!data.has(name)) {
-				data.set(name, { id: `d${data.size + 1}`, text: match });
+		for (const param of paramsIn(text)) {
+			if (!data.has(param.name)) {
+				data.set(param.name, { id: `d${data.size + 1}`, text: param.text });
 			}
 		}
 	}
@@ -27,11 +28,11 @@ function inlineOf(text, data, prefix) {
 	let last = 0;
 	let count = 0;
 
-	for (const match of String(text).matchAll(PARAM_PATTERN)) {
-		parts.push(encodeXml(text.slice(last, match.index)));
+	for (const param of paramsIn(text)) {
+		parts.push(encodeXml(text.slice(last, param.index)));
 		count += 1;
-		parts.push(`<ph id="${prefix}${count}" dataRef="${data.get(match[1]).id}"/>`);
-		last = match.index + match[0].length;
+		parts.push(`<ph id="${prefix}${count}" dataRef="${data.get(param.name).id}"/>`);
+		last = param.index + param.length;
 	}
 
 	parts.push(encodeXml(text.slice(last)));

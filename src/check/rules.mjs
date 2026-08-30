@@ -2,9 +2,9 @@ import { readBarrel } from '../catalogue/collect.mjs';
 import { isUlid, toPascalCase } from '../catalogue/config.mjs';
 import { matchesKey, readContext } from '../catalogue/context.mjs';
 import { freshnessOf, readState } from '../catalogue/freshness.mjs';
+import { paramDiff, paramTag, paramsIn } from '../catalogue/message.mjs';
 import { buildScopeParams, entryLineOf, fieldLineOf, paramsName } from '../catalogue/params.mjs';
 
-const PARAM_PATTERN = /\{\{\s*([\w.]+)\s*\}\}/g;
 const PARAMS = 'params';
 const FILE_START = { line: 1, col: 1 };
 
@@ -18,8 +18,6 @@ const finding = (type, scope, file, message, where = {}) => ({
 	lang: where.lang ?? null,
 	column: where.column ?? null,
 });
-
-const paramsOf = (value) => new Set([...String(value).matchAll(PARAM_PATTERN)].map(([, n]) => n));
 
 const isBlank = (value) => '' === String(value).trim();
 
@@ -209,18 +207,16 @@ function checkUsage(scope, usages, commented) {
 		});
 }
 
-const listOf = (names) => `{{ ${names.join(' }}, {{ ')} }}`;
+const listOf = (names) => names.map(paramTag).join(', ');
 
 // A param the source does not have is this language's own to answer for, even while
 // params.ts lags behind; one it has yet to pick up is only the drift showing through.
 function comparePair(base, value, ulid, drifting) {
-	const expected = paramsOf(base);
-	const actual = paramsOf(value);
-	const dropped = drifting ? [] : [...expected].filter((name) => !actual.has(name));
-	const added = [...actual].filter((name) => !expected.has(name));
+	const { dropped, added } = paramDiff(base, value);
+	const drops = drifting ? [] : dropped;
 
 	return [
-		...(dropped.length ? [`${ulid} drops ${listOf(dropped)}`] : []),
+		...(drops.length ? [`${ulid} drops ${listOf(drops)}`] : []),
 		...(added.length ? [`${ulid} adds ${listOf(added)}`] : []),
 	];
 }
@@ -272,14 +268,14 @@ function checkParams(scope, langs, defaultLang, params) {
 function paramPositionOf(text, ulid, name) {
 	const at = positionOf(text, ulid);
 	const line = String(text ?? '').split('\n')[at.line - 1] ?? '';
-	const found = [...line.matchAll(PARAM_PATTERN)].find(([, param]) => param === name);
+	const found = paramsIn(line).find((param) => param.name === name);
 
 	return found ? { line: at.line, col: found.index + 1 } : at;
 }
 
 const declaresFindings = (scope, params, drift, label) =>
 	drift.extra.map((name) => {
-		const message = `${paramsName(scope.name)} declares {{ ${name} }} for ${label}, absent from the default language`;
+		const message = `${paramsName(scope.name)} declares ${paramTag(name)} for ${label}, absent from the default language`;
 		const at = { ...FILE_START, ...fieldLineOf(params.current, drift.key, name), column: PARAMS };
 
 		return finding('stale-params', scope.name, params.file, message, at);
@@ -287,7 +283,7 @@ const declaresFindings = (scope, params, drift, label) =>
 
 const usesFindings = (scope, source, drift, entry, label) =>
 	drift.missing.map((name) => {
-		const message = `${label} uses {{ ${name} }}, not declared in ${paramsName(scope.name)}`;
+		const message = `${label} uses ${paramTag(name)}, not declared in ${paramsName(scope.name)}`;
 		const at = { ...paramPositionOf(source.text, entry.ulid, name), column: PARAMS };
 
 		return finding('stale-params', scope.name, source.file, message, at);

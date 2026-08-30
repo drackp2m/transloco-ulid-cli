@@ -2,8 +2,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { toPascalCase } from './config.mjs';
+import { paramNamesOf } from './message.mjs';
 
-const PARAM_PATTERN = /\{\{\s*([\w.]+)\s*\}\}/g;
 const ENTRY_LINE = /^\t'([^']+)': \{$/;
 const FIELD_LINE = /^\t\t(\w+): (.+);$/;
 
@@ -57,16 +57,12 @@ export function fieldLineOf(text, key, name) {
 	return at;
 }
 
-function namesOf(text) {
-	return [...new Set([...String(text).matchAll(PARAM_PATTERN)].map(([, name]) => name))];
-}
-
 function collectEntries(scope, defaultLang) {
 	const data = scope.translations.get(defaultLang)?.data ?? {};
 	const entries = [];
 
 	for (const entry of scope.keys.entries) {
-		const names = namesOf(data[entry.ulid] ?? '');
+		const names = paramNamesOf(data[entry.ulid] ?? '');
 
 		if (names.length) {
 			entries.push({ key: entry.value, names });

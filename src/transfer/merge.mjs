@@ -2,21 +2,15 @@ import { readFileSync, writeFileSync } from 'node:fs';
 
 import { isUlid } from '../catalogue/config.mjs';
 import { hashOf, readState, sealed, writeState } from '../catalogue/freshness.mjs';
+import { sameParams } from '../catalogue/message.mjs';
 
 import { noteOf } from './xliff.mjs';
 
 const KEYS_END = '} as const;';
 const KEY_NAME = /^[A-Z][A-Z0-9_]*$/;
-const PARAM_PATTERN = /\{\{\s*([\w.]+)\s*\}\}/g;
 const NAME_MAX_LENGTH = 40;
 
 export const unitRef = (scope, ulid) => `${scope}:${ulid}`;
-
-const paramsOf = (text) =>
-	new Set([...String(text).matchAll(PARAM_PATTERN)].map(([, name]) => name));
-
-const sameParams = (left, right) =>
-	left.size === right.size && [...left].every((name) => right.has(name));
 
 const problem = (file, message) => ({ file, message });
 
@@ -72,8 +66,7 @@ function sealingOf(unit, ulid, entry, context) {
 
 function updateOf(unit, ulid, entry, context) {
 	const { scope, lang, current, source } = context;
-	const expected = paramsOf(source[ulid] ?? unit.source);
-	const problems = sameParams(expected, paramsOf(unit.target))
+	const problems = sameParams(source[ulid] ?? unit.source, unit.target)
 		? []
 		: [problem(unit.id, `placeholders differ from ${scope.defaultLang}`)];
 	const from = current[ulid] ?? '';

@@ -4,6 +4,7 @@ import path from 'node:path';
 import { isUlid } from '../catalogue/config.mjs';
 import { readContext, termsIn } from '../catalogue/context.mjs';
 import { hashOf, readStates, statusOf } from '../catalogue/freshness.mjs';
+import { paramTag } from '../catalogue/message.mjs';
 import { paramsFile, readDeclaredParams } from '../catalogue/params.mjs';
 
 import { buildXliff } from './xliff.mjs';
@@ -51,7 +52,7 @@ const paramNote = (declared, key) => {
 		return [];
 	}
 
-	const text = [...fields].map(([name, type]) => `{{ ${name} }}: ${type}`).join(', ');
+	const text = [...fields].map(([name, type]) => `${paramTag(name)}: ${type}`).join(', ');
 
 	return [{ category: 'param', text }];
 };
