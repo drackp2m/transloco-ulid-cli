@@ -15,9 +15,9 @@ const LANGUAGE_FILE = path.join(
 
 export function readLanguages(file) {
 	const source = readFileSync(file, 'utf8');
-	const list = /LANGUAGES[^=]*=\s*\[([^\]]*)\]/.exec(source)?.[1] ?? '';
+	const list = /const LANGUAGES[^=]*=\s*\[([^\]]*)\]/.exec(source)?.[1] ?? '';
 	const langs = [...list.matchAll(/'([^']+)'/g)].map(([, lang]) => lang);
-	const defaultLang = /DEFAULT_LANGUAGE[^=]*=\s*'([^']+)'/.exec(source)?.[1];
+	const defaultLang = /const DEFAULT_LANGUAGE[^=]*=\s*'([^']+)'/.exec(source)?.[1];
 
 	if (!langs.length || undefined === defaultLang) {
 		throw new Error(`Could not read LANGUAGES / DEFAULT_LANGUAGE from ${file}`);
