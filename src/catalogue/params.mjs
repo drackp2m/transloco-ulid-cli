@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { toPascalCase } from './config.mjs';
+import { AMBIENT_PARAMS, toPascalCase } from './config.mjs';
 import { paramNamesOf } from './message.mjs';
 
 const ENTRY_LINE = /^\t'([^']+)': \{$/;
@@ -62,7 +62,8 @@ function collectEntries(scope, defaultLang) {
 	const entries = [];
 
 	for (const entry of scope.keys.entries) {
-		const names = paramNamesOf(data[entry.ulid] ?? '');
+		const written = paramNamesOf(data[entry.ulid] ?? '');
+		const names = written.filter((name) => !AMBIENT_PARAMS.has(name));
 
 		if (names.length) {
 			entries.push({ key: entry.value, names });

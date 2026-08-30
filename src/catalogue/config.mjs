@@ -34,6 +34,8 @@ export const DEFAULTS = {
 	rootScope: 'common',
 };
 
+export const AMBIENT_PARAMS = new Set(['gender']);
+
 // Directories under i18n/ that are not scopes: the hand-written context that
 // feeds the translator, and the generated freshness state.
 export const RESERVED_DIRS = new Set(['context', 'state']);
