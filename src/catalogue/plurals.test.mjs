@@ -1,7 +1,7 @@
 import { deepStrictEqual, ok, strictEqual } from 'node:assert/strict';
 import { describe, test } from 'node:test';
 
-import { cardinalCategoriesOf, requiredCategoriesOf } from './plurals.mjs';
+import { cardinalCategoriesOf, pluralExamplesOf, requiredCategoriesOf } from './plurals.mjs';
 
 const selectedBelow = (lang, limit) => {
 	const rules = new Intl.PluralRules(lang);
@@ -60,5 +60,28 @@ describe('the countable limit', () => {
 		strictEqual(new Intl.PluralRules('es-ES').select(1_000_000), 'many');
 		ok(cardinalCategoriesOf('es-ES').includes('many'));
 		ok(!requiredCategoriesOf('es-ES').includes('many'));
+	});
+});
+
+describe('pluralExamplesOf', () => {
+	test('gives the numbers a translator needs to picture the category', () => {
+		deepStrictEqual(pluralExamplesOf('ru-RU', 'few').integers, [2, 3, 4, 22, 23]);
+		deepStrictEqual(pluralExamplesOf('en-GB', 'one').integers, [1]);
+	});
+
+	test('says whether the list it hands back is cut short', () => {
+		strictEqual(pluralExamplesOf('en-GB', 'one').more, false);
+		strictEqual(pluralExamplesOf('en-GB', 'other').more, true);
+	});
+
+	test('finds the decimals of a category no integer selects', () => {
+		const found = pluralExamplesOf('ru-RU', 'other');
+
+		deepStrictEqual(found.integers, []);
+		deepStrictEqual(found.decimals, [0.5, 1.5, 2.5]);
+	});
+
+	test('answers nothing for a tag CLDR does not know', () => {
+		strictEqual(pluralExamplesOf('zz-ZZ', 'other'), null);
 	});
 });

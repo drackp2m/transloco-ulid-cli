@@ -54,3 +54,35 @@ function tableOf(lang) {
 export const cardinalCategoriesOf = (lang) => tableOf(lang)?.cardinal ?? null;
 
 export const requiredCategoriesOf = (lang) => tableOf(lang)?.required ?? null;
+
+const EXAMPLE_LIMIT = 5;
+
+const DECIMAL_PROBES = [0.5, 1.5, 2.5];
+
+function integerExamples(rules, category) {
+	const found = [];
+
+	for (let count = 0; count <= COUNTABLE_LIMIT && found.length <= EXAMPLE_LIMIT; count += 1) {
+		if (category === rules.select(count)) {
+			found.push(count);
+		}
+	}
+
+	return found;
+}
+
+export function pluralExamplesOf(lang, category) {
+	const rules = rulesOf(lang);
+
+	if (null === rules) {
+		return null;
+	}
+
+	const found = integerExamples(rules, category);
+
+	return {
+		integers: found.slice(0, EXAMPLE_LIMIT),
+		more: found.length > EXAMPLE_LIMIT,
+		decimals: DECIMAL_PROBES.filter((value) => category === rules.select(value)),
+	};
+}

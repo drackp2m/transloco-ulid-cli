@@ -8,6 +8,7 @@ import { noteOf } from './xliff.mjs';
 
 const KEYS_END = '} as const;';
 const KEY_NAME = /^[A-Z][A-Z0-9_]*$/;
+const FORM_MARK = '#';
 const NAME_MAX_LENGTH = 40;
 
 export const unitRef = (scope, ulid) => `${scope}:${ulid}`;
@@ -77,11 +78,23 @@ function updateOf(unit, ulid, entry, context) {
 	};
 }
 
+function idPartsOf(id) {
+	const [head, ...forms] = String(id).split(FORM_MARK);
+
+	return { ulid: head.split('.').pop(), forms };
+}
+
 function unitOutcome(unit, context) {
-	const ulid = String(unit.id).split('.').pop();
+	const { ulid, forms } = idPartsOf(unit.id);
 
 	if (!isUlid(ulid)) {
 		return { kind: 'problem', problem: problem(unit.id, 'id is not a ULID') };
+	}
+
+	if (0 !== forms.length) {
+		const form = forms.join(FORM_MARK);
+
+		return { kind: 'problem', problem: problem(unit.id, `${form} is a form and not a key`) };
 	}
 
 	const entry = context.scope.keys?.entries.find((item) => item.ulid === ulid);

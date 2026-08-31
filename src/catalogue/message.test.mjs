@@ -9,6 +9,7 @@ import {
 	paramTypesOf,
 	paramsOf,
 	parse,
+	placeholdersIn,
 	signatureDiff,
 	spotsIn,
 } from './message.mjs';
@@ -395,5 +396,36 @@ describe('paramTypesOf', () => {
 
 	test('says nothing about a string that does not parse', () => {
 		deepStrictEqual([...paramTypesOf('Hola {name')], []);
+	});
+});
+
+describe('placeholdersIn', () => {
+	test('finds the interpolations, as paramsIn always did', () => {
+		deepStrictEqual(
+			placeholdersIn('Hola {name}, van {count}').map(({ name }) => name),
+			['name', 'count'],
+		);
+	});
+
+	test('leaves the octothorpe alone unless it is asked for', () => {
+		deepStrictEqual(placeholdersIn('# ejercicios de {total}'), [
+			{ name: 'total', type: 'plain', key: null, text: '{total}', index: 16, length: 7 },
+		]);
+	});
+
+	test('reads the octothorpe of a plural branch as one more placeholder', () => {
+		const found = placeholdersIn('# ejercicios de {total}', { hash: true });
+
+		deepStrictEqual(
+			found.map(({ name, index }) => [name, index]),
+			[
+				['#', 0],
+				['total', 16],
+			],
+		);
+	});
+
+	test('does not take an escaped octothorpe for the number', () => {
+		deepStrictEqual(placeholdersIn("la almohadilla '#' literal", { hash: true }), []);
 	});
 });

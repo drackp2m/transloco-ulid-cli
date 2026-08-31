@@ -1,4 +1,4 @@
-import { paramsIn } from '../catalogue/message.mjs';
+import { placeholdersIn } from '../catalogue/message.mjs';
 
 import { childrenNamed, encodeXml, findAll, firstNamed, parseXml } from './xml.mjs';
 
@@ -9,11 +9,11 @@ const indent = (depth) => '\t'.repeat(depth);
 
 // One <data> per distinct interpolation, referenced from both sides: the translator sees an
 // atomic chip instead of typo-able text, and the import resolves it back exactly.
-function dataOf(texts) {
+function dataOf(texts, hash) {
 	const data = new Map();
 
 	for (const text of texts) {
-		for (const param of paramsIn(text)) {
+		for (const param of placeholdersIn(text, { hash })) {
 			if (!data.has(param.name)) {
 				data.set(param.name, { id: `d${data.size + 1}`, text: param.text });
 			}
@@ -23,12 +23,12 @@ function dataOf(texts) {
 	return data;
 }
 
-function inlineOf(text, data, prefix) {
+function inlineOf(text, data, prefix, hash) {
 	const parts = [];
 	let last = 0;
 	let count = 0;
 
-	for (const param of paramsIn(text)) {
+	for (const param of placeholdersIn(text, { hash })) {
 		parts.push(encodeXml(text.slice(last, param.index)));
 		count += 1;
 		parts.push(`<ph id="${prefix}${count}" dataRef="${data.get(param.name).id}"/>`);
@@ -71,7 +71,8 @@ const subStateOf = (unit) =>
 		: ` subState="${encodeXml(unit.subState)}"`;
 
 function unitOf(unit, depth) {
-	const data = dataOf([unit.source, unit.target]);
+	const hash = true === unit.hash;
+	const data = dataOf([unit.source, unit.target], hash);
 	const state = '' === String(unit.target ?? '').trim() ? 'initial' : (unit.state ?? 'translated');
 
 	return [
@@ -79,8 +80,8 @@ function unitOf(unit, depth) {
 		...notesOf(unit.notes ?? [], depth + 1),
 		...originalDataOf(data, depth + 1),
 		`${indent(depth + 1)}<segment state="${state}"${subStateOf(unit)}>`,
-		`${indent(depth + 2)}<source>${inlineOf(unit.source ?? '', data, 's')}</source>`,
-		`${indent(depth + 2)}<target>${inlineOf(unit.target ?? '', data, 't')}</target>`,
+		`${indent(depth + 2)}<source>${inlineOf(unit.source ?? '', data, 's', hash)}</source>`,
+		`${indent(depth + 2)}<target>${inlineOf(unit.target ?? '', data, 't', hash)}</target>`,
 		`${indent(depth + 1)}</segment>`,
 		`${indent(depth)}</unit>`,
 	];

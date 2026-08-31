@@ -133,6 +133,31 @@ export function spotsIn(text) {
 
 export const paramsIn = (text) => spotsIn(text).filter(({ type }) => 'plain' === type);
 
+export const HASH_TAG = '#';
+
+const HASH_LEAD = '{n, plural, other {';
+
+function hashSpots(text) {
+	const tokens = tokensOrNone(`${HASH_LEAD}${text}}}`);
+
+	return (tokens?.[0]?.cases?.[0]?.tokens ?? [])
+		.filter((token) => 'octothorpe' === token.type)
+		.map((token) => ({
+			name: HASH_TAG,
+			type: 'hash',
+			key: null,
+			text: HASH_TAG,
+			index: token.ctx.offset - HASH_LEAD.length,
+			length: HASH_TAG.length,
+		}));
+}
+
+export function placeholdersIn(text, { hash = false } = {}) {
+	const spots = hash ? [...paramsIn(text), ...hashSpots(text)] : paramsIn(text);
+
+	return spots.sort((left, right) => left.index - right.index);
+}
+
 function signaturesOf(text) {
 	const tokens = tokensOrNone(text);
 
