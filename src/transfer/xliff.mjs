@@ -5,6 +5,10 @@ import { childrenNamed, encodeXml, findAll, firstNamed, parseXml } from './xml.m
 const NAMESPACE = 'urn:oasis:names:tc:xliff:document:2.0';
 const STATES = new Set(['initial', 'translated', 'reviewed', 'final']);
 
+// What a stale unit travels out with, and what it still carries when it comes back with
+// nobody having looked at it. Both sides of the trip read it, so it lives here.
+export const OUTDATED_SUB_STATE = 'chesspecker:outdated';
+
 const indent = (depth) => '\t'.repeat(depth);
 
 // One <data> per distinct interpolation, referenced from both sides: the translator sees an

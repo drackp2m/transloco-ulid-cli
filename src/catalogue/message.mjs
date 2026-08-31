@@ -1,6 +1,6 @@
 import { parse as parseIcu } from '@messageformat/parser';
 
-const CATEGORY_ORDER = ['zero', 'one', 'two', 'few', 'many', 'other'];
+export const CATEGORY_ORDER = ['zero', 'one', 'two', 'few', 'many', 'other'];
 const BRANCHING_TYPES = new Set(['plural', 'select', 'selectordinal']);
 const POSITION_PATTERN = /at line (\d+) col (\d+):/;
 
@@ -276,35 +276,31 @@ function leavesOfTokens(tokens) {
 
 export const leavesOf = (text) => leavesOfTokens(parse(text));
 
-function compareCategories(a, b) {
-	if (a === b) {
-		return 0;
-	}
+// `other` closes the list, whatever the order says, and what the order does not name goes
+// after what it does, alphabetically among themselves.
+function compareIn(order) {
+	return (a, b) => {
+		if (a === b) {
+			return 0;
+		}
 
-	if ('other' === a) {
-		return 1;
-	}
+		if ('other' === a || 'other' === b) {
+			return 'other' === a ? 1 : -1;
+		}
 
-	if ('other' === b) {
-		return -1;
-	}
+		const ai = order.indexOf(a);
+		const bi = order.indexOf(b);
 
-	const ai = CATEGORY_ORDER.indexOf(a);
-	const bi = CATEGORY_ORDER.indexOf(b);
+		if (-1 !== ai && -1 !== bi) {
+			return ai - bi;
+		}
 
-	if (-1 !== ai && -1 !== bi) {
-		return ai - bi;
-	}
+		if (-1 !== ai || -1 !== bi) {
+			return -1 !== ai ? -1 : 1;
+		}
 
-	if (-1 !== ai) {
-		return -1;
-	}
-
-	if (-1 !== bi) {
-		return 1;
-	}
-
-	return a < b ? -1 : 1;
+		return a < b ? -1 : 1;
+	};
 }
 
 function groupByLevel(leaves, level, prefix) {
@@ -341,7 +337,7 @@ function renderShape(leaves, shape, level) {
 		return leaves[0].text;
 	}
 
-	const { type, arg } = shape[level];
+	const { type, arg, order } = shape[level];
 	const groups = groupByLevel(leaves, level, `${type}:`);
 
 	if (!groups.has('other')) {
@@ -349,7 +345,7 @@ function renderShape(leaves, shape, level) {
 	}
 
 	const branches = [...groups.keys()]
-		.sort(compareCategories)
+		.sort(compareIn(order ?? CATEGORY_ORDER))
 		.map((key) => `${key} {${renderShape(groups.get(key), shape, level + 1)}}`)
 		.join(' ');
 

@@ -159,7 +159,7 @@ describe('foldGroup over a plural', () => {
 
 		strictEqual(
 			fold(group, source, 'en-GB').target,
-			'{count, plural, one {# exercise} =0 {Nothing here} other {# exercises}}',
+			'{count, plural, =0 {Nothing here} one {# exercise} other {# exercises}}',
 		);
 	});
 });
@@ -272,7 +272,7 @@ describe('foldGroup over a select', () => {
 
 		strictEqual(
 			fold(group, GENDER, 'ru-RU').target,
-			'{gender, select, female {Добро пожаловать} male {Добро пожаловать} ' +
+			'{gender, select, male {Добро пожаловать} female {Добро пожаловать} ' +
 				'other {Рады видеть}}',
 		);
 	});

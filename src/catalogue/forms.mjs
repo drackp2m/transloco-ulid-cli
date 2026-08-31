@@ -1,5 +1,5 @@
 import { GENDER_ARG, genderCategoriesOf } from './genders.mjs';
-import { paramsOf } from './message.mjs';
+import { CATEGORY_ORDER, paramsOf } from './message.mjs';
 import { requiredCategoriesOf } from './plurals.mjs';
 
 const EXACT_CASE = /^=\d+$/;
@@ -141,9 +141,19 @@ export function alignsWith(text, dimensions) {
 	return levelledTypes(found).every((entry, index) => entry === wanted[index]);
 }
 
+// A plural is written in CLDR's order, because the target asks for categories the source
+// never declared; a select has no order but the one the source gives it, so recomposing
+// alphabetically would leave every translated file shaped unlike the Spanish it came from.
+const orderOf = ({ type, cases }) =>
+	PLURAL === type ? [...cases.filter(isExactCase), ...CATEGORY_ORDER] : cases;
+
 // `buildFrom` nests its shape in path order, which is the source's and not the fan-out's:
 // recomposing from the display order would write the branches inside out.
 export const shapeOf = (dimensions) =>
 	[...dimensions]
 		.sort((left, right) => left.level - right.level)
-		.map(({ type, arg }) => ({ type, arg }));
+		.map((dimension) => ({
+			type: dimension.type,
+			arg: dimension.arg,
+			order: orderOf(dimension),
+		}));

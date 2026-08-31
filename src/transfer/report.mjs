@@ -131,7 +131,7 @@ export function printOutdated(outdated, limit, verbose) {
 		return;
 	}
 
-	const message = `${plural(outdated.length, 'unit')} came back translated from an older source`;
+	const message = `${plural(outdated.length, 'key')} came back without a fresh translation`;
 
 	console.log(`\n  ${c.yellow}⚠ ${message} — left outdated${c.reset}`);
 

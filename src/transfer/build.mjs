@@ -8,11 +8,9 @@ import { paramTag } from '../catalogue/message.mjs';
 import { paramsFile, readDeclaredParams } from '../catalogue/params.mjs';
 
 import { formsOf } from './fanout.mjs';
-import { buildXliff } from './xliff.mjs';
+import { OUTDATED_SUB_STATE, buildXliff } from './xliff.mjs';
 
 export const DEFAULT_OUT_DIR = 'translations';
-
-export const OUTDATED_SUB_STATE = 'chesspecker:outdated';
 
 const OUTDATED_NOTE =
 	'the source changed after this was translated — the target below is the old translation';

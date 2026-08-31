@@ -162,8 +162,8 @@ describe('suffixOf and labelOf', () => {
 describe('shapeOf', () => {
 	test('hands buildFrom the source nesting and not the order the fan-out shows', () => {
 		deepStrictEqual(shapeOf(dimensionsOf(CROSS)), [
-			{ type: 'plural', arg: 'count' },
-			{ type: 'select', arg: 'gender' },
+			{ type: 'plural', arg: 'count', order: ['zero', 'one', 'two', 'few', 'many', 'other'] },
+			{ type: 'select', arg: 'gender', order: ['male', 'female', 'other'] },
 		]);
 	});
 
@@ -173,18 +173,20 @@ describe('shapeOf', () => {
 		strictEqual(buildFrom(leavesOf(PLURAL), shapeOf(dimensionsOf(PLURAL))), PLURAL);
 	});
 
-	// `buildFrom` sorts the branches it writes, and a gender value is not a CLDR category,
-	// so it comes back alphabetised. The catalogue keeps whatever the source wrote and the
-	// import writes this: what has to hold is that it says the same and does not drift
-	// again on the next pass.
-	test('rebuilds a select in canonical order, and stays there', () => {
+	// A gender value is not a CLDR category, so there is no canonical order to fall back on
+	// but the source's own. Rebuilding alphabetically left every translated file shaped
+	// unlike the Spanish it came from, which is what the full round trip showed.
+	test('rebuilds a select in the order the source declares, and stays there', () => {
 		const rebuilt = buildFrom(leavesOf(GENDER), shapeOf(dimensionsOf(GENDER)));
 
-		strictEqual(
-			rebuilt,
-			'{gender, select, female {Bienvenida} male {Bienvenido} other {Te damos la bienvenida}}',
-		);
+		strictEqual(rebuilt, GENDER);
 		strictEqual(buildFrom(leavesOf(rebuilt), shapeOf(dimensionsOf(rebuilt))), rebuilt);
+	});
+
+	test('writes an exact case ahead of the categories, where the source has it', () => {
+		const source = '{count, plural, =0 {Nada que hacer} one {# ejercicio} other {# ejercicios}}';
+
+		strictEqual(buildFrom(leavesOf(source), shapeOf(dimensionsOf(source))), source);
 	});
 
 	test('carries every leaf of a crossed string through the round trip', () => {

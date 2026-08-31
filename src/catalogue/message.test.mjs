@@ -191,6 +191,30 @@ describe('buildFrom ordering', () => {
 		);
 	});
 
+	test('writes a select in the order the shape declares, not alphabetically', () => {
+		const leaves = [
+			{ path: ['select:female'], text: 'Bienvenida' },
+			{ path: ['select:male'], text: 'Bienvenido' },
+			{ path: ['select:other'], text: 'Te damos la bienvenida' },
+		];
+		const shape = [{ type: 'select', arg: 'gender', order: ['male', 'female', 'other'] }];
+
+		strictEqual(
+			buildFrom(leaves, shape),
+			'{gender, select, male {Bienvenido} female {Bienvenida} other {Te damos la bienvenida}}',
+		);
+	});
+
+	test('keeps "other" last even when the order puts it first', () => {
+		const leaves = [
+			{ path: ['select:other'], text: 'Sin datos' },
+			{ path: ['select:ok'], text: 'Listo' },
+		];
+		const shape = [{ type: 'select', arg: 'status', order: ['other', 'ok'] }];
+
+		strictEqual(buildFrom(leaves, shape), '{status, select, ok {Listo} other {Sin datos}}');
+	});
+
 	test('builds a four-form plural for a language the origin does not have', () => {
 		const leaves = [
 			{ path: ['plural:one'], text: '# файл' },

@@ -4,7 +4,7 @@ import { isUlid } from '../catalogue/config.mjs';
 import { hashOf, readState, sealed, writeState } from '../catalogue/freshness.mjs';
 
 import { foldGroup, groupUnits, isFlatGroup } from './regroup.mjs';
-import { noteOf } from './xliff.mjs';
+import { OUTDATED_SUB_STATE, noteOf } from './xliff.mjs';
 
 const KEYS_END = '} as const;';
 const KEY_NAME = /^[A-Z][A-Z0-9_]*$/;
@@ -53,17 +53,25 @@ const addedOf = (unit, ulid, { scope, taken, lang }) => ({
 	target: unit.target,
 });
 
-function sealingOf(unit, ulid, entry, context) {
+function sealingOf(unit, ulid, entry, context, seal) {
 	const { scope, lang, source } = context;
 	const hash = hashOf(source[ulid] ?? '');
 	const declared = noteOf(unit, 'srcHash');
+	const moved = null !== declared && declared !== hash;
 
-	if (null !== declared && declared !== hash) {
+	if (moved || !seal) {
 		return { outdated: { scope: scope.name, ulid, key: entry.name, lang } };
 	}
 
 	return { seal: { scope: scope.name, ulid, lang, hash } };
 }
+
+// A stale key goes out with its old translation and the outdated sub-state on it. Coming
+// back with the two untouched says nobody revised it, so sealing it would quietly retire
+// the very staleness that made it travel. A translator who reads it and keeps the words
+// says so by moving the segment on, and that seals.
+const revised = (group) =>
+	group.units.some((unit) => OUTDATED_SUB_STATE !== (unit.subState ?? null));
 
 const updateOf = (ulid, entry, context, to) => ({
 	scope: context.scope.name,
@@ -106,9 +114,10 @@ function groupOutcome(group, context) {
 		return { kind: 'empty', problems };
 	}
 
-	const sealing = sealingOf(group.units[0], ulid, entry, context);
+	const changed = target !== (current[ulid] ?? '');
+	const sealing = sealingOf(group.units[0], ulid, entry, context, changed || revised(group));
 
-	if (target === (current[ulid] ?? '')) {
+	if (!changed) {
 		return { kind: 'unchanged', ...sealing, problems };
 	}
 
