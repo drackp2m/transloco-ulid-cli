@@ -2,14 +2,14 @@ import { readFileSync, writeFileSync } from 'node:fs';
 
 import { isUlid } from '../catalogue/config.mjs';
 import { hashOf, readState, sealed, writeState } from '../catalogue/freshness.mjs';
-import { sameParams } from '../catalogue/message.mjs';
 
+import { foldGroup, groupUnits, isFlatGroup } from './regroup.mjs';
 import { noteOf } from './xliff.mjs';
 
 const KEYS_END = '} as const;';
 const KEY_NAME = /^[A-Z][A-Z0-9_]*$/;
-const FORM_MARK = '#';
 const NAME_MAX_LENGTH = 40;
+const UNKNOWN_FORMS = 'the key is not in keys.ts, so its forms cannot be recomposed';
 
 export const unitRef = (scope, ulid) => `${scope}:${ulid}`;
 
@@ -65,58 +65,59 @@ function sealingOf(unit, ulid, entry, context) {
 	return { seal: { scope: scope.name, ulid, lang, hash } };
 }
 
-function updateOf(unit, ulid, entry, context) {
+const updateOf = (ulid, entry, context, to) => ({
+	scope: context.scope.name,
+	ulid,
+	key: entry.name,
+	lang: context.lang,
+	from: context.current[ulid] ?? '',
+	to,
+});
+
+function newKeyOutcome(group, context) {
+	if (!isFlatGroup(group)) {
+		return { kind: 'problem', problem: problem(group.head, UNKNOWN_FORMS) };
+	}
+
+	return { kind: 'added', added: addedOf(group.units[0], group.ulid, context) };
+}
+
+function groupOutcome(group, context) {
 	const { scope, lang, current, source } = context;
-	const problems = sameParams(source[ulid] ?? unit.source, unit.target)
-		? []
-		: [problem(unit.id, `placeholders differ from ${scope.defaultLang}`)];
-	const from = current[ulid] ?? '';
-
-	return {
-		problems,
-		update: { scope: scope.name, ulid, key: entry.name, lang, from, to: unit.target },
-	};
-}
-
-function idPartsOf(id) {
-	const [head, ...forms] = String(id).split(FORM_MARK);
-
-	return { ulid: head.split('.').pop(), forms };
-}
-
-function unitOutcome(unit, context) {
-	const { ulid, forms } = idPartsOf(unit.id);
+	const { ulid, head } = group;
 
 	if (!isUlid(ulid)) {
-		return { kind: 'problem', problem: problem(unit.id, 'id is not a ULID') };
+		return { kind: 'problem', problem: problem(head, 'id is not a ULID') };
 	}
 
-	if (0 !== forms.length) {
-		const form = forms.join(FORM_MARK);
-
-		return { kind: 'problem', problem: problem(unit.id, `${form} is a form and not a key`) };
-	}
-
-	const entry = context.scope.keys?.entries.find((item) => item.ulid === ulid);
+	const entry = scope.keys?.entries.find((item) => item.ulid === ulid);
 
 	if (undefined === entry) {
-		return { kind: 'added', added: addedOf(unit, ulid, context) };
+		return newKeyOutcome(group, context);
 	}
 
-	if ('' === unit.target.trim()) {
-		return { kind: 'empty' };
+	const { target, empty, problems } = foldGroup(group, {
+		source: source[ulid],
+		lang,
+		defaultLang: scope.defaultLang,
+	});
+
+	if (empty) {
+		return { kind: 'empty', problems };
 	}
 
-	const sealing = sealingOf(unit, ulid, entry, context);
+	const sealing = sealingOf(group.units[0], ulid, entry, context);
 
-	if (unit.target === (context.current[ulid] ?? '')) {
-		return { kind: 'unchanged', ...sealing };
+	if (target === (current[ulid] ?? '')) {
+		return { kind: 'unchanged', ...sealing, problems };
 	}
 
-	return { kind: 'update', ...sealing, ...updateOf(unit, ulid, entry, context) };
+	return { kind: 'update', ...sealing, problems, update: updateOf(ulid, entry, context, target) };
 }
 
 function collect(result, outcome) {
+	result.problems.push(...(outcome.problems ?? []));
+
 	if (outcome.seal) {
 		result.seals.push(outcome.seal);
 	}
@@ -133,7 +134,6 @@ function collect(result, outcome) {
 		result.added.push(outcome.added);
 	} else {
 		result.updates.push(outcome.update);
-		result.problems.push(...outcome.problems);
 	}
 }
 
@@ -155,8 +155,8 @@ function readUnits(scope, file, lang, taken) {
 		outdated: [],
 	};
 
-	for (const unit of file.units) {
-		collect(result, unitOutcome(unit, context));
+	for (const group of groupUnits(file.units)) {
+		collect(result, groupOutcome(group, context));
 	}
 
 	return result;
