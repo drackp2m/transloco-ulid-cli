@@ -279,6 +279,37 @@ describe('spotsIn', () => {
 });
 
 describe('signatureDiff', () => {
+	test('reports a param the translation leaves out', () => {
+		const diff = signatureDiff('Hola {name}, tienes {count} avisos', 'Hola {name}');
+
+		deepStrictEqual(diff.dropped, ['count']);
+		deepStrictEqual(diff.added, []);
+	});
+
+	test('reports a param the translation invents', () => {
+		const diff = signatureDiff('Hola {name}', 'Hola {name}, tienes {count} avisos');
+
+		deepStrictEqual(diff.added, ['count']);
+		deepStrictEqual(diff.dropped, []);
+	});
+
+	test('reports a renamed param as a drop and an addition at once', () => {
+		const diff = signatureDiff('Hola {name}', 'Hola {user}');
+
+		deepStrictEqual(diff.dropped, ['name']);
+		deepStrictEqual(diff.added, ['user']);
+	});
+
+	test('sees a param nested inside a branch as one both sides write', () => {
+		const diff = signatureDiff(
+			'{count, plural, one {# de {total}} other {# de {total}}}',
+			'{count, plural, one {# of {total}} other {# of {total}}}',
+		);
+
+		deepStrictEqual(diff.dropped, []);
+		deepStrictEqual(diff.added, []);
+	});
+
 	test('reports a param written as another kind of argument', () => {
 		const diff = signatureDiff('{count, plural, one {a} other {b}}', '{count, select, other {b}}');
 
@@ -292,6 +323,16 @@ describe('signatureDiff', () => {
 		);
 
 		deepStrictEqual(diff.surplus, [{ name: 'gender', cases: ['neuter'] }]);
+	});
+
+	test('reports a select rewritten as a plural, the retyping in reverse', () => {
+		const diff = signatureDiff(
+			'{gender, select, male {a} other {b}}',
+			'{gender, plural, one {a} other {b}}',
+		);
+
+		deepStrictEqual(diff.retyped, [{ name: 'gender', expected: 'select', actual: 'plural' }]);
+		deepStrictEqual(diff.surplus, []);
 	});
 
 	test('lets the plural categories of a language differ from the source ones', () => {

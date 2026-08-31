@@ -259,7 +259,7 @@ const lineAt = (text, line) => String(text ?? '').split('\n')[line - 1] ?? '';
 // developer hunting for the one interpolation that moved. A category points at the branch
 // that opens it, and falls back to the argument heading: one that is missing has no branch
 // of its own to be pointed at.
-function spotPositionOf(text, ulid, { name, key = null }) {
+export function spotPositionOf(text, ulid, { name, key = null }) {
 	const at = positionOf(text, ulid);
 	const spots = spotsIn(lineAt(text, at.line)).filter((spot) => spot.name === name);
 	const found = spots.find((spot) => spot.key === key) ?? spots.find((spot) => null === spot.key);
@@ -276,7 +276,7 @@ const escapedLength = (value) => JSON.stringify(value).length - 2;
 // The parser counts characters of the decoded string; the file counts columns of the line
 // it is written on, ULID and JSON escapes included. So the part of the value that comes
 // before the error is re-encoded to learn how wide it is on disk.
-function syntaxPositionOf(text, ulid, at, value) {
+export function syntaxPositionOf(text, ulid, at, value) {
 	const { line } = positionOf(text, ulid);
 	const opening = lineAt(text, line).indexOf(VALUE_OPENING);
 	const start = -1 === opening ? 0 : opening + VALUE_OPENING.length;

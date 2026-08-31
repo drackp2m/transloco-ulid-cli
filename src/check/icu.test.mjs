@@ -80,6 +80,14 @@ describe('messageProblems — categories', () => {
 	test('never asks a select for plural categories', () => {
 		deepStrictEqual(messageProblems('{gender, select, male {a} other {b}}', 'ru-RU'), []);
 	});
+
+	test('reports the surplus branch and the missing one at once', () => {
+		deepStrictEqual(typesOf('{count, plural, few {a} other {b}}', 'es-ES'), [
+			'unknown-plural-category',
+			'missing-plural-category',
+		]);
+		deepStrictEqual(keysOf('{count, plural, few {a} other {b}}', 'es-ES'), ['few', 'one']);
+	});
 });
 
 describe('messageProblems — selectordinal', () => {
@@ -87,5 +95,16 @@ describe('messageProblems — selectordinal', () => {
 		deepStrictEqual(typesOf('{n, selectordinal, one {1.º} other {#.º}}', 'es-ES'), [
 			'unsupported-argument',
 		]);
+	});
+});
+
+describe('messageProblems — nesting', () => {
+	test('reaches a plural written inside a select branch', () => {
+		const source = '{gender, select, male {{count, plural, one {a}}} other {b}}';
+		const [problem, ...rest] = messageProblems(source, 'es-ES');
+
+		strictEqual(problem.type, 'missing-other');
+		strictEqual(problem.name, 'count');
+		deepStrictEqual(rest, []);
 	});
 });
