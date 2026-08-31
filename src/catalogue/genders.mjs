@@ -1,6 +1,8 @@
 export const GENDER_ARG = 'gender';
 
-const GENDER_ORDER = ['male', 'female', 'other'];
+// The values the gender setting can hold, which are the only ones the application ever
+// passes: a branch on anything else is text nothing reaches.
+export const GENDER_VALUES = ['male', 'female', 'other'];
 
 const GENDERLESS = new Set(['tr', 'id', 'vi', 'zh']);
 
@@ -15,9 +17,9 @@ export function genderCategoriesOf(lang, cases) {
 		return ['other'];
 	}
 
-	const known = GENDER_ORDER.filter((key) => cases.includes(key));
+	const known = GENDER_VALUES.filter((key) => cases.includes(key));
 
-	return [...known, ...cases.filter((key) => !GENDER_ORDER.includes(key))];
+	return [...known, ...cases.filter((key) => !GENDER_VALUES.includes(key))];
 }
 
 const CHOSEN = { male: 'hombre', female: 'mujer' };

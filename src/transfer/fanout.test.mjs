@@ -71,10 +71,15 @@ describe('formsOf over a plural', () => {
 		deepStrictEqual(suffixes(build(PLURAL, 'ca-ES')), ['#plural:one', '#plural:other']);
 	});
 
-	test('shows the "other" branch of the source in every form', () => {
+	// Category to category where the source has it — its `one` is the singular the target's
+	// `one` is asking for — and the generic `other` only where it does not.
+	test('shows a category the source declares its own branch, and the rest "other"', () => {
 		const forms = build(PLURAL, 'ru-RU');
 
-		deepStrictEqual(new Set(forms.map((form) => form.source)), new Set(['# ejercicios']));
+		strictEqual(formAt(forms, '#plural:one').source, '# ejercicio');
+		strictEqual(formAt(forms, '#plural:few').source, '# ejercicios');
+		strictEqual(formAt(forms, '#plural:many').source, '# ejercicios');
+		strictEqual(formAt(forms, '#plural:other').source, '# ejercicios');
 	});
 
 	test('marks the forms as carrying an octothorpe', () => {
@@ -107,8 +112,23 @@ describe('formsOf and the target', () => {
 		strictEqual(formAt(forms, '#plural:many').target, '');
 	});
 
+	// A leaf with no path at all agrees with every path it is held against, so a flat
+	// translation would otherwise come back prefilled into all four Russian forms — the very
+	// "same sentence four times" the fan-out exists to stop.
 	test('leaves every form empty when the translation is still flat text', () => {
 		const forms = build(PLURAL, 'ru-RU', 'Упражнения');
+
+		ok(forms.every((form) => '' === form.target));
+	});
+
+	test('ignores a translation that branches on something else entirely', () => {
+		const forms = build(PLURAL, 'ru-RU', '{gender, select, male {a} other {b}}');
+
+		ok(forms.every((form) => '' === form.target));
+	});
+
+	test('ignores a translation whose ICU does not parse', () => {
+		const forms = build(PLURAL, 'ru-RU', '{count, plural, one {a}');
 
 		ok(forms.every((form) => '' === form.target));
 	});
@@ -140,6 +160,82 @@ describe('formsOf over a gender select', () => {
 	test('does not mark a gender form as carrying an octothorpe', () => {
 		ok(build(GENDER, 'es-ES').every((form) => false === form.hash));
 	});
+
+	// The plural rule — always show the source's `other` — is wrong here and used to be
+	// applied all the same: what a select asks for is always among what the source writes,
+	// so the `other` fallback never saved anything and lost the wording every time.
+	test('shows each gender the branch the source wrote for it', () => {
+		const forms = build(GENDER, 'ru-RU');
+
+		strictEqual(formAt(forms, '#gender:male').source, 'Bienvenido');
+		strictEqual(formAt(forms, '#gender:female').source, 'Bienvenida');
+		strictEqual(formAt(forms, '#gender:other').source, 'Te damos la bienvenida');
+	});
+
+	test('gives the collapsed form the neutral branch, which is the one that fits', () => {
+		strictEqual(build(GENDER, 'tr-TR')[0].source, 'Te damos la bienvenida');
+	});
+});
+
+const STATUS = '{status, select, ok {Todo bien} ko {Ha fallado} other {Sin datos}}';
+
+describe('formsOf over a select that is not gender', () => {
+	test('asks for every branch the source declares, whatever the language', () => {
+		deepStrictEqual(suffixes(build(STATUS, 'tr-TR')), [
+			'#status:ok',
+			'#status:ko',
+			'#status:other',
+		]);
+	});
+
+	// These branches are not grammatical variants of one sentence, they are different
+	// sentences: sending `other` three times would drop two of them on the floor.
+	test('shows each branch its own text', () => {
+		const forms = build(STATUS, 'en-GB');
+
+		deepStrictEqual(
+			forms.map((form) => form.source),
+			['Todo bien', 'Ha fallado', 'Sin datos'],
+		);
+	});
+
+	test('does not mark it as carrying an octothorpe', () => {
+		ok(build(STATUS, 'en-GB').every((form) => false === form.hash));
+	});
+});
+
+const TWO_PLURALS =
+	'{a, plural, one {# ejercicio} other {# ejercicios}} de ' +
+	'{b, plural, one {# ronda} other {# rondas}}';
+
+describe('formsOf over two plurals in one sentence', () => {
+	test('crosses them and names each one in the suffix', () => {
+		deepStrictEqual(suffixes(build(TWO_PLURALS, 'en-GB')), [
+			'#a:one#b:one',
+			'#a:one#b:other',
+			'#a:other#b:one',
+			'#a:other#b:other',
+		]);
+	});
+
+	// Both dimensions write `plural:` into the leaf path, so matching a combination by the
+	// segments it contains found whichever leaf came first: all four forms used to be
+	// handed the same source, and not even one of the four that was asked for.
+	test('gives each combination the leaf that is actually its own', () => {
+		const forms = build(TWO_PLURALS, 'en-GB');
+
+		strictEqual(formAt(forms, '#a:one#b:one').source, '# ejercicio de # ronda');
+		strictEqual(formAt(forms, '#a:other#b:other').source, '# ejercicios de # rondas');
+		strictEqual(formAt(forms, '#a:one#b:other').source, '# ejercicio de # rondas');
+	});
+
+	test('falls back per dimension when the target language asks for more', () => {
+		const forms = build(TWO_PLURALS, 'ru-RU');
+
+		strictEqual(forms.length, 16);
+		strictEqual(formAt(forms, '#a:few#b:many').source, '# ejercicios de # rondas');
+		strictEqual(formAt(forms, '#a:one#b:few').source, '# ejercicio de # rondas');
+	});
 });
 
 describe('formsOf over gender crossed with plural', () => {
@@ -156,6 +252,18 @@ describe('formsOf over gender crossed with plural', () => {
 
 	test('reaches twelve forms in Russian and no more', () => {
 		strictEqual(build(CROSS, 'ru-RU').length, 12);
+	});
+
+	// `one` wraps a select and `other` does not, so the `other` leaf is a level short: it is
+	// still the leaf that answers for both genders, and used to fall through to the first.
+	test('answers both genders from a branch the source only writes once', () => {
+		const source =
+			'{count, plural, one {{gender, select, male {Resuelto} other {Hecho}}} other {Nada}}';
+		const forms = build(source, 'en-GB');
+
+		strictEqual(formAt(forms, '#gender:male#plural:one').source, 'Resuelto');
+		strictEqual(formAt(forms, '#gender:male#plural:other').source, 'Nada');
+		strictEqual(formAt(forms, '#gender:other#plural:other').source, 'Nada');
 	});
 
 	test('names both dimensions in the category note', () => {

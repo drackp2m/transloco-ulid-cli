@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { GENDER_ARG } from './genders.mjs';
+
 const ROOT = path.resolve(fileURLToPath(import.meta.url), '..', '..', '..', '..', '..');
 const LANGUAGE_FILE = path.join(
 	ROOT,
@@ -34,7 +36,7 @@ export const DEFAULTS = {
 	rootScope: 'common',
 };
 
-export const AMBIENT_PARAMS = new Set(['gender']);
+export const AMBIENT_PARAMS = new Set([GENDER_ARG]);
 
 // Directories under i18n/ that are not scopes: the hand-written context that
 // feeds the translator, and the generated freshness state.

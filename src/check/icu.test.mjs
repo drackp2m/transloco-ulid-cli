@@ -108,3 +108,72 @@ describe('messageProblems — nesting', () => {
 		deepStrictEqual(rest, []);
 	});
 });
+
+describe('messageProblems — the values of the gender select', () => {
+	test('reports a branch the gender setting can never hold', () => {
+		const source = '{gender, select, masculino {a} other {b}}';
+		const [problem, ...rest] = messageProblems(source, 'es-ES');
+
+		strictEqual(problem.type, 'unknown-gender-value');
+		strictEqual(problem.key, 'masculino');
+		deepStrictEqual(rest, []);
+	});
+
+	test('says nothing about the three values the setting does have', () => {
+		const source = '{gender, select, male {a} female {b} other {c}}';
+
+		deepStrictEqual(messageProblems(source, 'es-ES'), []);
+	});
+
+	test('leaves a select that is not the gender one alone', () => {
+		const source = '{status, select, ok {a} ko {b} other {c}}';
+
+		deepStrictEqual(messageProblems(source, 'es-ES'), []);
+	});
+
+	test('reports every branch that does not belong, not just the first', () => {
+		const source = '{gender, select, masculino {a} femenino {b} other {c}}';
+
+		deepStrictEqual(keysOf(source, 'es-ES'), ['masculino', 'femenino']);
+	});
+});
+
+const WIDE =
+	'{gender, select, ' +
+	'male {{n, plural, one {a#} few {b#} many {c#} other {d#}}} ' +
+	'female {{n, plural, one {e#} few {f#} many {g#} other {h#}}} ' +
+	'other {{n, plural, one {i#} few {j#} many {k#} other {l#}}}}';
+
+describe('messageProblems — how wide a string opens', () => {
+	test('lets gender crossed with a plural through at exactly twelve', () => {
+		deepStrictEqual(messageProblems(WIDE, 'ru-RU'), []);
+	});
+
+	test('counts the forms of the language asked about, not of the source', () => {
+		const source = '{gender, select, male {{n, plural, one {a} other {b}}} other {c}}';
+
+		deepStrictEqual(messageProblems(source, 'en-GB'), []);
+	});
+
+	test('reports a string that opens past the cap, and says how wide', () => {
+		const branch = 'one {x} few {x} many {x} other {y}';
+		const source = `{a, plural, ${branch}} de {b, plural, ${branch}}`;
+		const [problem, ...rest] = messageProblems(source, 'ru-RU');
+
+		strictEqual(problem.type, 'too-many-forms');
+		strictEqual(problem.name, null);
+		strictEqual(problem.message.includes('16 forms'), true);
+		deepStrictEqual(rest, []);
+	});
+
+	test('lets that same string through in a language that asks for fewer forms', () => {
+		const branch = 'one {x} few {x} many {x} other {y}';
+		const source = `{a, plural, ${branch}} de {b, plural, ${branch}}`;
+
+		strictEqual(typesOf(source, 'en-GB').includes('too-many-forms'), false);
+	});
+
+	test('has nothing to count in a string with no branches at all', () => {
+		deepStrictEqual(messageProblems('Cargados {loaded} de {total}', 'ru-RU'), []);
+	});
+});

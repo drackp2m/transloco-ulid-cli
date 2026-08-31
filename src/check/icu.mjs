@@ -1,8 +1,14 @@
+import { formCountOf, isExactCase } from '../catalogue/forms.mjs';
+import { GENDER_ARG, GENDER_VALUES } from '../catalogue/genders.mjs';
 import { IcuSyntaxError, paramTag, paramsOf } from '../catalogue/message.mjs';
 import { cardinalCategoriesOf, requiredCategoriesOf } from '../catalogue/plurals.mjs';
 
-const EXACT_CASE = /^=\d+$/;
 const OTHER = 'other';
+
+// Gender crossed with a plural is 12 forms in Russian, and 12 is already a lot to hand a
+// translator for one sentence. Past that the string is asking to be split in two, not
+// fanned out wider.
+const MAX_FORMS = 12;
 
 const problem = (type, message, where = {}) => ({
 	type,
@@ -16,7 +22,7 @@ const problem = (type, message, where = {}) => ({
 // it and none of the category rules have anything to say about it.
 function surplusCategories(name, cases, declared, lang) {
 	return cases
-		.filter((key) => !EXACT_CASE.test(key) && !declared.includes(key))
+		.filter((key) => !isExactCase(key) && !declared.includes(key))
 		.map((key) => {
 			const message = `${paramTag(name)} branches on "${key}", which "${lang}" never selects`;
 
@@ -33,6 +39,23 @@ function missingCategories(name, cases, lang) {
 			const message = `${paramTag(name)} has no "${key}" branch, which "${lang}" needs`;
 
 			return problem('missing-plural-category', message, { name, key });
+		});
+}
+
+// Nothing else can catch a mistyped branch here: `gender` is ambient, so it is left out of
+// `params.ts` and TypeScript never sees it. The application would fall through to `other`
+// without a word, and the export would ship a form nobody can ever read.
+function genderValueProblems(name, cases) {
+	if (GENDER_ARG !== name) {
+		return [];
+	}
+
+	return cases
+		.filter((key) => !GENDER_VALUES.includes(key))
+		.map((key) => {
+			const message = `${paramTag(name)} branches on "${key}", which the gender setting never has`;
+
+			return problem('unknown-gender-value', message, { name, key });
 		});
 }
 
@@ -68,7 +91,23 @@ function argumentProblems(name, { type, cases }, lang) {
 
 	return 'plural' === type
 		? [...missingOther, ...categoryProblems(name, cases, lang)]
-		: missingOther;
+		: [...missingOther, ...genderValueProblems(name, cases)];
+}
+
+// The one rule about the string as a whole rather than about an argument, so it carries no
+// name and lands on the key's own heading.
+function widthProblems(text, lang) {
+	const count = formCountOf(text, lang);
+
+	if (MAX_FORMS >= count) {
+		return [];
+	}
+
+	const message =
+		`opens into ${count} forms in "${lang}", over the ${MAX_FORMS} allowed — ` +
+		'split the sentence instead of branching it further';
+
+	return [problem('too-many-forms', message)];
 }
 
 // What is wrong inside one string, named but not located: where each one is written is the
@@ -88,5 +127,8 @@ export function messageProblems(text, lang) {
 		return [problem('icu-syntax', `is not valid ICU: ${error.reason}`, { at })];
 	}
 
-	return [...params].flatMap(([name, signature]) => argumentProblems(name, signature, lang));
+	return [
+		...widthProblems(text, lang),
+		...[...params].flatMap(([name, signature]) => argumentProblems(name, signature, lang)),
+	];
 }
