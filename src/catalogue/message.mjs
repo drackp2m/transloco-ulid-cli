@@ -10,6 +10,7 @@ export class IcuSyntaxError extends Error {
 		this.name = 'IcuSyntaxError';
 		this.line = line;
 		this.col = col;
+		this.reason = String(message).split('\n')[0].replace(POSITION_PATTERN, '').trim();
 	}
 }
 
@@ -80,23 +81,36 @@ export function paramsOf(text) {
 
 export const paramTag = (name) => `{${name}}`;
 
-function collectPlaces(tokens, places) {
+// A case reads as " other {", so the spot skips the space the parser hands back: what
+// a report has to point at is the category, not the blank in front of it.
+function spotOf(name, type, key, ctx) {
+	const lead = ctx.text.length - ctx.text.trimStart().length;
+
+	return {
+		name,
+		type,
+		key,
+		text: ctx.text.slice(lead),
+		index: ctx.offset + lead,
+		length: ctx.text.length - lead,
+	};
+}
+
+function collectSpots(tokens, spots) {
 	for (const token of tokens) {
 		if ('argument' === token.type) {
-			places.push({
-				name: token.arg,
-				text: token.ctx.text,
-				index: token.ctx.offset,
-				length: token.ctx.text.length,
-			});
+			spots.push(spotOf(token.arg, 'plain', null, token.ctx));
 		} else if (BRANCHING_TYPES.has(token.type)) {
+			spots.push(spotOf(token.arg, token.type, null, token.ctx));
+
 			for (const kase of token.cases) {
-				collectPlaces(kase.tokens, places);
+				spots.push(spotOf(token.arg, token.type, kase.key, kase.ctx));
+				collectSpots(kase.tokens, spots);
 			}
 		}
 	}
 
-	return places;
+	return spots;
 }
 
 function tokensOrNone(text) {
@@ -107,25 +121,29 @@ function tokensOrNone(text) {
 	}
 }
 
-export function paramsIn(text) {
+export function spotsIn(text) {
 	const tokens = tokensOrNone(text);
 
-	return null === tokens ? [] : collectPlaces(tokens, []);
+	return null === tokens ? [] : collectSpots(tokens, []);
 }
 
-export function paramNamesOf(text) {
+export const paramsIn = (text) => spotsIn(text).filter(({ type }) => 'plain' === type);
+
+function signaturesOf(text) {
 	const tokens = tokensOrNone(text);
 
 	if (null === tokens) {
-		return [];
+		return null;
 	}
 
 	const params = new Map();
 
 	collectParams(tokens, params);
 
-	return [...params.keys()];
+	return params;
 }
+
+export const paramNamesOf = (text) => [...(signaturesOf(text)?.keys() ?? [])];
 
 export function paramDiff(base, value) {
 	const expected = paramNamesOf(base);
@@ -141,6 +159,41 @@ export function sameParams(base, value) {
 	const { dropped, added } = paramDiff(base, value);
 
 	return 0 === dropped.length && 0 === added.length;
+}
+
+const EMPTY_DIFF = { dropped: [], added: [], retyped: [], surplus: [] };
+
+// A select carries the values the application passes, so a branch the source never
+// declares is unreachable text; a plural carries the categories of its language, and
+// those are meant to differ, so they are the category rules' business and not this one's.
+function caseSurplus(name, expected, actual) {
+	if ('select' !== expected.type || 'select' !== actual.type) {
+		return [];
+	}
+
+	const cases = actual.cases.filter((key) => !expected.cases.includes(key));
+
+	return cases.length ? [{ name, cases }] : [];
+}
+
+export function signatureDiff(base, value) {
+	const expected = signaturesOf(base);
+	const actual = signaturesOf(value);
+
+	if (null === expected || null === actual) {
+		return EMPTY_DIFF;
+	}
+
+	const shared = [...actual.keys()].filter((name) => expected.has(name));
+
+	return {
+		dropped: [...expected.keys()].filter((name) => !actual.has(name)),
+		added: [...actual.keys()].filter((name) => !expected.has(name)),
+		retyped: shared
+			.filter((name) => expected.get(name).type !== actual.get(name).type)
+			.map((name) => ({ name, expected: expected.get(name).type, actual: actual.get(name).type })),
+		surplus: shared.flatMap((name) => caseSurplus(name, expected.get(name), actual.get(name))),
+	};
 }
 
 function leavesOfTokens(tokens) {

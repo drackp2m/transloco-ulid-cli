@@ -2,8 +2,10 @@ import { readBarrel } from '../catalogue/collect.mjs';
 import { isUlid, toPascalCase } from '../catalogue/config.mjs';
 import { matchesKey, readContext } from '../catalogue/context.mjs';
 import { freshnessOf, readState } from '../catalogue/freshness.mjs';
-import { paramDiff, paramTag, paramsIn } from '../catalogue/message.mjs';
+import { paramTag, signatureDiff, spotsIn } from '../catalogue/message.mjs';
 import { buildScopeParams, entryLineOf, fieldLineOf, paramsName } from '../catalogue/params.mjs';
+
+import { messageProblems } from './icu.mjs';
 
 const PARAMS = 'params';
 const FILE_START = { line: 1, col: 1 };
@@ -209,15 +211,24 @@ function checkUsage(scope, usages, commented) {
 
 const listOf = (names) => names.map(paramTag).join(', ');
 
+const quoted = (keys) => keys.map((key) => `"${key}"`).join(', ');
+
 // A param the source does not have is this language's own to answer for, even while
 // params.ts lags behind; one it has yet to pick up is only the drift showing through.
+// What never gets a pass is the signature: a name both sides write, written as another
+// kind of argument or with a branch the source never declares.
 function comparePair(base, value, ulid, drifting) {
-	const { dropped, added } = paramDiff(base, value);
+	const { dropped, added, retyped, surplus } = signatureDiff(base, value);
 	const drops = drifting ? [] : dropped;
 
 	return [
 		...(drops.length ? [`${ulid} drops ${listOf(drops)}`] : []),
 		...(added.length ? [`${ulid} adds ${listOf(added)}`] : []),
+		...retyped.map(
+			({ name, expected, actual }) =>
+				`${ulid} writes ${paramTag(name)} as ${actual}, not as ${expected}`,
+		),
+		...surplus.map(({ name, cases }) => `${ulid} adds ${quoted(cases)} to ${paramTag(name)}`),
 	];
 }
 
@@ -236,6 +247,66 @@ function comparePairs(base, translation, lang, { scope, drifting }) {
 			const file = translation.file;
 
 			findings.push(finding('param-mismatch', scope.name, file, `${message} in "${lang}"`, where));
+		}
+	}
+
+	return findings;
+}
+
+const lineAt = (text, line) => String(text ?? '').split('\n')[line - 1] ?? '';
+
+// Where the argument is written inside the value, so a long sentence does not send the
+// developer hunting for the one interpolation that moved. A category points at the branch
+// that opens it, and falls back to the argument heading: one that is missing has no branch
+// of its own to be pointed at.
+function spotPositionOf(text, ulid, { name, key = null }) {
+	const at = positionOf(text, ulid);
+	const spots = spotsIn(lineAt(text, at.line)).filter((spot) => spot.name === name);
+	const found = spots.find((spot) => spot.key === key) ?? spots.find((spot) => null === spot.key);
+
+	return found ? { line: at.line, col: found.index + 1 } : at;
+}
+
+const paramPositionOf = (text, ulid, name) => spotPositionOf(text, ulid, { name });
+
+const VALUE_OPENING = '": "';
+
+// The parser counts from the start of the string; the file counts from the start of the
+// line the string is written on, quotes and ULID included.
+function syntaxPositionOf(text, ulid, at) {
+	const { line } = positionOf(text, ulid);
+	const opening = lineAt(text, line).indexOf(VALUE_OPENING);
+
+	return { line, col: (-1 === opening ? 0 : opening + VALUE_OPENING.length) + at.col };
+}
+
+function messageFinding(scope, translation, lang, ulid, item) {
+	const entry = scope.keys.entries.find((key) => key.ulid === ulid);
+	const label = entry ? `${entry.name} (${ulid})` : ulid;
+	const at = item.at
+		? syntaxPositionOf(translation.text, ulid, item.at)
+		: spotPositionOf(translation.text, ulid, item);
+	const message = `${label} ${item.message}`;
+
+	return finding(item.type, scope.name, translation.file, message, { ...at, lang });
+}
+
+// Every language answers for its own strings here, the source one included: a plural the
+// developer wrote by hand in "es-ES" is exactly what this pass exists to catch.
+function checkMessages(scope, langs) {
+	const findings = [];
+
+	for (const lang of langs) {
+		const translation = scope.translations.get(lang);
+
+		for (const [ulid, value] of Object.entries(translation.data ?? {})) {
+			if (isBlank(value)) {
+				continue;
+			}
+
+			for (const item of messageProblems(value, lang)) {
+				findings.push(messageFinding(scope, translation, lang, ulid, item));
+			}
 		}
 	}
 
@@ -261,16 +332,6 @@ function checkParams(scope, langs, defaultLang, params) {
 	}
 
 	return findings;
-}
-
-// Where the param is written inside the value, so a long sentence does not send
-// the developer hunting for the one interpolation that moved.
-function paramPositionOf(text, ulid, name) {
-	const at = positionOf(text, ulid);
-	const line = String(text ?? '').split('\n')[at.line - 1] ?? '';
-	const found = paramsIn(line).find((param) => param.name === name);
-
-	return found ? { line: at.line, col: found.index + 1 } : at;
 }
 
 const declaresFindings = (scope, params, drift, label) =>
@@ -447,6 +508,7 @@ export function buildFindings({ scopes, usages, commented, langs, defaultLang, i
 
 		findings.push(...checkKeys(scope, seenUlids));
 		findings.push(...checkTranslations(scope, langs, defaultLang));
+		findings.push(...checkMessages(scope, langs));
 		findings.push(...checkFreshness(scope, { langs, defaultLang, i18nDir }));
 		findings.push(...checkUsage(scope, usages, commented));
 		findings.push(...checkParamsFile(scope, params, scope.translations.get(defaultLang)));

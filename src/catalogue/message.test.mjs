@@ -1,7 +1,16 @@
 import { deepStrictEqual, ok, strictEqual, throws } from 'node:assert/strict';
 import { describe, test } from 'node:test';
 
-import { IcuSyntaxError, buildFrom, isIcu, leavesOf, paramsOf, parse } from './message.mjs';
+import {
+	IcuSyntaxError,
+	buildFrom,
+	isIcu,
+	leavesOf,
+	paramsOf,
+	parse,
+	signatureDiff,
+	spotsIn,
+} from './message.mjs';
 
 describe('parse', () => {
 	test('returns the token array for plain text', () => {
@@ -231,5 +240,76 @@ describe('buildFrom errors', () => {
 describe('buildFrom parse errors', () => {
 	test('throws instead of writing back an ICU string that fails to parse', () => {
 		throws(() => buildFrom([{ path: [], text: 'Hola {name' }], []), IcuSyntaxError);
+	});
+});
+
+describe('spotsIn', () => {
+	test('locates a plain argument', () => {
+		deepStrictEqual(spotsIn('Hola {name}'), [
+			{ name: 'name', type: 'plain', key: null, text: '{name}', index: 5, length: 6 },
+		]);
+	});
+
+	test('locates the heading of a plural and every branch under it', () => {
+		deepStrictEqual(
+			spotsIn('{count, plural, one {# libro} other {# libros}}').map(({ type, key, text }) => [
+				type,
+				key,
+				text,
+			]),
+			[
+				['plural', null, '{count, plural, '],
+				['plural', 'one', 'one {'],
+				['plural', 'other', 'other {'],
+			],
+		);
+	});
+
+	test('points at the category itself, not at the space in front of it', () => {
+		const source = '{count, plural, one {a} other {b}}';
+
+		for (const spot of spotsIn(source)) {
+			strictEqual(source.slice(spot.index, spot.index + spot.length), spot.text);
+		}
+	});
+
+	test('is empty for a string that does not parse', () => {
+		deepStrictEqual(spotsIn('Hola {name'), []);
+	});
+});
+
+describe('signatureDiff', () => {
+	test('reports a param written as another kind of argument', () => {
+		const diff = signatureDiff('{count, plural, one {a} other {b}}', '{count, select, other {b}}');
+
+		deepStrictEqual(diff.retyped, [{ name: 'count', expected: 'plural', actual: 'select' }]);
+	});
+
+	test('reports a select branch the source never declares', () => {
+		const diff = signatureDiff(
+			'{gender, select, male {a} other {b}}',
+			'{gender, select, male {a} neuter {c} other {b}}',
+		);
+
+		deepStrictEqual(diff.surplus, [{ name: 'gender', cases: ['neuter'] }]);
+	});
+
+	test('lets the plural categories of a language differ from the source ones', () => {
+		deepStrictEqual(
+			signatureDiff(
+				'{count, plural, one {a} other {b}}',
+				'{count, plural, one {a} few {b} many {c} other {d}}',
+			),
+			{ dropped: [], added: [], retyped: [], surplus: [] },
+		);
+	});
+
+	test('says nothing when one of the two sides does not parse', () => {
+		deepStrictEqual(signatureDiff('Hola {name}', 'Hello {name'), {
+			dropped: [],
+			added: [],
+			retyped: [],
+			surplus: [],
+		});
 	});
 });
