@@ -271,20 +271,26 @@ const paramPositionOf = (text, ulid, name) => spotPositionOf(text, ulid, { name 
 
 const VALUE_OPENING = '": "';
 
-// The parser counts from the start of the string; the file counts from the start of the
-// line the string is written on, quotes and ULID included.
-function syntaxPositionOf(text, ulid, at) {
+const escapedLength = (value) => JSON.stringify(value).length - 2;
+
+// The parser counts characters of the decoded string; the file counts columns of the line
+// it is written on, ULID and JSON escapes included. So the part of the value that comes
+// before the error is re-encoded to learn how wide it is on disk.
+function syntaxPositionOf(text, ulid, at, value) {
 	const { line } = positionOf(text, ulid);
 	const opening = lineAt(text, line).indexOf(VALUE_OPENING);
+	const start = -1 === opening ? 0 : opening + VALUE_OPENING.length;
+	const lines = String(value ?? '').split('\n');
+	const head = [...lines.slice(0, at.line - 1), (lines[at.line - 1] ?? '').slice(0, at.col - 1)];
 
-	return { line, col: (-1 === opening ? 0 : opening + VALUE_OPENING.length) + at.col };
+	return { line, col: start + escapedLength(head.join('\n')) + 1 };
 }
 
 function messageFinding(scope, translation, lang, ulid, item) {
 	const entry = scope.keys.entries.find((key) => key.ulid === ulid);
 	const label = entry ? `${entry.name} (${ulid})` : ulid;
 	const at = item.at
-		? syntaxPositionOf(translation.text, ulid, item.at)
+		? syntaxPositionOf(translation.text, ulid, item.at, translation.data[ulid])
 		: spotPositionOf(translation.text, ulid, item);
 	const message = `${label} ${item.message}`;
 

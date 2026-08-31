@@ -45,6 +45,10 @@ function mergeParam(params, name, type, cases) {
 		return;
 	}
 
+	if ('plain' === existing.type && 'plain' !== type) {
+		existing.type = type;
+	}
+
 	for (const key of cases) {
 		if (!existing.cases.includes(key)) {
 			existing.cases.push(key);
