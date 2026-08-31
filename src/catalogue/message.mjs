@@ -149,6 +149,26 @@ function signaturesOf(text) {
 
 export const paramNamesOf = (text) => [...(signaturesOf(text)?.keys() ?? [])];
 
+function icuTypeOf({ type, cases }) {
+	if ('plural' === type || 'selectordinal' === type) {
+		return 'number';
+	}
+
+	if ('select' !== type) {
+		return null;
+	}
+
+	const values = cases.filter((key) => 'other' !== key);
+
+	return values.length ? values.map((key) => `'${key}'`).join(' | ') : null;
+}
+
+export function paramTypesOf(text) {
+	const params = signaturesOf(text) ?? new Map();
+
+	return new Map([...params].map(([name, param]) => [name, icuTypeOf(param)]));
+}
+
 export function paramDiff(base, value) {
 	const expected = paramNamesOf(base);
 	const actual = paramNamesOf(value);

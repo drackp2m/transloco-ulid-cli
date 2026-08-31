@@ -319,6 +319,9 @@ function checkMessages(scope, langs) {
 	return findings;
 }
 
+const shifted = ({ removed, missing, extra }) =>
+	removed || 0 !== missing.length || 0 !== extra.length;
+
 function checkParams(scope, langs, defaultLang, params) {
 	const base = scope.translations.get(defaultLang)?.data;
 	const findings = [];
@@ -327,7 +330,7 @@ function checkParams(scope, langs, defaultLang, params) {
 		return findings;
 	}
 
-	const drifting = new Set(params.drift.map(({ key }) => key));
+	const drifting = new Set(params.drift.filter(shifted).map(({ key }) => key));
 
 	for (const lang of langs.filter((entry) => entry !== defaultLang)) {
 		const translation = scope.translations.get(lang);
@@ -343,6 +346,14 @@ function checkParams(scope, langs, defaultLang, params) {
 const declaresFindings = (scope, params, drift, label) =>
 	drift.extra.map((name) => {
 		const message = `${paramsName(scope.name)} declares ${paramTag(name)} for ${label}, absent from the default language`;
+		const at = { ...FILE_START, ...fieldLineOf(params.current, drift.key, name), column: PARAMS };
+
+		return finding('stale-params', scope.name, params.file, message, at);
+	});
+
+const retypedFindings = (scope, params, drift, label) =>
+	drift.retyped.map(({ name, type, declared }) => {
+		const message = `${paramsName(scope.name)} declares ${paramTag(name)} as ${declared} for ${label}, ICU says ${type}`;
 		const at = { ...FILE_START, ...fieldLineOf(params.current, drift.key, name), column: PARAMS };
 
 		return finding('stale-params', scope.name, params.file, message, at);
@@ -373,6 +384,7 @@ function driftFindings(scope, params, source, drift) {
 	return [
 		...usesFindings(scope, source, drift, entry, label),
 		...declaresFindings(scope, params, drift, label),
+		...retypedFindings(scope, params, drift, label),
 	];
 }
 

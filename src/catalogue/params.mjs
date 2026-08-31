@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { AMBIENT_PARAMS, toPascalCase } from './config.mjs';
-import { paramNamesOf } from './message.mjs';
+import { paramTypesOf } from './message.mjs';
 
 const ENTRY_LINE = /^\t'([^']+)': \{$/;
 const FIELD_LINE = /^\t\t(\w+): (.+);$/;
@@ -57,49 +57,59 @@ export function fieldLineOf(text, key, name) {
 	return at;
 }
 
-function collectEntries(scope, defaultLang) {
+function fieldsOf(text, declared) {
+	return [...paramTypesOf(text)]
+		.filter(([name]) => !AMBIENT_PARAMS.has(name))
+		.map(([name, icu]) => ({ name, type: icu ?? declared?.get(name) ?? 'string' }));
+}
+
+function collectEntries(scope, defaultLang, declared) {
 	const data = scope.translations.get(defaultLang)?.data ?? {};
 	const entries = [];
 
 	for (const entry of scope.keys.entries) {
-		const written = paramNamesOf(data[entry.ulid] ?? '');
-		const names = written.filter((name) => !AMBIENT_PARAMS.has(name));
+		const fields = fieldsOf(data[entry.ulid] ?? '', declared.get(entry.value));
 
-		if (names.length) {
-			entries.push({ key: entry.value, names });
+		if (fields.length) {
+			entries.push({ key: entry.value, fields });
 		}
 	}
 
 	return entries;
 }
 
-function render(entries, declared, name) {
+function render(entries, name) {
 	if (!entries.length) {
 		return `export type ${name} = Record<never, never>;\n`;
 	}
 
-	const body = entries.map(({ key, names }) => {
-		const fields = names.map((name) => `\t\t${name}: ${declared.get(key)?.get(name) ?? 'string'};`);
+	const body = entries.map(({ key, fields }) => {
+		const lines = fields.map((field) => `\t\t${field.name}: ${field.type};`);
 
-		return [`\t'${key}': {`, ...fields, '\t};'].join('\n');
+		return [`\t'${key}': {`, ...lines, '\t};'].join('\n');
 	});
 
 	return `export interface ${name} {\n${body.join('\n')}\n}\n`;
 }
 
-const changed = (names, current) =>
+const changed = (fields, current) =>
 	undefined === current ||
-	names.length !== current.size ||
-	names.some((name) => !current.has(name));
+	fields.length !== current.size ||
+	fields.some(({ name, type }) => current.get(name) !== type);
 
 // Which side each key disagrees on: what the source writes and params.ts has not
-// learnt yet, and what params.ts still declares after the source dropped it.
-function driftSides(names, current) {
-	const fields = current ?? new Map();
+// learnt yet, what params.ts still declares after the source dropped it, and what
+// both write under a type the ICU argument contradicts.
+function driftSides(fields, current) {
+	const declared = current ?? new Map();
+	const names = fields.map(({ name }) => name);
 
 	return {
-		missing: names.filter((name) => !fields.has(name)),
-		extra: [...fields.keys()].filter((name) => !names.includes(name)),
+		missing: names.filter((name) => !declared.has(name)),
+		extra: [...declared.keys()].filter((name) => !names.includes(name)),
+		retyped: fields
+			.filter(({ name, type }) => declared.has(name) && declared.get(name) !== type)
+			.map(({ name, type }) => ({ name, type, declared: declared.get(name) })),
 	};
 }
 
@@ -110,11 +120,11 @@ function driftOf(entries, declared, text) {
 
 	return [
 		...entries
-			.filter(({ key, names }) => changed(names, declared.get(key)))
-			.map(({ key, names }) => ({
+			.filter(({ key, fields }) => changed(fields, declared.get(key)))
+			.map(({ key, fields }) => ({
 				key,
 				removed: false,
-				...driftSides(names, declared.get(key)),
+				...driftSides(fields, declared.get(key)),
 			})),
 		...[...declared.keys()]
 			.filter((key) => !expected.has(key))
@@ -133,9 +143,9 @@ export function buildScopeParams(scope, defaultLang) {
 	const file = paramsFile(scope.dir);
 	const current = existsSync(file) ? readFileSync(file, 'utf8') : null;
 	const declared = readDeclaredParams(file);
-	const entries = collectEntries(scope, defaultLang);
+	const entries = collectEntries(scope, defaultLang, declared);
 	const needed = 0 !== entries.length || null !== current;
-	const content = needed ? render(entries, declared, paramsName(scope.name)) : null;
+	const content = needed ? render(entries, paramsName(scope.name)) : null;
 
 	return {
 		file,

@@ -6,6 +6,7 @@ import {
 	buildFrom,
 	isIcu,
 	leavesOf,
+	paramTypesOf,
 	paramsOf,
 	parse,
 	signatureDiff,
@@ -352,5 +353,47 @@ describe('signatureDiff', () => {
 			retyped: [],
 			surplus: [],
 		});
+	});
+});
+
+describe('paramTypesOf', () => {
+	test('leaves a plain argument without a type, because it does not say one', () => {
+		deepStrictEqual([...paramTypesOf('Hola {name}')], [['name', null]]);
+	});
+
+	test('types a plural as a number', () => {
+		deepStrictEqual(
+			[...paramTypesOf('{count, plural, one {# ejercicio} other {# ejercicios}}')],
+			[['count', 'number']],
+		);
+	});
+
+	test('types a selectordinal as a number too', () => {
+		deepStrictEqual(
+			[...paramTypesOf('{place, selectordinal, one {#º} other {#º}}')],
+			[['place', 'number']],
+		);
+	});
+
+	test('types a select as the union of its cases, without the fallback', () => {
+		deepStrictEqual(
+			[...paramTypesOf('{status, select, ok {bien} ko {mal} other {?}}')],
+			[['status', "'ok' | 'ko'"]],
+		);
+	});
+
+	test('leaves a select that only writes other without a type', () => {
+		deepStrictEqual([...paramTypesOf('{status, select, other {lo que sea}}')], [['status', null]]);
+	});
+
+	test('keeps the branching type when the same name is also written plain', () => {
+		deepStrictEqual(
+			[...paramTypesOf('{count} de {count, plural, one {#} other {#}}')],
+			[['count', 'number']],
+		);
+	});
+
+	test('says nothing about a string that does not parse', () => {
+		deepStrictEqual([...paramTypesOf('Hola {name')], []);
 	});
 });
