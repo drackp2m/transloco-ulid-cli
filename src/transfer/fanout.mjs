@@ -53,13 +53,10 @@ function examplesText(lang, key) {
 	}
 
 	if (0 === found.decimals.length) {
-		return 'ningún número la selecciona, pero ICU la exige de todas formas';
+		return 'es la forma general de la frase';
 	}
 
-	return (
-		`sólo la alcanzan los decimales: ${decimalList(found.decimals)}. ` +
-		'Es obligatoria aunque no se vea nunca'
-	);
+	return `se usa con los decimales: ${decimalList(found.decimals)}`;
 }
 
 function noteFor(category, text) {

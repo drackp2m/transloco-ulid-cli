@@ -287,10 +287,7 @@ describe('the notes each form carries', () => {
 	test('says of the Russian "other" that only decimals reach it', () => {
 		const text = noteOf(formAt(build(PLURAL, 'ru-RU'), '#plural:other'), 'examples');
 
-		strictEqual(
-			text,
-			'sólo la alcanzan los decimales: 0,5 · 1,5 · 2,5. Es obligatoria aunque no se vea nunca',
-		);
+		strictEqual(text, 'se usa con los decimales: 0,5 · 1,5 · 2,5');
 	});
 
 	test('writes a single example where the language has a single number', () => {
