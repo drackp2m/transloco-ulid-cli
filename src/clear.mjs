@@ -177,6 +177,6 @@ if (options.dryRun) {
 
 printWritten(applyClear(plans, options));
 
-const hint = `${c.dim} — send them out again with "pnpm i18n:export --missing".${c.reset}`;
+const hint = `${c.dim} — send them out again with "transloco-ulid export --missing".${c.reset}`;
 
 console.log(`\n  ${c.yellow}⚠ ${plural(total, 'translation')} cleared${c.reset}${hint}`);

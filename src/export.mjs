@@ -86,4 +86,4 @@ if (0 === documents.length) {
 }
 
 printExported(documents);
-printHint(`Send these to the translator; bring them back with "pnpm i18n:import".`);
+printHint(`Send these to the translator; bring them back with "transloco-ulid import".`);

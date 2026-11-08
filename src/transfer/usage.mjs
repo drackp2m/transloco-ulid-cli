@@ -2,7 +2,7 @@ import { DEFAULTS } from '../catalogue/config.mjs';
 import { c } from '../shared/terminal.mjs';
 
 const EXPORT_LINES = [
-	`${c.bold}Usage:${c.reset} pnpm i18n:export [options]`,
+	`${c.bold}Usage:${c.reset} transloco-ulid export [options]`,
 	'',
 	'Writes one bilingual XLIFF 2.0 file per target language into translations/,',
 	'carrying the ULID as the unit id, the context notes and each {param} as an',
@@ -28,12 +28,12 @@ const EXPORT_LINES = [
 	'With no selection flag the whole catalogue travels.',
 	'',
 	`${c.bold}Examples:${c.reset}`,
-	`  ${c.dim}pnpm i18n:export --lang en-GB --pending${c.reset}`,
-	`  ${c.dim}pnpm i18n:export --lang en-GB --blank --scope training${c.reset}`,
+	`  ${c.dim}transloco-ulid export --lang en-GB --pending${c.reset}`,
+	`  ${c.dim}transloco-ulid export --lang en-GB --blank --scope training${c.reset}`,
 ];
 
 const IMPORT_LINES = [
-	`${c.bold}Usage:${c.reset} pnpm i18n:import [files|directories...] [options]`,
+	`${c.bold}Usage:${c.reset} transloco-ulid import [files|directories...] [options]`,
 	'',
 	'Reads the translated XLIFF files back and merges their targets into the <lang>.json',
 	'files, in keys.ts order. Only ever adds: a ULID the file does not carry keeps the',
@@ -55,11 +55,11 @@ const IMPORT_LINES = [
 	`  ${c.cyan}--langs${c.reset} <codes>    comma-separated languages, the first one the source`,
 	`  ${c.cyan}--help${c.reset}, ${c.cyan}-h${c.reset}         print this text`,
 	'',
-	'Accepting a new key appends it to keys.ts — run "pnpm i18n:check --fix" afterwards.',
+	'Accepting a new key appends it to keys.ts — run "transloco-ulid check --fix" afterwards.',
 	'',
 	`${c.bold}Examples:${c.reset}`,
-	`  ${c.dim}pnpm i18n:import --dry-run --verbose${c.reset}`,
-	`  ${c.dim}pnpm i18n:import translations/en-GB.xlf --all-new${c.reset}`,
+	`  ${c.dim}transloco-ulid import --dry-run --verbose${c.reset}`,
+	`  ${c.dim}transloco-ulid import translations/en-GB.xlf --all-new${c.reset}`,
 ];
 
 export const printExportUsage = () => console.log(EXPORT_LINES.join('\n'));

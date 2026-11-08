@@ -4,7 +4,7 @@ const COMMANDS = ['check', 'export', 'import', 'state', 'clear'];
 const [command] = process.argv.splice(2, 1);
 
 if (!COMMANDS.includes(command)) {
-	console.error(`Usage: ulid-i18n <${COMMANDS.join('|')}> [options]`);
+	console.error(`Usage: transloco-ulid <${COMMANDS.join('|')}> [options]`);
 	process.exit(1);
 }
 

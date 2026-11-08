@@ -4,7 +4,7 @@ import { DEFAULTS } from '../catalogue/config.mjs';
 import { c } from '../shared/terminal.mjs';
 
 const LINES = [
-	`${c.bold}Usage:${c.reset} pnpm i18n:check [options]`,
+	`${c.bold}Usage:${c.reset} transloco-ulid check [options]`,
 	'',
 	'Checks that every i18n key is declared, translated and used, and paints one',
 	'row per scope with the state of its keys, params and languages.',
@@ -26,8 +26,8 @@ const LINES = [
 	'Only errors fail the command: warnings and notes never change the exit code.',
 	'',
 	`${c.bold}Examples:${c.reset}`,
-	`  ${c.dim}pnpm i18n:check --fix${c.reset}`,
-	`  ${c.dim}pnpm i18n:check --verbose --langs es-ES,en-GB${c.reset}`,
+	`  ${c.dim}transloco-ulid check --fix${c.reset}`,
+	`  ${c.dim}transloco-ulid check --verbose --langs es-ES,en-GB${c.reset}`,
 ];
 
 export const printUsage = () => console.log(LINES.join('\n'));

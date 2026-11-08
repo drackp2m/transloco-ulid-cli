@@ -128,7 +128,9 @@ async function run(options) {
 	printWrittenFiles(applyImport({ ...options, plan, scopes, accepted }));
 
 	if (0 !== accepted.length) {
-		printHint('New keys landed in keys.ts — run "pnpm i18n:check --fix" to refresh params.ts.');
+		printHint(
+			'New keys landed in keys.ts — run "transloco-ulid check --fix" to refresh params.ts.',
+		);
 	}
 
 	printOutdated(plan.outdated, CHANGE_LIMIT, options.verbose);

@@ -111,7 +111,7 @@ console.log(`${c.bold}${action}${c.reset} ${c.dim}(${details})${c.reset}\n`);
 
 if (!options.adopt) {
 	printTally(tally(scopes, before, options));
-	console.log(`\n  ${c.dim}Seal today's sources with "pnpm i18n:state --adopt".${c.reset}`);
+	console.log(`\n  ${c.dim}Seal today's sources with "transloco-ulid state --adopt".${c.reset}`);
 	process.exit(0);
 }
 
