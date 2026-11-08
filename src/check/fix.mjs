@@ -20,8 +20,8 @@ function nextContent(scope, translation) {
 	return `${JSON.stringify(result, null, '\t')}\n`;
 }
 
-const scopeImportPath = (scope) =>
-	scope.prefixed ? `@app/i18n/${scope.name}/keys` : '@app/i18n/keys';
+const scopeImportPath = (scope, alias) =>
+	scope.prefixed ? `${alias}/${scope.name}/keys` : `${alias}/keys`;
 
 const scopeConstName = (scope) => `${toPascalCase(scope.name)}I18n`;
 
@@ -33,10 +33,10 @@ const scopePropertyName = (scope) => {
 
 // Text-splice rather than reprint the whole file: the barrel also carries
 // hand-written type plumbing (I18nScope, i18nRef) a printer would reformat.
-function nextBarrelContent(parsed, missing) {
+function nextBarrelContent(parsed, missing, alias) {
 	const lastImport = parsed.imports.at(-1);
 	const importLines = missing
-		.map((scope) => `import { ${scopeConstName(scope)} } from '${scopeImportPath(scope)}';`)
+		.map((scope) => `import { ${scopeConstName(scope)} } from '${scopeImportPath(scope, alias)}';`)
 		.join('\n');
 	const withImports = lastImport
 		? `${parsed.text.slice(0, lastImport.getEnd())}\n${importLines}${parsed.text.slice(lastImport.getEnd())}`
@@ -53,7 +53,7 @@ function nextBarrelContent(parsed, missing) {
 	return `${withImports.slice(0, insertAt)}\n${propertyLines}${withImports.slice(insertAt)}`;
 }
 
-function fixBarrel(i18nDir, scopes) {
+function fixBarrel(i18nDir, scopes, alias) {
 	const parsed = parseBarrelSource(i18nDir);
 
 	if (!parsed.exists || !parsed.object) {
@@ -71,7 +71,7 @@ function fixBarrel(i18nDir, scopes) {
 		return null;
 	}
 
-	return { file: parsed.file, content: nextBarrelContent(parsed, missing) };
+	return { file: parsed.file, content: nextBarrelContent(parsed, missing, alias) };
 }
 
 function writeTranslations(scope, langs, written) {
@@ -92,7 +92,7 @@ function writeTranslations(scope, langs, written) {
 	}
 }
 
-export function applyFix({ scopes, langs, defaultLang, i18nDir }) {
+export function applyFix({ scopes, langs, defaultLang, i18nDir, importAlias }) {
 	const written = [];
 	const owned = scopes.filter((entry) => entry.keys);
 
@@ -114,7 +114,7 @@ export function applyFix({ scopes, langs, defaultLang, i18nDir }) {
 		written.push(params.file);
 	}
 
-	const barrel = fixBarrel(i18nDir, scopes);
+	const barrel = fixBarrel(i18nDir, scopes, importAlias);
 
 	if (barrel) {
 		writeFileSync(barrel.file, barrel.content, 'utf8');

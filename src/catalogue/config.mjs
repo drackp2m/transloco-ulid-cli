@@ -1,19 +1,14 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { GENDER_ARG } from './genders.mjs';
 
-const ROOT = path.resolve(fileURLToPath(import.meta.url), '..', '..', '..', '..', '..');
-const LANGUAGE_FILE = path.join(
-	ROOT,
-	'apps',
-	'web',
-	'src',
-	'app',
-	'definition',
-	'language.type.ts',
-);
+export const CONFIG_FILE = 'i18n.config.json';
+
+const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
+
+const STRING_FIELDS = ['i18nDir', 'languageFile', 'rootScope', 'importAlias', 'xliffPrefix'];
 
 export function readLanguages(file) {
 	const source = readFileSync(file, 'utf8');
@@ -28,13 +23,74 @@ export function readLanguages(file) {
 	return { langs, defaultLang };
 }
 
-export const DEFAULTS = {
-	i18nDir: path.join('apps', 'web', 'src', 'app', 'i18n'),
-	sourceDirs: [path.join('apps', 'web', 'src')],
-	languageFile: LANGUAGE_FILE,
-	...readLanguages(LANGUAGE_FILE),
-	rootScope: 'common',
-};
+export function findConfigFile(from) {
+	const dir = path.resolve(from);
+	const file = path.join(dir, CONFIG_FILE);
+
+	if (existsSync(file)) {
+		return file;
+	}
+
+	const parent = path.dirname(dir);
+
+	return parent === dir ? null : findConfigFile(parent);
+}
+
+function readConfigFile(file) {
+	try {
+		return JSON.parse(readFileSync(file, 'utf8'));
+	} catch (error) {
+		throw new Error(`${file}: ${error instanceof Error ? error.message : String(error)}`, {
+			cause: error,
+		});
+	}
+}
+
+function checkConfig(raw, file) {
+	const invalid = STRING_FIELDS.filter((field) => 'string' !== typeof raw?.[field] || !raw[field]);
+	const sources = raw?.sourceDirs;
+
+	if (
+		!Array.isArray(sources) ||
+		!sources.length ||
+		sources.some((dir) => 'string' !== typeof dir)
+	) {
+		invalid.push('sourceDirs');
+	}
+
+	if (invalid.length) {
+		throw new Error(`${file}: missing or invalid ${invalid.join(', ')}`);
+	}
+
+	return raw;
+}
+
+export function loadConfig(from) {
+	const file = findConfigFile(from);
+
+	if (null === file) {
+		throw new Error(`No ${CONFIG_FILE} in ${path.resolve(from)} or any directory above it`);
+	}
+
+	const raw = checkConfig(readConfigFile(file), file);
+	const root = path.dirname(file);
+	const languageFile = path.resolve(root, raw.languageFile);
+
+	return {
+		root,
+		i18nDir: path.normalize(raw.i18nDir),
+		sourceDirs: raw.sourceDirs.map((dir) => path.normalize(dir)),
+		languageFile,
+		...readLanguages(languageFile),
+		rootScope: raw.rootScope,
+		importAlias: raw.importAlias,
+		xliffPrefix: raw.xliffPrefix,
+	};
+}
+
+const configStart = () => (null === findConfigFile(process.cwd()) ? MODULE_DIR : process.cwd());
+
+export const DEFAULTS = loadConfig(configStart());
 
 export const AMBIENT_PARAMS = new Set([GENDER_ARG]);
 

@@ -1,4 +1,5 @@
 import { c } from '../../lint/lint-report.mjs';
+import { DEFAULTS } from '../catalogue/config.mjs';
 
 const EXPORT_LINES = [
 	`${c.bold}Usage:${c.reset} pnpm i18n:export [options]`,
@@ -20,7 +21,7 @@ const EXPORT_LINES = [
 	`  ${c.cyan}--pending${c.reset}          both of the above`,
 	`  ${c.cyan}--blank${c.reset}            send every unit with an empty <target> and without its`,
 	'                     outdated note, so the file cannot seed a machine translator',
-	`  ${c.cyan}--dir${c.reset} <path>       catalogue directory (default: apps/web/src/app/i18n)`,
+	`  ${c.cyan}--dir${c.reset} <path>       catalogue directory (default: ${DEFAULTS.i18nDir})`,
 	`  ${c.cyan}--languages${c.reset} <file> file LANGUAGES / DEFAULT_LANGUAGE are read from`,
 	`  ${c.cyan}--help${c.reset}, ${c.cyan}-h${c.reset}         print this text`,
 	'',
@@ -49,7 +50,7 @@ const IMPORT_LINES = [
 	`  ${c.cyan}--dry-run${c.reset}          report what would change and write nothing`,
 	`  ${c.cyan}--verbose${c.reset}, ${c.cyan}-v${c.reset}      list the changed and outdated units one by one — they are`,
 	'                     only counted otherwise',
-	`  ${c.cyan}--dir${c.reset} <path>       catalogue directory (default: apps/web/src/app/i18n)`,
+	`  ${c.cyan}--dir${c.reset} <path>       catalogue directory (default: ${DEFAULTS.i18nDir})`,
 	`  ${c.cyan}--languages${c.reset} <file> file LANGUAGES / DEFAULT_LANGUAGE are read from`,
 	`  ${c.cyan}--langs${c.reset} <codes>    comma-separated languages, the first one the source`,
 	`  ${c.cyan}--help${c.reset}, ${c.cyan}-h${c.reset}         print this text`,
