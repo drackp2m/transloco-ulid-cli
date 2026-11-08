@@ -1,5 +1,3 @@
-import { c, plural } from '../lint/lint-report.mjs';
-
 import { collectUsages, readScopes } from './catalogue/collect.mjs';
 import { parseArgs } from './catalogue/config.mjs';
 import { applyFix } from './check/fix.mjs';
@@ -7,6 +5,7 @@ import { writeI18nSummary, writeSkippedSummary } from './check/github-summary.mj
 import { printFindings, printWritten } from './check/report.mjs';
 import { buildFindings } from './check/rules.mjs';
 import { printUsage } from './check/usage.mjs';
+import { c, plural } from './shared/terminal.mjs';
 
 const argv = process.argv.slice(2);
 

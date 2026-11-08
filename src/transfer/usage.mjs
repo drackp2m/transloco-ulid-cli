@@ -1,5 +1,5 @@
-import { c } from '../../lint/lint-report.mjs';
 import { DEFAULTS } from '../catalogue/config.mjs';
+import { c } from '../shared/terminal.mjs';
 
 const EXPORT_LINES = [
 	`${c.bold}Usage:${c.reset} pnpm i18n:export [options]`,

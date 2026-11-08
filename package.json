@@ -1,0 +1,26 @@
+{
+	"name": "@chesspecker/i18n-cli",
+	"version": "0.0.0",
+	"description": "Checks, exports and imports a ULID-keyed Transloco catalogue.",
+	"author": "Marc Jovaní González",
+	"private": true,
+	"bin": {
+		"ulid-i18n": "./bin/ulid-i18n.mjs"
+	},
+	"exports": {
+		"./*": "./src/*"
+	},
+	"files": [
+		"bin",
+		"src"
+	],
+	"dependencies": {
+		"@messageformat/parser": "5.1.1"
+	},
+	"peerDependencies": {
+		"typescript": ">=5.0.0"
+	},
+	"devDependencies": {
+		"typescript": "6.0.3"
+	}
+}

@@ -1,7 +1,7 @@
 import path from 'node:path';
 
-import { c } from '../../lint/lint-report.mjs';
 import { DEFAULTS } from '../catalogue/config.mjs';
+import { c } from '../shared/terminal.mjs';
 
 const LINES = [
 	`${c.bold}Usage:${c.reset} pnpm i18n:check [options]`,

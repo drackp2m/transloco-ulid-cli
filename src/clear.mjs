@@ -2,11 +2,10 @@
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { c, plural } from '../lint/lint-report.mjs';
-
 import { readScopes } from './catalogue/collect.mjs';
 import { DEFAULTS, listOf, readLanguages, valueOf } from './catalogue/config.mjs';
 import { readState, writeState } from './catalogue/freshness.mjs';
+import { c, plural } from './shared/terminal.mjs';
 
 function parseClearArgs(argv) {
 	const languageFile = valueOf(argv, '--languages');

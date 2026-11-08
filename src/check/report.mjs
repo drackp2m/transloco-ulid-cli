@@ -1,6 +1,6 @@
 import path from 'node:path';
 
-import { c, plural, printProblems, printTally } from '../../lint/lint-report.mjs';
+import { c, plural, printProblems, printTally } from '../shared/terminal.mjs';
 
 import { FIXABLE_TYPES, cellsOf, columnOf, columnsOf, severityOf } from './findings.mjs';
 

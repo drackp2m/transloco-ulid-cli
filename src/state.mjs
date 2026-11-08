@@ -1,8 +1,6 @@
 #!/usr/bin/env node
 import path from 'node:path';
 
-import { c, plural } from '../lint/lint-report.mjs';
-
 import { readScopes } from './catalogue/collect.mjs';
 import { DEFAULTS, listOf, readLanguages, valueOf } from './catalogue/config.mjs';
 import {
@@ -13,6 +11,7 @@ import {
 	sealed,
 	writeState,
 } from './catalogue/freshness.mjs';
+import { c, plural } from './shared/terminal.mjs';
 
 const COLORS = { fresh: c.green, stale: c.yellow, missing: c.red, unknown: c.dim };
 

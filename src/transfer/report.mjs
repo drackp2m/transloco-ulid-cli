@@ -1,6 +1,6 @@
 import path from 'node:path';
 
-import { c, plural } from '../../lint/lint-report.mjs';
+import { c, plural } from '../shared/terminal.mjs';
 
 const fullPath = (file) => path.resolve(file);
 

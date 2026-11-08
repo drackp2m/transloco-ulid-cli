@@ -1,9 +1,8 @@
 #!/usr/bin/env node
-import { c } from '../lint/lint-report.mjs';
-
 import { collectUsages, readScopes } from './catalogue/collect.mjs';
 import { DEFAULTS, listOf, readLanguages, valueOf } from './catalogue/config.mjs';
 import { readContext } from './catalogue/context.mjs';
+import { c } from './shared/terminal.mjs';
 import { DEFAULT_OUT_DIR, buildExport, exportLangs, writeExport } from './transfer/build.mjs';
 import { printExportHeader, printExported, printHint } from './transfer/report.mjs';
 import { printExportUsage } from './transfer/usage.mjs';
