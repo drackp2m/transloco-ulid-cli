@@ -7,7 +7,14 @@ const STATES = new Set(['initial', 'translated', 'reviewed', 'final']);
 
 // What a stale unit travels out with, and what it still carries when it comes back with
 // nobody having looked at it. Both sides of the trip read it, so it lives here.
-export const OUTDATED_SUB_STATE = 'chesspecker:outdated';
+export const SUB_STATE_PREFIX_NOTE = 'subStatePrefix';
+
+const OUTDATED = 'outdated';
+
+export const outdatedSubState = (prefix) => `${prefix}:${OUTDATED}`;
+
+export const isOutdatedSubState = (subState) =>
+	'string' === typeof subState && OUTDATED === subState.slice(subState.lastIndexOf(':') + 1);
 
 const indent = (depth) => '\t'.repeat(depth);
 

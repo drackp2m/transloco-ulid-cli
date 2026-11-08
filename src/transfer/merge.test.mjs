@@ -3,7 +3,7 @@ import { describe, test } from 'node:test';
 
 import { formsOf } from './fanout.mjs';
 import { planImport } from './merge.mjs';
-import { OUTDATED_SUB_STATE } from './xliff.mjs';
+import { outdatedSubState } from './xliff.mjs';
 
 const ULID = '01K0000000000000000000000A';
 
@@ -121,7 +121,7 @@ describe('planImport and the incomplete group', () => {
 
 describe('planImport and the key that went out stale', () => {
 	const stale = (targets) =>
-		formUnits(targets).map((unit) => ({ ...unit, subState: OUTDATED_SUB_STATE }));
+		formUnits(targets).map((unit) => ({ ...unit, subState: outdatedSubState('demo') }));
 
 	test('leaves a group nobody touched stale instead of sealing it', () => {
 		const plan = planOf(stale(RUSSIAN), { [ULID]: REBUILT });
@@ -134,6 +134,14 @@ describe('planImport and the key that went out stale', () => {
 
 	test('seals it when the translator kept the words and moved the segment on', () => {
 		const units = stale(RUSSIAN).map((unit) => ({ ...unit, subState: null }));
+		const plan = planOf(units, { [ULID]: REBUILT });
+
+		strictEqual(plan.seals.length, 1);
+		deepStrictEqual(plan.outdated, []);
+	});
+
+	test('seals it when the translator only flagged it for review', () => {
+		const units = stale(RUSSIAN).map((unit) => ({ ...unit, subState: 'other:review' }));
 		const plan = planOf(units, { [ULID]: REBUILT });
 
 		strictEqual(plan.seals.length, 1);

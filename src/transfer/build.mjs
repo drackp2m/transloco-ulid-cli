@@ -1,14 +1,14 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { isUlid } from '../catalogue/config.mjs';
+import { DEFAULTS, isUlid } from '../catalogue/config.mjs';
 import { readContext, termsIn } from '../catalogue/context.mjs';
 import { hashOf, readStates, statusOf } from '../catalogue/freshness.mjs';
 import { paramTag } from '../catalogue/message.mjs';
 import { paramsFile, readDeclaredParams } from '../catalogue/params.mjs';
 
 import { formsOf } from './fanout.mjs';
-import { OUTDATED_SUB_STATE, buildXliff } from './xliff.mjs';
+import { SUB_STATE_PREFIX_NOTE, buildXliff, outdatedSubState } from './xliff.mjs';
 
 export const DEFAULT_OUT_DIR = 'translations';
 
@@ -84,14 +84,18 @@ function glossaryNote({ glossary }, sources, lang) {
 
 // What every unit of the file shares. The layers below these — the group and
 // the key — belong to the unit, which is what keeps a unit note short.
-function fileNotes(scope, { context, lang, units }) {
+function fileNotes(scope, { context, lang, units, xliffPrefix }) {
 	const layers = context
 		.contextFor(scope.name, '', lang)
 		.filter((layer) => FILE_LEVELS.has(layer.level));
 	const notes = layers.map(({ level, text }) => ({ category: level, text }));
 	const sources = units.map((unit) => unit.source);
 
-	return [...notes, ...glossaryNote(context, sources, lang)];
+	return [
+		...notes,
+		...glossaryNote(context, sources, lang),
+		{ category: SUB_STATE_PREFIX_NOTE, text: xliffPrefix },
+	];
 }
 
 // Everything the translator needs to place the string without opening the repo: the
@@ -143,12 +147,12 @@ function unitsFor(scope, entry, options) {
 		target: blank ? '' : form.target,
 		status,
 		...(form.hash ? { hash: true } : {}),
-		...(outdated ? { state: 'initial', subState: OUTDATED_SUB_STATE } : {}),
+		...(outdated ? { state: 'initial', subState: outdatedSubState(options.xliffPrefix) } : {}),
 	}));
 }
 
 function unitsOf(scope, options) {
-	const { defaultLang, lang, filter, usages, root, context, state, blank } = options;
+	const { defaultLang, lang, filter, usages, root, context, state, blank, xliffPrefix } = options;
 	const source = scope.translations.get(defaultLang)?.data ?? {};
 	const target = scope.translations.get(lang)?.data ?? {};
 	const declared = readDeclaredParams(paramsFile(scope.dir));
@@ -164,6 +168,7 @@ function unitsOf(scope, options) {
 		target,
 		state,
 		blank,
+		xliffPrefix,
 	};
 
 	return scope.keys.entries
@@ -173,13 +178,13 @@ function unitsOf(scope, options) {
 }
 
 function fileOf(scope, options) {
-	const { lang, root, context } = options;
+	const { lang, root, context, xliffPrefix } = options;
 	const units = unitsOf(scope, options);
 
 	return {
 		id: scope.name,
 		original: relativise(scope.translations.get(lang)?.file ?? scope.keysFile, root),
-		notes: fileNotes(scope, { context, lang, units }),
+		notes: fileNotes(scope, { context, lang, units, xliffPrefix }),
 		units,
 	};
 }
@@ -197,7 +202,8 @@ export function buildExport(options) {
 		(scope) => scope.keys && (!only?.length || only.includes(scope.name)),
 	);
 	const states = options.states ?? readStates(options.i18nDir, wanted);
-	const shared = { defaultLang, lang, filter, usages, root, context, blank };
+	const xliffPrefix = options.xliffPrefix ?? DEFAULTS.xliffPrefix;
+	const shared = { defaultLang, lang, filter, usages, root, context, blank, xliffPrefix };
 	const files = wanted
 		.map((scope) => fileOf(scope, { ...shared, state: states.get(scope.name) }))
 		.filter((file) => 0 !== file.units.length);

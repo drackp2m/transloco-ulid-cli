@@ -4,7 +4,7 @@ import { isUlid } from '../catalogue/config.mjs';
 import { hashOf, readState, sealed, writeState } from '../catalogue/freshness.mjs';
 
 import { foldGroup, groupUnits, isFlatGroup } from './regroup.mjs';
-import { OUTDATED_SUB_STATE, noteOf } from './xliff.mjs';
+import { isOutdatedSubState, noteOf } from './xliff.mjs';
 
 const KEYS_END = '} as const;';
 const KEY_NAME = /^[A-Z][A-Z0-9_]*$/;
@@ -70,8 +70,7 @@ function sealingOf(unit, ulid, entry, context, seal) {
 // back with the two untouched says nobody revised it, so sealing it would quietly retire
 // the very staleness that made it travel. A translator who reads it and keeps the words
 // says so by moving the segment on, and that seals.
-const revised = (group) =>
-	group.units.some((unit) => OUTDATED_SUB_STATE !== (unit.subState ?? null));
+const revised = (group) => group.units.some((unit) => !isOutdatedSubState(unit.subState));
 
 const updateOf = (ulid, entry, context, to) => ({
 	scope: context.scope.name,
