@@ -173,15 +173,21 @@ export function readBarrel(i18nDir) {
 	};
 }
 
+export function parseTranslation(text) {
+	try {
+		return { exists: true, data: JSON.parse(text), error: null, text };
+	} catch (error) {
+		return { exists: true, data: null, error: error.message, text: null };
+	}
+}
+
 function readTranslation(file) {
 	if (!existsSync(file)) {
 		return { exists: false, data: null, error: null, text: null };
 	}
 
 	try {
-		const text = readFileSync(file, 'utf8');
-
-		return { exists: true, data: JSON.parse(text), error: null, text };
+		return parseTranslation(readFileSync(file, 'utf8'));
 	} catch (error) {
 		return { exists: true, data: null, error: error.message, text: null };
 	}

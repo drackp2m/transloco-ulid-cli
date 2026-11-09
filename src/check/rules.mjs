@@ -213,13 +213,13 @@ const listOf = (names) => names.map(paramTag).join(', ');
 
 const quoted = (keys) => keys.map((key) => `"${key}"`).join(', ');
 
-// A param the source does not have is this language's own to answer for, even while
-// params.ts lags behind; one it has yet to pick up is only the drift showing through.
+// A param the source does not have is this language's own to answer for. One it lacks is
+// part of what a stale translation still owes, and the stale finding already says so.
 // What never gets a pass is the signature: a name both sides write, written as another
 // kind of argument or with a branch the source never declares.
-function comparePair(base, value, ulid, drifting) {
+export function comparePair(base, value, ulid, pending) {
 	const { dropped, added, retyped, surplus } = signatureDiff(base, value);
-	const drops = drifting ? [] : dropped;
+	const drops = pending ? [] : dropped;
 
 	return [
 		...(drops.length ? [`${ulid} drops ${listOf(drops)}`] : []),
@@ -232,7 +232,7 @@ function comparePair(base, value, ulid, drifting) {
 	];
 }
 
-function comparePairs(base, translation, lang, { scope, drifting }) {
+function comparePairs(base, translation, lang, { scope, stale }) {
 	const findings = [];
 
 	for (const [ulid, value] of Object.entries(translation.data)) {
@@ -240,9 +240,9 @@ function comparePairs(base, translation, lang, { scope, drifting }) {
 			continue;
 		}
 
-		const drifts = drifting.has(expectedValue(scope, ulid));
+		const pending = stale.has(`${lang}:${ulid}`);
 
-		for (const message of comparePair(base[ulid], value, ulid, drifts)) {
+		for (const message of comparePair(base[ulid], value, ulid, pending)) {
 			const where = { ...positionOf(translation.text, ulid), lang };
 			const file = translation.file;
 
@@ -319,10 +319,22 @@ function checkMessages(scope, langs) {
 	return findings;
 }
 
-const shifted = ({ removed, missing, extra }) =>
-	removed || 0 !== missing.length || 0 !== extra.length;
+function staleTargetsOf(scope, { langs, defaultLang, i18nDir }) {
+	const state = readState(i18nDir, scope.name);
 
-function checkParams(scope, langs, defaultLang, params) {
+	if (state.error) {
+		return new Set();
+	}
+
+	return new Set(
+		freshnessOf(scope, state, { langs, defaultLang })
+			.filter((entry) => 'stale' === entry.status)
+			.map((entry) => `${entry.lang}:${entry.ulid}`),
+	);
+}
+
+function checkParams(scope, params, options) {
+	const { langs, defaultLang } = options;
 	const base = scope.translations.get(defaultLang)?.data;
 	const findings = [];
 
@@ -330,13 +342,13 @@ function checkParams(scope, langs, defaultLang, params) {
 		return findings;
 	}
 
-	const drifting = new Set(params.drift.filter(shifted).map(({ key }) => key));
+	const stale = staleTargetsOf(scope, options);
 
 	for (const lang of langs.filter((entry) => entry !== defaultLang)) {
 		const translation = scope.translations.get(lang);
 
 		if (translation.data) {
-			findings.push(...comparePairs(base, translation, lang, { scope, drifting }));
+			findings.push(...comparePairs(base, translation, lang, { scope, stale }));
 		}
 	}
 
@@ -530,7 +542,7 @@ export function buildFindings({ scopes, usages, commented, langs, defaultLang, i
 		findings.push(...checkFreshness(scope, { langs, defaultLang, i18nDir }));
 		findings.push(...checkUsage(scope, usages, commented));
 		findings.push(...checkParamsFile(scope, params, scope.translations.get(defaultLang)));
-		findings.push(...checkParams(scope, langs, defaultLang, params));
+		findings.push(...checkParams(scope, params, { langs, defaultLang, i18nDir }));
 	}
 
 	return findings;
