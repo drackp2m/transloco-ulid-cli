@@ -1,4 +1,4 @@
-import { deepStrictEqual, notStrictEqual, ok, strictEqual } from 'node:assert/strict';
+import { deepStrictEqual, ok, strictEqual } from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { after, describe, test } from 'node:test';
@@ -146,7 +146,7 @@ describe('import — freshness', () => {
 		deepStrictEqual(linesOf(findingsOf(catalogue)), []);
 	});
 
-	test('never seals as fresh a unit whose source changed while it was out', () => {
+	test('seals a unit whose source changed while it was out against that older source', () => {
 		const catalogue = catalogueWith([{ name: 'GREET', texts: { 'en-GB': 'Hello {name}', 'es-ES': '' } }]);
 		const translated = fillIn(exportOf(catalogue, 'missing'), [`Hola ${PLACEHOLDER}`]);
 		const moved = translated.replace(/(<note category="srcHash">)[0-9a-f]+/, '$1000000000000');
@@ -154,7 +154,10 @@ describe('import — freshness', () => {
 
 		strictEqual(spanish(catalogue)[ulidOf(0)], 'Hola {name}');
 		strictEqual(plan.outdated.length, 1);
-		notStrictEqual(sealOf(catalogue, 0), hashOf('Hello {name}'));
+		strictEqual(sealOf(catalogue, 0), '000000000000');
+		deepStrictEqual(linesOf(findingsOf(catalogue)), [
+			`warning stale-translation [es-ES]: GREET (${ulidOf(0)}) was translated from an older "en-GB"`,
+		]);
 	});
 });
 

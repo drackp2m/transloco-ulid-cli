@@ -478,9 +478,10 @@ translation is **fresh** when the fingerprint matches, **missing** when it is em
 **unknown** when it was written without one, for example by hand.
 
 `import` seals what comes back: a unit translated from today's source becomes fresh. A stale one
-that comes back untouched stays stale, and one whose source changed while it was out is written but
-never sealed as fresh. `state` counts each status per language, and `state --adopt` seals every
-translation as it is today, for a catalogue that predates the state files.
+that comes back untouched stays stale, and one whose source changed while it was out is sealed
+against the source it was translated from, so it reads as stale. `state` counts each status per
+language, and `state --adopt` seals every translation as it is today, for a catalogue that predates
+the state files.
 
 ## Commands
 

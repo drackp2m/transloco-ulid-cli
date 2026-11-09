@@ -58,12 +58,15 @@ function sealingOf(unit, ulid, entry, context, seal) {
 	const hash = hashOf(source[ulid] ?? '');
 	const declared = noteOf(unit, 'srcHash');
 	const moved = null !== declared && declared !== hash;
+	const outdated = { scope: scope.name, ulid, key: entry.name, lang };
 
-	if (moved || !seal) {
-		return { outdated: { scope: scope.name, ulid, key: entry.name, lang } };
+	if (!seal) {
+		return { outdated };
 	}
 
-	return { seal: { scope: scope.name, ulid, lang, hash } };
+	return moved
+		? { outdated, seal: { scope: scope.name, ulid, lang, hash: declared } }
+		: { seal: { scope: scope.name, ulid, lang, hash } };
 }
 
 // A stale key goes out with its old translation and the outdated sub-state on it. Coming

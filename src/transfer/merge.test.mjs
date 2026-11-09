@@ -156,6 +156,34 @@ describe('planImport and the key that went out stale', () => {
 	});
 });
 
+describe('planImport and a source that moved while the file was out', () => {
+	const OLD_HASH = '0123456789ab';
+	const translatedFrom = (hash) =>
+		formUnits(RUSSIAN).map((unit) => ({ ...unit, notes: [{ category: 'srcHash', text: hash }] }));
+
+	test('seals the translation against the source it was made from, so it reads as stale', () => {
+		const plan = planOf(translatedFrom(OLD_HASH));
+
+		strictEqual(plan.updates.length, 1);
+		deepStrictEqual(
+			plan.seals.map(({ ulid, lang, hash }) => ({ ulid, lang, hash })),
+			[{ ulid: ULID, lang: LANG, hash: OLD_HASH }],
+		);
+		strictEqual(plan.outdated.length, 1);
+	});
+
+	test('seals against that older source even when the words came back as they were', () => {
+		const plan = planOf(translatedFrom(OLD_HASH), { [ULID]: REBUILT });
+
+		strictEqual(plan.updates.length, 0);
+		deepStrictEqual(
+			plan.seals.map(({ hash }) => hash),
+			[OLD_HASH],
+		);
+		strictEqual(plan.outdated.length, 1);
+	});
+});
+
 describe('planImport and a key keys.ts does not have', () => {
 	test('offers a flat key once, the way it always did', () => {
 		const unit = {
