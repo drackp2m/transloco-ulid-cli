@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import ts from 'typescript';
 
-import { DEFAULTS, RESERVED_DIRS, toKebabCase } from './config.mjs';
+import { RESERVED_DIRS, readDefaults, toKebabCase } from './config.mjs';
 
 const SOURCE_EXTENSIONS = new Set(['.ts', '.html']);
 const CONST_USAGE = /\b([A-Z][A-Za-z0-9]*)I18n\s*\.\s*([A-Z][A-Z0-9_]*)\b/g;
@@ -207,7 +207,7 @@ function readScope(dir, name, langs, prefixed) {
 	};
 }
 
-export function readScopes({ i18nDir, langs, rootScope = DEFAULTS.rootScope }) {
+export function readScopes({ i18nDir, langs, rootScope = readDefaults().rootScope }) {
 	if (!existsSync(i18nDir)) {
 		return [];
 	}

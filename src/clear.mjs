@@ -3,7 +3,7 @@ import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { readScopes } from './catalogue/collect.mjs';
-import { DEFAULTS, listOf, readLanguages, valueOf } from './catalogue/config.mjs';
+import { listOf, readDefaults, readLanguages, valueOf } from './catalogue/config.mjs';
 import { readState, writeState } from './catalogue/freshness.mjs';
 import { c, plural } from './shared/terminal.mjs';
 
@@ -11,7 +11,7 @@ function parseClearArgs(argv) {
 	const languageFile = valueOf(argv, '--languages');
 
 	return {
-		...DEFAULTS,
+		...readDefaults(),
 		...(valueOf(argv, '--dir') ? { i18nDir: valueOf(argv, '--dir') } : {}),
 		...(languageFile ? { languageFile, ...readLanguages(languageFile) } : {}),
 		requested: listOf(argv, '--lang') ?? [],

@@ -14,7 +14,7 @@ that carry the context a translator needs.
 npm install --save-dev @drackp2m/transloco-ulid-cli
 ```
 
-It needs Node 20 or later, and uses the TypeScript the project already has.
+It needs Node 22 or later, and uses the TypeScript the project already has.
 
 ## Configuration
 

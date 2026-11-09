@@ -1,9 +1,9 @@
 import path from 'node:path';
 
-import { DEFAULTS } from '../catalogue/config.mjs';
+import { readDefaults } from '../catalogue/config.mjs';
 import { c } from '../shared/terminal.mjs';
 
-const LINES = [
+const linesOf = (defaults) => [
 	`${c.bold}Usage:${c.reset} transloco-ulid check [options]`,
 	'',
 	'Checks that every i18n key is declared, translated and used, and paints one',
@@ -15,11 +15,11 @@ const LINES = [
 	'                     report whatever is left',
 	`  ${c.cyan}--verbose${c.reset}, ${c.cyan}-v${c.reset}      list the non-blocking findings too — warnings and notes`,
 	'                     are counted but not printed unless this flag is given',
-	`  ${c.cyan}--dir${c.reset} <path>       catalogue directory (default: ${DEFAULTS.i18nDir})`,
+	`  ${c.cyan}--dir${c.reset} <path>       catalogue directory (default: ${defaults.i18nDir})`,
 	`  ${c.cyan}--source${c.reset} <paths>   comma-separated roots scanned for usages (default:`,
-	`                     ${DEFAULTS.sourceDirs.join(',')})`,
+	`                     ${defaults.sourceDirs.join(',')})`,
 	`  ${c.cyan}--languages${c.reset} <file> file LANGUAGES / DEFAULT_LANGUAGE are read from`,
-	`                     (default: ${path.relative(DEFAULTS.root, DEFAULTS.languageFile)})`,
+	`                     (default: ${path.relative(defaults.root, defaults.languageFile)})`,
 	`  ${c.cyan}--langs${c.reset} <codes>    comma-separated languages, the first one the source`,
 	`  ${c.cyan}--help${c.reset}, ${c.cyan}-h${c.reset}         print this text`,
 	'',
@@ -30,4 +30,4 @@ const LINES = [
 	`  ${c.dim}transloco-ulid check --verbose --langs es-ES,en-GB${c.reset}`,
 ];
 
-export const printUsage = () => console.log(LINES.join('\n'));
+export const printUsage = () => console.log(linesOf(readDefaults()).join('\n'));

@@ -2,7 +2,7 @@
 import path from 'node:path';
 
 import { readScopes } from './catalogue/collect.mjs';
-import { DEFAULTS, listOf, readLanguages, valueOf } from './catalogue/config.mjs';
+import { listOf, readDefaults, readLanguages, valueOf } from './catalogue/config.mjs';
 import {
 	STATUSES,
 	freshnessOf,
@@ -20,7 +20,7 @@ function parseStateArgs(argv) {
 	const langs = listOf(argv, '--langs');
 
 	return {
-		...DEFAULTS,
+		...readDefaults(),
 		...(valueOf(argv, '--dir') ? { i18nDir: valueOf(argv, '--dir') } : {}),
 		...(languageFile ? { languageFile, ...readLanguages(languageFile) } : {}),
 		...(langs?.length ? { langs, defaultLang: langs[0] } : {}),

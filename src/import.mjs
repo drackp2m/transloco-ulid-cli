@@ -3,7 +3,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 import { readScopes } from './catalogue/collect.mjs';
-import { DEFAULTS, listOf, readLanguages, valueOf } from './catalogue/config.mjs';
+import { listOf, readDefaults, readLanguages, valueOf } from './catalogue/config.mjs';
 import { selectFromList } from './shared/select-list.mjs';
 import { c, plural } from './shared/terminal.mjs';
 import { DEFAULT_OUT_DIR } from './transfer/build.mjs';
@@ -39,7 +39,7 @@ function parseImportArgs(argv) {
 	);
 
 	return {
-		...DEFAULTS,
+		...readDefaults(),
 		...(valueOf(argv, '--dir') ? { i18nDir: valueOf(argv, '--dir') } : {}),
 		...(languageFile ? { languageFile, ...readLanguages(languageFile) } : {}),
 		...(listOf(argv, '--langs')?.length ? { langs: listOf(argv, '--langs') } : {}),

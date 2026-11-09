@@ -1,7 +1,7 @@
-import { DEFAULTS } from '../catalogue/config.mjs';
+import { readDefaults } from '../catalogue/config.mjs';
 import { c } from '../shared/terminal.mjs';
 
-const EXPORT_LINES = [
+const exportLines = (defaults) => [
 	`${c.bold}Usage:${c.reset} transloco-ulid export [options]`,
 	'',
 	'Writes one bilingual XLIFF 2.0 file per target language into translations/,',
@@ -21,7 +21,7 @@ const EXPORT_LINES = [
 	`  ${c.cyan}--pending${c.reset}          both of the above`,
 	`  ${c.cyan}--blank${c.reset}            send every unit with an empty <target> and without its`,
 	'                     outdated note, so the file cannot seed a machine translator',
-	`  ${c.cyan}--dir${c.reset} <path>       catalogue directory (default: ${DEFAULTS.i18nDir})`,
+	`  ${c.cyan}--dir${c.reset} <path>       catalogue directory (default: ${defaults.i18nDir})`,
 	`  ${c.cyan}--languages${c.reset} <file> file LANGUAGES / DEFAULT_LANGUAGE are read from`,
 	`  ${c.cyan}--help${c.reset}, ${c.cyan}-h${c.reset}         print this text`,
 	'',
@@ -32,7 +32,7 @@ const EXPORT_LINES = [
 	`  ${c.dim}transloco-ulid export --lang en-GB --blank --scope training${c.reset}`,
 ];
 
-const IMPORT_LINES = [
+const importLines = (defaults) => [
 	`${c.bold}Usage:${c.reset} transloco-ulid import [files|directories...] [options]`,
 	'',
 	'Reads the translated XLIFF files back and merges their targets into the <lang>.json',
@@ -50,7 +50,7 @@ const IMPORT_LINES = [
 	`  ${c.cyan}--dry-run${c.reset}          report what would change and write nothing`,
 	`  ${c.cyan}--verbose${c.reset}, ${c.cyan}-v${c.reset}      list the changed and outdated units one by one — they are`,
 	'                     only counted otherwise',
-	`  ${c.cyan}--dir${c.reset} <path>       catalogue directory (default: ${DEFAULTS.i18nDir})`,
+	`  ${c.cyan}--dir${c.reset} <path>       catalogue directory (default: ${defaults.i18nDir})`,
 	`  ${c.cyan}--languages${c.reset} <file> file LANGUAGES / DEFAULT_LANGUAGE are read from`,
 	`  ${c.cyan}--langs${c.reset} <codes>    comma-separated languages, the first one the source`,
 	`  ${c.cyan}--help${c.reset}, ${c.cyan}-h${c.reset}         print this text`,
@@ -62,6 +62,6 @@ const IMPORT_LINES = [
 	`  ${c.dim}transloco-ulid import translations/en-GB.xlf --all-new${c.reset}`,
 ];
 
-export const printExportUsage = () => console.log(EXPORT_LINES.join('\n'));
+export const printExportUsage = () => console.log(exportLines(readDefaults()).join('\n'));
 
-export const printImportUsage = () => console.log(IMPORT_LINES.join('\n'));
+export const printImportUsage = () => console.log(importLines(readDefaults()).join('\n'));

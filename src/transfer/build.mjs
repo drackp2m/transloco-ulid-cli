@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-import { DEFAULTS, isUlid } from '../catalogue/config.mjs';
+import { isUlid, readDefaults } from '../catalogue/config.mjs';
 import { readContext, termsIn } from '../catalogue/context.mjs';
 import { hashOf, readStates, statusOf } from '../catalogue/freshness.mjs';
 import { paramTag } from '../catalogue/message.mjs';
@@ -202,7 +202,7 @@ export function buildExport(options) {
 		(scope) => scope.keys && (!only?.length || only.includes(scope.name)),
 	);
 	const states = options.states ?? readStates(options.i18nDir, wanted);
-	const xliffPrefix = options.xliffPrefix ?? DEFAULTS.xliffPrefix;
+	const xliffPrefix = options.xliffPrefix ?? readDefaults().xliffPrefix;
 	const shared = { defaultLang, lang, filter, usages, root, context, blank, xliffPrefix };
 	const files = wanted
 		.map((scope) => fileOf(scope, { ...shared, state: states.get(scope.name) }))

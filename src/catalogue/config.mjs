@@ -88,9 +88,18 @@ export function loadConfig(from) {
 	};
 }
 
-const configStart = () => (null === findConfigFile(process.cwd()) ? MODULE_DIR : process.cwd());
+const configStart = () =>
+	null === findConfigFile(process.cwd()) && null !== findConfigFile(MODULE_DIR)
+		? MODULE_DIR
+		: process.cwd();
 
-export const DEFAULTS = loadConfig(configStart());
+let defaults = null;
+
+export function readDefaults() {
+	defaults ??= loadConfig(configStart());
+
+	return defaults;
+}
 
 export const AMBIENT_PARAMS = new Set([GENDER_ARG]);
 
@@ -122,7 +131,7 @@ export function parseArgs(argv) {
 	const languageFile = value('--languages');
 
 	return {
-		...DEFAULTS,
+		...readDefaults(),
 		...(value('--dir') ? { i18nDir: value('--dir') } : {}),
 		...(value('--source') ? { sourceDirs: value('--source').split(',').filter(Boolean) } : {}),
 		...(languageFile ? { languageFile, ...readLanguages(languageFile) } : {}),

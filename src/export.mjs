@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { collectUsages, readScopes } from './catalogue/collect.mjs';
-import { DEFAULTS, listOf, readLanguages, valueOf } from './catalogue/config.mjs';
+import { listOf, readDefaults, readLanguages, valueOf } from './catalogue/config.mjs';
 import { readContext } from './catalogue/context.mjs';
 import { c } from './shared/terminal.mjs';
 import { DEFAULT_OUT_DIR, buildExport, exportLangs, writeExport } from './transfer/build.mjs';
@@ -23,7 +23,7 @@ function parseExportArgs(argv) {
 	const languageFile = valueOf(argv, '--languages');
 
 	return {
-		...DEFAULTS,
+		...readDefaults(),
 		...(valueOf(argv, '--dir') ? { i18nDir: valueOf(argv, '--dir') } : {}),
 		...(languageFile ? { languageFile, ...readLanguages(languageFile) } : {}),
 		out: valueOf(argv, '--out') ?? DEFAULT_OUT_DIR,
