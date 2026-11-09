@@ -11,6 +11,8 @@ import { buildFindings } from '../check/rules.mjs';
 
 export const ROOT_SCOPE = 'common';
 
+export const XLIFF_PREFIX = 'test';
+
 const DIRS = [];
 
 export const ulidOf = (index) => `01KZJ895M8N6WQ02RVEABRE${String(index).padStart(3, '0')}`;
@@ -79,6 +81,40 @@ function usagesOf(scopeName, keys, extra) {
 	return [...lines, extra, ''].join('\n');
 }
 
+function projectFiles(root, langs) {
+	const quoted = langs.map((lang) => `'${lang}'`).join(', ');
+	const config = {
+		i18nDir: 'i18n',
+		sourceDirs: ['src'],
+		languageFile: 'languages.ts',
+		rootScope: ROOT_SCOPE,
+		importAlias: '@app/i18n',
+		xliffPrefix: XLIFF_PREFIX,
+	};
+
+	write(path.join(root, 'i18n.config.json'), json(config));
+	write(
+		path.join(root, 'languages.ts'),
+		`export const LANGUAGES = [${quoted}] as const;\n\nexport const DEFAULT_LANGUAGE = '${langs[0]}';\n`,
+	);
+}
+
+function contextFiles(i18nDir, scopeName, { app, scope, glossary } = {}) {
+	const dir = path.join(i18nDir, 'context');
+
+	if (undefined !== app) {
+		write(path.join(dir, 'app.md'), app);
+	}
+
+	if (undefined !== scope) {
+		write(path.join(dir, `${scopeName}.md`), scope);
+	}
+
+	if (undefined !== glossary) {
+		write(path.join(dir, 'glossary.json'), json(glossary));
+	}
+}
+
 export function createCatalogue(spec) {
 	const { langs = ['es-ES', 'en-GB'], scopeName = 'demo', usages = '', params } = spec;
 	const root = mkdtempSync(path.join(tmpdir(), 'i18n-catalogue-'));
@@ -89,6 +125,8 @@ export function createCatalogue(spec) {
 	const defaultLang = langs[0];
 
 	DIRS.push(root);
+	projectFiles(root, langs);
+	contextFiles(i18nDir, scopeName, spec.context);
 	write(path.join(i18nDir, 'index.ts'), barrelOf(scopeName));
 	write(path.join(scopeDir, 'keys.ts'), keysOf(scopeName, keys));
 	write(path.join(i18nDir, 'state', `${scopeName}.json`), json(sealsOf(keys, langs, defaultLang)));

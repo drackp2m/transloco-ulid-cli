@@ -477,10 +477,10 @@ a warning, and the export sends it again with the old target and an `outdated` s
 translation is **fresh** when the fingerprint matches, **missing** when it is empty, and
 **unknown** when it was written without one, for example by hand.
 
-`import` seals what comes back: a unit translated from today's source becomes fresh. A unit whose
-source moved while it was out, or a stale one that comes back untouched, stays stale. `state`
-counts each status per language, and `state --adopt` seals every translation as it is today, for a
-catalogue that predates the state files.
+`import` seals what comes back: a unit translated from today's source becomes fresh. A stale one
+that comes back untouched stays stale, and one whose source changed while it was out is written but
+never sealed as fresh. `state` counts each status per language, and `state --adopt` seals every
+translation as it is today, for a catalogue that predates the state files.
 
 ## Commands
 
