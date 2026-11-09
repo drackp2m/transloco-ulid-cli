@@ -1,7 +1,7 @@
 {
 	"name": "@drackp2m/transloco-ulid-cli",
 	"version": "0.2.0",
-	"description": "Checks, exports and imports a ULID-keyed Transloco catalogue, with XLIFF 2.0 round-trips for translators.",
+	"description": "Checks, adds, exports and imports keys of a ULID-keyed Transloco catalogue, with XLIFF 2.0 round-trips for translators.",
 	"author": "Marc Jovaní González",
 	"license": "MIT",
 	"homepage": "https://github.com/drackp2m/transloco-ulid-cli#readme",
@@ -29,7 +29,8 @@
 	"files": [
 		"bin",
 		"src",
-		"!src/**/*.test.mjs"
+		"!src/**/*.test.mjs",
+		"!src/testing"
 	],
 	"engines": {
 		"node": ">=22"

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-const COMMANDS = ['check', 'export', 'import', 'state', 'clear'];
+const COMMANDS = ['check', 'add', 'export', 'import', 'state', 'clear'];
 
 const [command] = process.argv.splice(2, 1);
 

@@ -69,6 +69,7 @@ Texts are ICU messages, so plurals and selects travel as such. Usages are found 
 
 ```sh
 transloco-ulid check [--fix] [--verbose]
+transloco-ulid add --name <NAME> (--text <text> | --plural <param> --one <form> --other <form>)
 transloco-ulid export [--lang <codes>] [--missing | --stale | --pending] [--blank]
 transloco-ulid import [files|directories...] [--dry-run]
 transloco-ulid state [--adopt]
@@ -78,6 +79,13 @@ transloco-ulid clear --lang <codes>
 - `check` reports undeclared, untranslated, unused and mismatched keys, and fails only on errors.
   `--fix` writes what it can by itself: empty translation slots, `params.ts`, the freshness state
   and the scopes missing from the barrel.
+- `add` creates a key in the source language: a new ULID in `keys.ts`, the text in the source
+  `<lang>.json` and an empty slot in every other one. The text must pass the rules `check` applies,
+  so a plural brings exactly the forms the source language needs: `one` and `other` in Spanish or
+  English, `one`, `few`, `many` and `other` in Russian, `other` alone in Japanese. `params.ts`
+  takes the new entry only when it was up to date before. A plural form that names another param
+  and never counts with `#` gets a warning, since `{total} retos` under `count` is usually a typo
+  for `# retos`.
 - `export` writes one bilingual XLIFF 2.0 file per target language, into `translations/` by
   default. Each unit carries its ULID as id, the constant, where it is used, its parameters and
   the matching glossary terms.
