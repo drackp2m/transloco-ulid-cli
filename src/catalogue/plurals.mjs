@@ -7,6 +7,10 @@
 // reaches it — in Russian only a decimal does.
 const COUNTABLE_LIMIT = 1000;
 
+const CATEGORY_ORDER = ['zero', 'one', 'two', 'few', 'many', 'other'];
+
+const byCategory = (left, right) => CATEGORY_ORDER.indexOf(left) - CATEGORY_ORDER.indexOf(right);
+
 const TABLES = new Map();
 
 const baseOf = (lang) => String(lang).split('-')[0].toLowerCase();
@@ -30,7 +34,7 @@ function buildTable(lang) {
 		return null;
 	}
 
-	const { pluralCategories } = rules.resolvedOptions();
+	const pluralCategories = [...rules.resolvedOptions().pluralCategories].sort(byCategory);
 	const reachable = new Set(['other']);
 
 	for (let count = 0; count <= COUNTABLE_LIMIT; count += 1) {
