@@ -205,6 +205,19 @@ describe('buildFrom ordering', () => {
 		);
 	});
 
+	test('puts what the order does not name after what it does, alphabetically', () => {
+		const source = '{count, plural, =1 {Just one} other {# moves} =0 {None} one {# move}}';
+
+		strictEqual(
+			buildFrom(leavesOf(source), [{ type: 'plural', arg: 'count' }]),
+			'{count, plural, one {# move} =0 {None} =1 {Just one} other {# moves}}',
+		);
+	});
+
+	test('refuses to build from no leaves at all', () => {
+		throws(() => buildFrom([], []), /^Error: buildFrom: needs at least one leaf$/);
+	});
+
 	test('keeps "other" last even when the order puts it first', () => {
 		const leaves = [
 			{ path: ['select:other'], text: 'Sin datos' },

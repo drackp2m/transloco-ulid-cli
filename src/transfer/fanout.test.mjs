@@ -306,6 +306,26 @@ describe('the notes each form carries', () => {
 		ok(siblings.startsWith('es-ES · one+male: «Resuelto #»'));
 	});
 
+	test('writes no siblings for a plural with a single branch', () => {
+		const forms = formsOf({
+			source: '{count, plural, other {# 手}}',
+			target: '',
+			lang: 'ja-JP',
+			defaultLang: 'ja-JP',
+		});
+
+		deepStrictEqual(
+			forms[0].notes.map((note) => note.category),
+			['category', 'examples'],
+		);
+	});
+
+	test('writes no numbers for a language CLDR has no rules for', () => {
+		const notes = build(PLURAL, 'not_a_tag').flatMap((form) => form.notes);
+
+		ok(notes.every((note) => 'examples' !== note.category));
+	});
+
 	test('writes no notes at all for a string with no branches', () => {
 		deepStrictEqual(build('Hola', 'ru-RU')[0].notes, []);
 	});

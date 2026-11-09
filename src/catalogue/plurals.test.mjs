@@ -30,6 +30,10 @@ describe('cardinalCategoriesOf', () => {
 	test('answers nothing for a tag CLDR does not know', () => {
 		strictEqual(cardinalCategoriesOf('zz-ZZ'), null);
 	});
+
+	test('answers nothing for what is not a language tag at all', () => {
+		strictEqual(cardinalCategoriesOf('not_a_tag'), null);
+	});
 });
 
 describe('requiredCategoriesOf', () => {

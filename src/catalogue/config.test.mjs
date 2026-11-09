@@ -104,6 +104,14 @@ describe('loadConfig', () => {
 		);
 	});
 
+	test('fails on a language file without LANGUAGES and DEFAULT_LANGUAGE', () => {
+		const { root } = project(CONFIG);
+
+		writeFileSync(path.join(root, 'src', 'language.ts'), "export const LANGS = ['es-ES'];\n", 'utf8');
+
+		throws(() => loadConfig(root), /^Error: Could not read LANGUAGES \/ DEFAULT_LANGUAGE from /);
+	});
+
 	test('fails when there is no config at all', () => {
 		const { root } = project();
 

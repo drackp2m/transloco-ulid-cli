@@ -1,5 +1,5 @@
 import { deepStrictEqual, ok, strictEqual } from 'node:assert/strict';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { after, describe, test } from 'node:test';
 
@@ -10,6 +10,9 @@ const LANGS = ['en-GB', 'es-ES'];
 const SAVE = { name: 'SAVE', texts: { 'en-GB': 'Save', 'es-ES': 'Guardar' }, seal: true };
 const DELETE = { name: 'DELETE', texts: { 'en-GB': 'Delete', 'es-ES': '' } };
 const PLURAL = '{count, plural, one {# challenge} other {# challenges}}';
+const STALE = { name: 'GREET', texts: { 'en-GB': 'Hello {name}', 'es-ES': 'Hola {name}' }, seal: 'Hi {name}' };
+const COMMENTED = { name: 'KEY', texts: { 'en-GB': 'Key', 'es-ES': 'Clave' }, seal: true, used: false };
+const IN_A_COMMENT = '<!-- {{ I18n.demo.KEY | i18n }} -->';
 
 after(removeCatalogues);
 
@@ -22,6 +25,14 @@ const spanishOf = (catalogue) => JSON.parse(read(path.join(catalogue.scopeDir, '
 const keysOf = (catalogue) => read(path.join(catalogue.scopeDir, 'keys.ts'));
 
 const xliffOf = (catalogue) => path.join(catalogue.root, 'translations', 'es-ES.xlf');
+
+function withoutScopes() {
+	const catalogue = project([SAVE]);
+
+	rmSync(catalogue.scopeDir, { recursive: true });
+
+	return catalogue;
+}
 
 function translate(catalogue, from, to) {
 	const file = xliffOf(catalogue);
@@ -78,6 +89,38 @@ describe('transloco-ulid check', () => {
 		strictEqual(spanishOf(catalogue)[ulidOf(1)], '');
 	});
 
+	test('says so when every key is fine, and that --fix had nothing to write', () => {
+		const { root } = project([SAVE]);
+
+		ok(runCli(root, ['check']).stdout.includes('✔ Every key is declared, translated and used.'));
+		ok(runCli(root, ['check', '--fix']).stdout.includes('✓ Nothing to write'));
+	});
+
+	test('counts the notes as hidden, and prints them with --verbose', () => {
+		const catalogue = createCatalogue({ langs: LANGS, keys: [SAVE, COMMENTED], usages: IN_A_COMMENT });
+		const quiet = runCli(catalogue.root, ['check']);
+		const verbose = runCli(catalogue.root, ['check', '--verbose']);
+
+		deepStrictEqual([quiet.status, verbose.status], [0, 0]);
+		ok(quiet.stdout.includes('1 note hidden — re-run with --verbose to list them'));
+		ok(verbose.stdout.includes('━━ Info ━━'));
+		ok(verbose.stdout.includes('3:2  info  KEY is only referenced from a comment  commented-usage'));
+		ok(verbose.stdout.includes('ℹ 1 note'));
+	});
+
+	test('skips a catalogue without scopes, in the log and in the job summary', () => {
+		const { root } = withoutScopes();
+		const summary = path.join(root, 'summary.md');
+
+		writeFileSync(summary, '');
+
+		const { status, stdout } = runCli(root, ['check'], { GITHUB_STEP_SUMMARY: summary });
+
+		strictEqual(status, 0);
+		ok(stdout.includes('⊘ skipped — no scopes in i18n'));
+		ok(read(summary).includes('> ⊘ Skipped — no scopes in `i18n`.'));
+	});
+
 	test('writes its report into the GitHub job summary', () => {
 		const { root } = project();
 		const summary = path.join(root, 'summary.md');
@@ -89,6 +132,27 @@ describe('transloco-ulid check', () => {
 
 		ok(report.startsWith('## i18n Report'));
 		ok(report.includes('| `empty-translation` | 0 | 1 |'));
+	});
+
+	test('gives the job summary the verdict on errors, what --fix can do and the notes', () => {
+		const missing = { ...COMMENTED, texts: { 'en-GB': 'Key', 'es-ES': null } };
+		const catalogue = createCatalogue({
+			langs: LANGS,
+			keys: [SAVE, DELETE, missing],
+			usages: IN_A_COMMENT,
+		});
+		const summary = path.join(catalogue.root, 'summary.md');
+
+		writeFileSync(summary, '');
+
+		strictEqual(runCli(catalogue.root, ['check'], { GITHUB_STEP_SUMMARY: summary }).status, 1);
+
+		const report = read(summary);
+
+		ok(report.includes('| `missing-translation` | 1 | 0 |\n| `empty-translation` | 0 | 1 |'));
+		ok(report.includes('> ❌ 1 error · 1 warning.'));
+		ok(report.includes('_1 problem potentially fixable with the `--fix` option._'));
+		ok(report.includes('_1 note printed in the step log._'));
 	});
 });
 
@@ -150,6 +214,16 @@ describe('transloco-ulid add', () => {
 		ok(runCli(root, ['add', '--name', 'X', '--text', 'x']).stderr.includes('unknown scope "common" — the scopes are demo'));
 	});
 
+	test('asks for a name, and for either --text or --plural', () => {
+		const { root } = project();
+		const nameless = runCli(root, ['add', '--scope', 'demo', '--text', 'x']);
+		const both = runCli(root, ['add', '--scope', 'demo', '--name', 'X', '--text', 'x', '--plural', 'count']);
+
+		deepStrictEqual([nameless.status, both.status], [1, 1]);
+		ok(nameless.stderr.includes('✖ name the key with --name <NAME>'));
+		ok(both.stderr.includes('✖ give --text or --plural, not both'));
+	});
+
 	test('warns about a form that names another param instead of counting', () => {
 		const { stdout } = runCli(project().root, [
 			'add',
@@ -208,11 +282,80 @@ describe('transloco-ulid export and import', () => {
 		ok(stderr.includes('missing or invalid notesLang (one of en, es)'));
 	});
 
+	test('sends only the outdated with --stale, and both kinds with --pending', () => {
+		const { root } = project([SAVE, DELETE, STALE]);
+
+		ok(runCli(root, ['export', '--stale']).stdout.includes('es-ES.xlf  1 unit · 1 outdated'));
+		ok(
+			runCli(root, ['export', '--pending']).stdout.includes(
+				'es-ES.xlf  2 units · 1 untranslated · 1 outdated',
+			),
+		);
+	});
+
+	test('says the targets go out empty with --blank', () => {
+		const catalogue = project([SAVE, STALE]);
+		const { stdout } = runCli(catalogue.root, ['export', '--blank']);
+
+		ok(stdout.includes('Targets go out empty — no existing translation travels with the file.'));
+		ok(!read(xliffOf(catalogue)).includes('<target>Hola'));
+	});
+
+	test('fails without scopes, and without a language to translate into', () => {
+		const single = createCatalogue({ langs: ['en-GB'], keys: [{ name: 'SAVE', texts: { 'en-GB': 'Save' } }] });
+		const scopeless = runCli(withoutScopes().root, ['export']);
+		const sourceOnly = runCli(single.root, ['export']);
+
+		deepStrictEqual([scopeless.status, sourceOnly.status], [1, 1]);
+		ok(scopeless.stderr.includes('✖ no scopes in i18n'));
+		ok(sourceOnly.stderr.includes('✖ nothing to export — every language is the source one'));
+	});
+
 	test('refuses a language the catalogue does not have', () => {
 		const { status, stderr } = runCli(project().root, ['export', '--lang', 'fr-FR']);
 
 		strictEqual(status, 1);
 		ok(stderr.includes('unknown language(s): fr-FR'));
+	});
+
+	test('lists what changed and what stays outdated only with --verbose', () => {
+		const catalogue = project([SAVE, DELETE, STALE]);
+
+		runCli(catalogue.root, ['export']);
+		translate(catalogue, '<target>Guardar</target>', '<target>Salvar</target>');
+
+		const quiet = runCli(catalogue.root, ['import', 'translations/es-ES.xlf', '--dry-run']);
+		const verbose = runCli(catalogue.root, ['import', '--verbose', '--dry-run']);
+
+		ok(quiet.stdout.includes('es-ES  1 updated · 1 unchanged · 1 empty'));
+		ok(quiet.stdout.includes('1 translation changed — re-run with --verbose to list them'));
+		ok(quiet.stdout.includes('⚠ 1 key came back without a fresh translation — left outdated'));
+		ok(verbose.stdout.includes('demo.SAVE · es-ES\n    - Guardar\n    + Salvar'));
+		ok(verbose.stdout.includes('left outdated\n      demo.GREET · es-ES'));
+	});
+
+	test('lists the problems of what it imported', () => {
+		const catalogue = project([{ name: 'GREET', texts: { 'en-GB': 'Hello {name}', 'es-ES': '' } }]);
+
+		runCli(catalogue.root, ['export']);
+		translate(catalogue, '<target></target>', '<target>Hola</target>');
+
+		const { status, stdout } = runCli(catalogue.root, ['import']);
+
+		strictEqual(status, 0);
+		ok(stdout.includes(`✖ demo.${ulidOf(0)}  placeholders differ from en-GB`));
+		ok(stdout.includes('1 problem'));
+	});
+
+	test('fails on a directory without XLIFF files', () => {
+		const { root } = project();
+
+		mkdirSync(path.join(root, 'empty'));
+
+		const { status, stderr } = runCli(root, ['import', 'empty']);
+
+		strictEqual(status, 1);
+		ok(stderr.includes('✖ no .xlf files in empty'));
 	});
 
 	test('fails on an input that does not exist', () => {
@@ -245,6 +388,23 @@ describe('transloco-ulid state', () => {
 		ok(runCli(project().root, ['state']).stdout.includes('es-ES  1 fresh · 0 stale · 1 missing'));
 	});
 
+	test('fails without scopes, and on a state file that is not valid JSON', () => {
+		const broken = project();
+
+		writeFileSync(path.join(broken.i18nDir, 'state', 'demo.json'), '{ nope');
+
+		const scopeless = runCli(withoutScopes().root, ['state']);
+		const invalid = runCli(broken.root, ['state']);
+
+		deepStrictEqual([scopeless.status, invalid.status], [1, 1]);
+		ok(scopeless.stderr.includes('✖ no scopes in i18n'));
+		ok(invalid.stderr.includes('✖ i18n/state/demo.json: '));
+	});
+
+	test('has nothing to write with --adopt when every seal is current', () => {
+		ok(runCli(project([SAVE]).root, ['state', '--adopt']).stdout.includes('✓ Nothing to write'));
+	});
+
 	test('seals every translation as it is today with --adopt, the stale ones included', () => {
 		const catalogue = project([
 			{ name: 'SAVE', texts: { 'en-GB': 'Save', 'es-ES': 'Guardar' } },
@@ -269,6 +429,24 @@ describe('transloco-ulid clear', () => {
 		deepStrictEqual([source.status, none.status], [1, 1]);
 		ok(source.stderr.includes('en-GB is the source language'));
 		ok(none.stderr.includes('nothing to clear'));
+	});
+
+	test('refuses a language or a scope the catalogue does not have, and an empty catalogue', () => {
+		const { root } = project();
+		const lang = runCli(root, ['clear', '--lang', 'fr-FR']);
+		const scope = runCli(root, ['clear', '--lang', 'es-ES', '--scope', 'other']);
+		const scopeless = runCli(withoutScopes().root, ['clear', '--lang', 'es-ES']);
+
+		deepStrictEqual([lang.status, scope.status, scopeless.status], [1, 1, 1]);
+		ok(lang.stderr.includes('✖ unknown language(s): fr-FR'));
+		ok(scope.stderr.includes('✖ unknown scope(s): other'));
+		ok(scopeless.stderr.includes('✖ no scopes in i18n'));
+	});
+
+	test('has nothing to clear in a language that is already empty', () => {
+		const { stdout } = runCli(project([DELETE]).root, ['clear', '--lang', 'es-ES']);
+
+		ok(stdout.includes('✓ Nothing to clear — every target is already empty'));
 	});
 
 	test('lists what it would clear with --dry-run, and writes nothing', () => {

@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 const BIN = fileURLToPath(new URL('../../bin/transloco-ulid.mjs', import.meta.url));
 const ANSI = new RegExp(`${String.fromCharCode(27)}\\[[0-9;?]*[A-Za-z]`, 'g');
 
-const plain = (text) => String(text ?? '').replace(ANSI, '');
+export const plain = (text) => String(text ?? '').replace(ANSI, '');
 
 export function runCli(root, args, env = {}) {
 	const inherited = { ...process.env };

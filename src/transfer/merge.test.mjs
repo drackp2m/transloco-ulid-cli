@@ -199,6 +199,30 @@ describe('planImport and a key keys.ts does not have', () => {
 		strictEqual(plan.added[0].ulid, NEW_ULID);
 	});
 
+	const offered = (source, notes = []) =>
+		planOf([{ id: `puzzle.${NEW_ULID}`, notes, source, target: 'Привет' }]).added.map(
+			(entry) => entry.name,
+		);
+
+	test('names one without a key note after its source text', () => {
+		deepStrictEqual(offered('¡Guarda la partida!'), ['GUARDA_LA_PARTIDA']);
+	});
+
+	test('cuts a name taken from a long source down to forty characters', () => {
+		const source = 'Guarda cada entrenamiento que hayas jugado durante la última semana';
+
+		deepStrictEqual(offered(source), ['GUARDA_CADA_ENTRENAMIENTO_QUE_HAYAS_JUGA']);
+	});
+
+	test('names it after the end of its ULID when the source gives no name', () => {
+		deepStrictEqual(offered('3 jugadas'), ['KEY_00000B']);
+		deepStrictEqual(offered('¿?'), ['KEY_00000B']);
+	});
+
+	test('numbers a name the scope already has', () => {
+		deepStrictEqual(offered('x', [{ category: 'key', text: 'PUZZLE_KEYS.IMPORTED' }]), ['IMPORTED_2']);
+	});
+
 	test('refuses its forms instead of offering the same key four times', () => {
 		const plan = planOf(formUnits(RUSSIAN, NEW_ULID));
 
@@ -215,6 +239,21 @@ describe('planImport and the ids it refuses', () => {
 		const plan = planOf([unit]);
 
 		deepStrictEqual(plan.problems, [{ file: 'puzzle.NOT_A_ULID', message: 'id is not a ULID' }]);
+	});
+
+	test('reports a scope the catalogue does not have, against the file', () => {
+		const document = documentOf([]);
+
+		document.xliff.files[0].id = 'other';
+
+		const plan = planImport({
+			scopes: [scopeOf()],
+			langs: [DEFAULT_LANG, LANG],
+			defaultLang: DEFAULT_LANG,
+			documents: [document],
+		});
+
+		deepStrictEqual(plan.problems, [{ file: 'ru-RU.xlf', message: 'unknown scope "other"' }]);
 	});
 
 	test('reads a language the catalogue does not have as the problem it is', () => {

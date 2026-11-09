@@ -1,5 +1,5 @@
 import { deepStrictEqual, ok, strictEqual } from 'node:assert/strict';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { after, describe, test } from 'node:test';
 
@@ -116,6 +116,14 @@ describe('applyFix', () => {
 
 		deepStrictEqual(fix(catalogue), []);
 		strictEqual(read(catalogue, 'demo', 'es-ES.json'), '{ "broken": ');
+	});
+
+	test('settles the language files of a catalogue without a barrel, and leaves the barrel to the check', () => {
+		const catalogue = catalogueWith([SAVE, { ...GREET, texts: { 'en-GB': 'Hello {name}', 'es-ES': null } }]);
+
+		rmSync(path.join(catalogue.i18nDir, 'index.ts'));
+
+		deepStrictEqual(fix(catalogue), ['i18n/demo/es-ES.json']);
 	});
 
 	test('drops the seal of a key that is no longer declared', () => {

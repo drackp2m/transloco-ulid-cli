@@ -1,5 +1,5 @@
-import { deepStrictEqual, ok, strictEqual } from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { deepStrictEqual, ok, strictEqual, throws } from 'node:assert/strict';
+import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { after, describe, test } from 'node:test';
 
@@ -188,6 +188,18 @@ describe('import — keys the catalogue does not know', () => {
 		ok(keys.includes(`\tSAVE_2: 'demo.${ulidOf(900)}',\n} as const;`));
 		strictEqual(read(catalogue, 'demo', 'en-GB.json')[ulidOf(900)], 'Save');
 		strictEqual(spanish(catalogue)[ulidOf(900)], 'Nuevo');
+	});
+
+	test('refuses to add one to a keys.ts whose object does not end in "} as const;"', () => {
+		const catalogue = catalogueWith([{ name: 'SAVE', texts: { 'en-GB': 'Save', 'es-ES': '' } }]);
+		const keys = path.join(catalogue.scopeDir, 'keys.ts');
+
+		writeFileSync(keys, readFileSync(keys, 'utf8').replace('} as const;', '};'));
+
+		throws(
+			() => importInto(catalogue, unknownIn(catalogue), (plan) => plan.added),
+			/cannot find "\} as const;" in .*keys\.ts$/,
+		);
 	});
 
 	test('writes nothing for one that was not accepted', () => {

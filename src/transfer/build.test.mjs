@@ -1,4 +1,5 @@
 import { deepStrictEqual, ok, strictEqual, throws } from 'node:assert/strict';
+import path from 'node:path';
 import { after, before, describe, test } from 'node:test';
 
 import { collectUsages } from '../catalogue/collect.mjs';
@@ -136,6 +137,12 @@ describe('buildExport — notes', () => {
 			term: 'training → entrenamiento',
 			srcHash: hashOf('Save the training'),
 		});
+	});
+
+	test('leaves the usage paths absolute without a root to make them relative to', () => {
+		const unit = readXliff(exported('es-ES', 'all', { root: null }).content).files[0].units[0];
+
+		strictEqual(notesOf(unit).usage, path.join(catalogue.sourceDir, 'page.html'));
 	});
 
 	test('types each param, and takes the context of a group pattern', () => {

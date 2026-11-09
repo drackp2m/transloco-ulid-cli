@@ -1,5 +1,5 @@
 import { deepStrictEqual, ok, strictEqual } from 'node:assert/strict';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { after, describe, test } from 'node:test';
 
@@ -214,5 +214,36 @@ describe('planKey — refusals', () => {
 		const [problem] = planIn(catalogue, 'DELETE', 'Borrar').problems;
 
 		ok(problem.startsWith(`${file} is not valid JSON`));
+	});
+
+	test('refuses to write into a language file that is not there', () => {
+		const catalogue = createCatalogue({ keys: [SAVE] });
+		const file = fileOf(catalogue, 'en-GB.json');
+
+		rmSync(file);
+
+		deepStrictEqual(planIn(catalogue, 'DELETE', 'Borrar').problems, [`${file} does not exist`]);
+	});
+
+	test('refuses a scope without keys.ts', () => {
+		const catalogue = createCatalogue({ keys: [SAVE] });
+
+		rmSync(fileOf(catalogue, 'keys.ts'));
+
+		deepStrictEqual(planIn(catalogue, 'DELETE', 'Borrar').problems, [
+			`${fileOf(catalogue, 'keys.ts')} does not exist`,
+		]);
+	});
+
+	test('refuses a keys.ts whose object does not end in "} as const;"', () => {
+		const catalogue = createCatalogue({ keys: [SAVE] });
+		const file = fileOf(catalogue, 'keys.ts');
+
+		writeFileSync(file, read(catalogue, 'keys.ts').replace('} as const;', '};'));
+
+		const plan = planIn(catalogue, 'DELETE', 'Borrar');
+
+		deepStrictEqual(plan.problems, [`${file} has no "} as const;" to add the key before`]);
+		deepStrictEqual(plan.writes, []);
 	});
 });
