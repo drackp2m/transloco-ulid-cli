@@ -1,0 +1,7 @@
+{
+	"all": true,
+	"src": ["src"],
+	"include": ["src/**/*.mjs"],
+	"exclude": ["src/**/*.test.mjs", "src/testing/**"],
+	"reporter": ["text", "lcov"]
+}

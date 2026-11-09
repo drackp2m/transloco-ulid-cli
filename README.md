@@ -2,6 +2,7 @@
 
 [![npm](https://img.shields.io/npm/v/@drackp2m/transloco-ulid-cli)](https://www.npmjs.com/package/@drackp2m/transloco-ulid-cli)
 [![CI](https://github.com/drackp2m/transloco-ulid-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/drackp2m/transloco-ulid-cli/actions/workflows/ci.yml)
+[![coverage](https://coveralls.io/repos/github/drackp2m/transloco-ulid-cli/badge.svg?branch=main)](https://coveralls.io/github/drackp2m/transloco-ulid-cli?branch=main)
 [![node](https://img.shields.io/node/v/@drackp2m/transloco-ulid-cli)](https://nodejs.org)
 [![license](https://img.shields.io/npm/l/@drackp2m/transloco-ulid-cli)](LICENSE)
 
