@@ -31,6 +31,7 @@ const optionsOf = (catalogue) => ({
 	langs: LANGS,
 	i18nDir: catalogue.i18nDir,
 	xliffPrefix: XLIFF_PREFIX,
+	notesLang: 'en',
 });
 
 const exportOf = (catalogue, filter = 'all') =>

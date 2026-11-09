@@ -19,8 +19,8 @@ const RUSSIAN =
 
 const DEFAULT_LANG = 'es-ES';
 
-const build = (source, lang, target = '') =>
-	formsOf({ source, target, lang, defaultLang: DEFAULT_LANG });
+const build = (source, lang, target = '', notesLang = undefined) =>
+	formsOf({ source, target, lang, defaultLang: DEFAULT_LANG, notesLang });
 
 const suffixes = (forms) => forms.map((form) => form.suffix);
 
@@ -92,7 +92,7 @@ describe('formsOf over a plural', () => {
 
 		deepStrictEqual(suffixes(forms), ['#plural:=0', '#plural:one', '#plural:other']);
 		strictEqual(formAt(forms, '#plural:=0').source, 'No hay nada');
-		strictEqual(noteOf(formAt(forms, '#plural:=0'), 'examples'), 'se usa exactamente con 0');
+		strictEqual(noteOf(formAt(forms, '#plural:=0'), 'examples'), 'used for exactly 0');
 	});
 });
 
@@ -147,14 +147,14 @@ describe('formsOf over a gender select', () => {
 		const forms = build(GENDER, 'tr-TR');
 
 		deepStrictEqual(suffixes(forms), ['#gender:other']);
-		ok(noteOf(forms[0], 'gender-note').includes('no marca género'));
+		ok(noteOf(forms[0], 'gender-note').includes('does not mark gender'));
 	});
 
 	test('repeats the rule about "other" on the form that needs it', () => {
 		const forms = build(GENDER, 'es-ES');
 
-		ok(noteOf(formAt(forms, '#gender:other'), 'gender-note').includes('reformula la frase'));
-		ok(noteOf(formAt(forms, '#gender:female'), 'gender-note').includes('mujer'));
+		ok(noteOf(formAt(forms, '#gender:other'), 'gender-note').includes('reword the sentence'));
+		ok(noteOf(formAt(forms, '#gender:female'), 'gender-note').includes('“woman”'));
 	});
 
 	test('does not mark a gender form as carrying an octothorpe', () => {
@@ -280,18 +280,18 @@ describe('the notes each form carries', () => {
 	test('writes the numbers that select the category', () => {
 		const forms = build(PLURAL, 'ru-RU');
 
-		strictEqual(noteOf(formAt(forms, '#plural:one'), 'examples'), 'se usa con 1, 21, 31, 41, 51…');
-		ok(noteOf(formAt(forms, '#plural:few'), 'examples').startsWith('se usa con 2, 3, 4, 22'));
+		strictEqual(noteOf(formAt(forms, '#plural:one'), 'examples'), 'used for 1, 21, 31, 41, 51…');
+		ok(noteOf(formAt(forms, '#plural:few'), 'examples').startsWith('used for 2, 3, 4, 22'));
 	});
 
 	test('says of the Russian "other" that only decimals reach it', () => {
 		const text = noteOf(formAt(build(PLURAL, 'ru-RU'), '#plural:other'), 'examples');
 
-		strictEqual(text, 'se usa con los decimales: 0,5 · 1,5 · 2,5');
+		strictEqual(text, 'used for the decimals: 0.5 · 1.5 · 2.5');
 	});
 
 	test('writes a single example where the language has a single number', () => {
-		strictEqual(noteOf(formAt(build(PLURAL, 'en-GB'), '#plural:one'), 'examples'), 'se usa con 1');
+		strictEqual(noteOf(formAt(build(PLURAL, 'en-GB'), '#plural:one'), 'examples'), 'used for 1');
 	});
 
 	test('carries the sibling forms of the source, so the whole sentence is visible', () => {
@@ -308,5 +308,31 @@ describe('the notes each form carries', () => {
 
 	test('writes no notes at all for a string with no branches', () => {
 		deepStrictEqual(build('Hola', 'ru-RU')[0].notes, []);
+	});
+});
+
+describe('the notes each form carries, in Spanish', () => {
+	const notesOf = (source, lang, category) =>
+		build(source, lang, '', 'es').map((form) => noteOf(form, category));
+
+	test('writes the numbers with the Spanish words and the decimal comma', () => {
+		const source = '{count, plural, =0 {Nada} one {# ejercicio} other {# ejercicios}}';
+
+		deepStrictEqual(notesOf(source, 'ru-RU', 'examples'), [
+			'se usa exactamente con 0',
+			'se usa con 1, 21, 31, 41, 51…',
+			'se usa con 2, 3, 4, 22, 23…',
+			'se usa con 0, 5, 6, 7, 8…',
+			'se usa con los decimales: 0,5 · 1,5 · 2,5',
+		]);
+	});
+
+	test('names the gender the person chose, and what to do when they did not say', () => {
+		deepStrictEqual(notesOf(GENDER, 'ru-RU', 'gender-note'), [
+			'quien usa la aplicación ha elegido «hombre»',
+			'quien usa la aplicación ha elegido «mujer»',
+			'quien usa la aplicación no lo ha dicho. No inventes una terminación: reformula la frase ' +
+				'para que no haya nada que concordar',
+		]);
 	});
 });

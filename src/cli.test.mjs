@@ -9,6 +9,7 @@ import { runCli } from './testing/cli.mjs';
 const LANGS = ['en-GB', 'es-ES'];
 const SAVE = { name: 'SAVE', texts: { 'en-GB': 'Save', 'es-ES': 'Guardar' }, seal: true };
 const DELETE = { name: 'DELETE', texts: { 'en-GB': 'Delete', 'es-ES': '' } };
+const PLURAL = '{count, plural, one {# challenge} other {# challenges}}';
 
 after(removeCatalogues);
 
@@ -185,6 +186,26 @@ describe('transloco-ulid export and import', () => {
 		strictEqual(spanishOf(catalogue)[ulidOf(1)], 'Borrar');
 		ok(runCli(catalogue.root, ['state']).stdout.includes('es-ES  2 fresh · 0 stale · 0 missing'));
 		ok(runCli(catalogue.root, ['export', '--missing']).stdout.includes('Nothing to send for es-ES'));
+	});
+
+	test('writes its notes in English, or in the language notesLang names', () => {
+		const keys = [{ name: 'CHALLENGES', texts: { 'en-GB': PLURAL, 'es-ES': '' } }];
+		const english = createCatalogue({ langs: LANGS, keys });
+		const spanish = createCatalogue({ langs: LANGS, keys, notesLang: 'es' });
+
+		runCli(english.root, ['export']);
+		runCli(spanish.root, ['export']);
+
+		ok(read(xliffOf(english)).includes('<note category="examples">used for 1</note>'));
+		ok(read(xliffOf(spanish)).includes('<note category="examples">se usa con 1</note>'));
+	});
+
+	test('refuses a notes language it has no texts for', () => {
+		const catalogue = createCatalogue({ langs: LANGS, keys: [SAVE], notesLang: 'fr' });
+		const { status, stderr } = runCli(catalogue.root, ['export']);
+
+		strictEqual(status, 1);
+		ok(stderr.includes('missing or invalid notesLang (one of en, es)'));
 	});
 
 	test('refuses a language the catalogue does not have', () => {

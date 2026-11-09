@@ -73,7 +73,20 @@ describe('loadConfig', () => {
 			rootScope: 'common',
 			importAlias: '@demo/i18n',
 			xliffPrefix: 'demo',
+			notesLang: 'en',
 		});
+	});
+
+	test('takes the language of the notes from notesLang', () => {
+		const { root } = project({ ...CONFIG, notesLang: 'es' });
+
+		strictEqual(loadConfig(root).notesLang, 'es');
+	});
+
+	test('refuses a notes language it has no texts for', () => {
+		const { root } = project({ ...CONFIG, notesLang: 'fr' });
+
+		throws(() => loadConfig(root), /missing or invalid notesLang \(one of en, es\)$/);
 	});
 
 	test('names every missing or invalid field', () => {

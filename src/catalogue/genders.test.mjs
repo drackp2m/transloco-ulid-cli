@@ -36,17 +36,23 @@ describe('genderCategoriesOf', () => {
 
 describe('genderNoteFor', () => {
 	test('names the setting behind each form', () => {
-		ok(genderNoteFor('male', 'es-ES').includes('hombre'));
-		ok(genderNoteFor('female', 'es-ES').includes('mujer'));
+		strictEqual(genderNoteFor('male', 'es-ES'), 'the person using the app has chosen “man”');
+		strictEqual(genderNoteFor('female', 'es-ES'), 'the person using the app has chosen “woman”');
 	});
 
-	test('tells the translator to reformulate instead of inventing an ending', () => {
-		ok(genderNoteFor('other', 'ru-RU').includes('reformula la frase'));
+	test('tells the translator to reword instead of inventing an ending', () => {
+		ok(genderNoteFor('other', 'ru-RU').includes('Do not make up an ending: reword the sentence'));
 	});
 
 	test('says why a genderless language gets a single form', () => {
 		strictEqual(genderNoteFor('other', 'tr-TR'), genderNoteFor('male', 'tr-TR'));
-		ok(genderNoteFor('other', 'tr-TR').includes('no marca género'));
+		ok(genderNoteFor('other', 'tr-TR').includes('does not mark gender'));
+	});
+
+	test('writes in Spanish when the notes are in Spanish', () => {
+		strictEqual(genderNoteFor('female', 'ru-RU', 'es'), 'quien usa la aplicación ha elegido «mujer»');
+		ok(genderNoteFor('other', 'ru-RU', 'es').includes('reformula la frase'));
+		ok(genderNoteFor('other', 'tr-TR', 'es').includes('no marca género'));
 	});
 });
 

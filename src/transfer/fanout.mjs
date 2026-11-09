@@ -12,6 +12,7 @@ import {
 } from '../catalogue/forms.mjs';
 import { GENDER_ARG, genderNoteFor } from '../catalogue/genders.mjs';
 import { leavesOf } from '../catalogue/message.mjs';
+import { DEFAULT_NOTES_LANG, noteTextsFor } from '../catalogue/note-texts.mjs';
 import { pluralExamplesOf } from '../catalogue/plurals.mjs';
 
 const PLURAL = 'plural';
@@ -35,11 +36,12 @@ function siblingsOf(leaves, defaultLang) {
 	return `${defaultLang} · ${forms}`;
 }
 
-const decimalList = (values) => values.map((value) => String(value).replace('.', ',')).join(' · ');
+const decimalList = (values, point) =>
+	values.map((value) => String(value).replace('.', point)).join(' · ');
 
-function examplesText(lang, key) {
+function examplesText(lang, key, texts) {
 	if (isExactCase(key)) {
-		return `se usa exactamente con ${key.slice(1)}`;
+		return texts.exactly(key.slice(1));
 	}
 
 	const found = pluralExamplesOf(lang, key);
@@ -49,35 +51,38 @@ function examplesText(lang, key) {
 	}
 
 	if (0 !== found.integers.length) {
-		return `se usa con ${found.integers.join(', ')}${found.more ? '…' : ''}`;
+		return texts.integers(`${found.integers.join(', ')}${found.more ? '…' : ''}`);
 	}
 
 	if (0 === found.decimals.length) {
-		return 'es la forma general de la frase';
+		return texts.general;
 	}
 
-	return `se usa con los decimales: ${decimalList(found.decimals)}`;
+	return texts.decimals(decimalList(found.decimals, texts.decimalPoint));
 }
 
 function noteFor(category, text) {
 	return null === text || undefined === text ? [] : [{ category, text }];
 }
 
-function formNotes(combo, lang, siblings) {
+function formNotes(combo, { lang, notesLang }, siblings) {
+	const texts = noteTextsFor(notesLang);
 	const plural = combo.find(({ dimension }) => PLURAL === dimension.type);
 	const gender = combo.find(({ dimension }) => GENDER_ARG === dimension.arg);
+	const examples = undefined === plural ? null : examplesText(lang, plural.key, texts);
+	const genderNote = undefined === gender ? null : genderNoteFor(gender.key, lang, notesLang);
 
 	return [
 		{ category: 'category', text: combo.map(labelOf).join(' · ') },
-		...noteFor('examples', undefined === plural ? null : examplesText(lang, plural.key)),
-		...noteFor('gender-note', undefined === gender ? null : genderNoteFor(gender.key, lang)),
+		...noteFor('examples', examples),
+		...noteFor('gender-note', genderNote),
 		...noteFor('siblings', siblings),
 	];
 }
 
 const flatForm = (source, target) => [{ suffix: '', source, target, hash: false, notes: [] }];
 
-export function formsOf({ source, target, lang, defaultLang }) {
+export function formsOf({ source, target, lang, defaultLang, notesLang = DEFAULT_NOTES_LANG }) {
 	const leaves = leavesOrNone(source);
 	const dimensions = null === leaves ? null : dimensionsOf(source);
 
@@ -94,6 +99,6 @@ export function formsOf({ source, target, lang, defaultLang }) {
 		source: leafFor(leaves, pathOf(combo, sourceSegmentOf))?.text ?? leaves[0].text,
 		target: leafFor(targetLeaves, pathOf(combo, segmentOf))?.text ?? '',
 		hash,
-		notes: formNotes(combo, lang, siblings),
+		notes: formNotes(combo, { lang, notesLang }, siblings),
 	}));
 }

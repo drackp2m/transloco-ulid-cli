@@ -52,6 +52,7 @@ before(() => {
 		context: readContext(catalogue),
 		i18nDir: catalogue.i18nDir,
 		xliffPrefix: XLIFF_PREFIX,
+		notesLang: 'en',
 	};
 });
 
@@ -120,8 +121,7 @@ describe('buildExport — notes', () => {
 			'The demo screen.',
 			XLIFF_PREFIX,
 		]);
-		ok(notes.glossary.startsWith('training → entrenamiento — the programme'));
-		ok(notes.glossary.includes('FEN'));
+		strictEqual(notes.glossary, 'training → entrenamiento — the programme\nNever translate: FEN');
 	});
 
 	test('leaves out the language section of another language', () => {
@@ -177,7 +177,10 @@ describe('buildExport — what travels', () => {
 		const unit = fileOf('es-ES', 'stale').units[0];
 
 		deepStrictEqual([unit.target, unit.state, unit.subState], ['Hola {name}', 'initial', 'test:outdated']);
-		strictEqual(unit.notes[0].category, 'outdated');
+		deepStrictEqual(unit.notes[0], {
+			category: 'outdated',
+			text: 'the source changed after this was translated — the target below is the old translation',
+		});
 	});
 
 	test('sends a blank file with no target and no outdated note', () => {
@@ -190,6 +193,26 @@ describe('buildExport — what travels', () => {
 	test('leaves out a scope with nothing to send, and the scopes not asked for', () => {
 		strictEqual(exported('ru-RU', 'stale').files.length, 0);
 		strictEqual(exported('es-ES', 'all', { only: ['other'] }).total, 0);
+	});
+});
+
+describe('buildExport — the language of the notes', () => {
+	const spanish = (filter) => fileOf('ru-RU', filter, { notesLang: 'es' });
+
+	test('writes the words to keep, the numbers and the outdated note in Spanish with "es"', () => {
+		const file = fileOf('es-ES', 'stale', { notesLang: 'es' });
+
+		ok(notesOf(file).glossary.endsWith('No traducir nunca: FEN'));
+		ok(file.units[0].notes[0].text.startsWith('el original cambió después de traducir esto'));
+		strictEqual(notesOf(spanish('missing').units[1]).examples, 'se usa con 1, 21, 31, 41, 51…');
+	});
+
+	test('leaves what the context files say as they wrote it', () => {
+		strictEqual(notesOf(spanish('all')).app, 'A chess trainer.');
+	});
+
+	test('refuses a notes language it has no texts for', () => {
+		throws(() => exported('es-ES', 'all', { notesLang: 'fr' }), /unknown notes language "fr"/);
 	});
 });
 

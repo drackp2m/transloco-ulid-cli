@@ -81,7 +81,7 @@ function usagesOf(scopeName, keys, extra) {
 	return [...lines, extra, ''].join('\n');
 }
 
-function projectFiles(root, langs) {
+function projectFiles(root, langs, notesLang) {
 	const quoted = langs.map((lang) => `'${lang}'`).join(', ');
 	const config = {
 		i18nDir: 'i18n',
@@ -90,6 +90,7 @@ function projectFiles(root, langs) {
 		rootScope: ROOT_SCOPE,
 		importAlias: '@app/i18n',
 		xliffPrefix: XLIFF_PREFIX,
+		...(undefined === notesLang ? {} : { notesLang }),
 	};
 
 	write(path.join(root, 'i18n.config.json'), json(config));
@@ -116,7 +117,7 @@ function contextFiles(i18nDir, scopeName, { app, scope, glossary } = {}) {
 }
 
 export function createCatalogue(spec) {
-	const { langs = ['es-ES', 'en-GB'], scopeName = 'demo', usages = '', params } = spec;
+	const { langs = ['es-ES', 'en-GB'], scopeName = 'demo', usages = '', params, notesLang } = spec;
 	const root = mkdtempSync(path.join(tmpdir(), 'i18n-catalogue-'));
 	const i18nDir = path.join(root, 'i18n');
 	const sourceDir = path.join(root, 'src');
@@ -125,7 +126,7 @@ export function createCatalogue(spec) {
 	const defaultLang = langs[0];
 
 	DIRS.push(root);
-	projectFiles(root, langs);
+	projectFiles(root, langs, notesLang);
 	contextFiles(i18nDir, scopeName, spec.context);
 	write(path.join(i18nDir, 'index.ts'), barrelOf(scopeName));
 	write(path.join(scopeDir, 'keys.ts'), keysOf(scopeName, keys));

@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { GENDER_ARG } from './genders.mjs';
+import { DEFAULT_NOTES_LANG, NOTES_LANGS } from './note-texts.mjs';
 
 export const CONFIG_FILE = 'i18n.config.json';
 
@@ -58,6 +59,10 @@ function checkConfig(raw, file) {
 		invalid.push('sourceDirs');
 	}
 
+	if (undefined !== raw?.notesLang && !NOTES_LANGS.includes(raw.notesLang)) {
+		invalid.push(`notesLang (one of ${NOTES_LANGS.join(', ')})`);
+	}
+
 	if (invalid.length) {
 		throw new Error(`${file}: missing or invalid ${invalid.join(', ')}`);
 	}
@@ -85,6 +90,7 @@ export function loadConfig(from) {
 		rootScope: raw.rootScope,
 		importAlias: raw.importAlias,
 		xliffPrefix: raw.xliffPrefix,
+		notesLang: raw.notesLang ?? DEFAULT_NOTES_LANG,
 	};
 }
 

@@ -1,3 +1,5 @@
+import { DEFAULT_NOTES_LANG, noteTextsFor } from './note-texts.mjs';
+
 export const GENDER_ARG = 'gender';
 
 // The values the gender setting can hold, which are the only ones the application ever
@@ -22,22 +24,14 @@ export function genderCategoriesOf(lang, cases) {
 	return [...known, ...cases.filter((key) => !GENDER_VALUES.includes(key))];
 }
 
-const CHOSEN = { male: 'hombre', female: 'mujer' };
+export function genderNoteFor(category, lang, notesLang = DEFAULT_NOTES_LANG) {
+	const texts = noteTextsFor(notesLang);
 
-const UNSPECIFIED =
-	'quien usa la aplicación no lo ha dicho. No inventes una terminación: reformula la frase para ' +
-	'que no haya nada que concordar';
-
-const COLLAPSED =
-	'el idioma de destino no marca género, así que ésta es la única forma: escríbela sin ' +
-	'concordancia de género';
-
-export function genderNoteFor(category, lang) {
 	if (!expandsGender(lang)) {
-		return COLLAPSED;
+		return texts.collapsed;
 	}
 
-	const chosen = CHOSEN[category];
+	const chosen = texts.genders[category];
 
-	return undefined === chosen ? UNSPECIFIED : `quien usa la aplicación ha elegido «${chosen}»`;
+	return undefined === chosen ? texts.unspecified : texts.chosen(chosen);
 }

@@ -127,9 +127,11 @@ so run it from the root, which is what npm and pnpm scripts do.
 | `rootScope`    | The name of the scope that lives at the top of `i18nDir`.                        |
 | `importAlias`  | The path alias for `i18nDir`, used in the imports `check --fix` writes.          |
 | `xliffPrefix`  | The prefix of the XLIFF sub-states the export writes, such as `my-app:outdated`. |
+| `notesLang`    | Optional. The language of the notes the export writes itself: `en` or `es`.      |
 
-Every field is required. Paths are relative to the project root, where the file lives, which is
-also where the commands run from.
+Every field but `notesLang` is required, and that one defaults to `en`: see
+[What the translator receives](#what-the-translator-receives). Paths are relative to the project
+root, where the file lives, which is also where the commands run from.
 
 The language file declares the languages as single-quoted literals. `DEFAULT_LANGUAGE` is the
 source language: the one texts are written in, and the one every other language is translated
@@ -458,6 +460,22 @@ as notes:
 | `<unit>`  | `outdated`       | For a stale translation: that the target below is the old one.         |
 | `<unit>`  | `srcHash`        | The fingerprint of the source, used on import.                         |
 
+What comes from your context files travels as you wrote it. The rest of the wording is the CLI's
+own: the numbers of `examples`, the `gender-note`, the `outdated` note and the line of `glossary`
+that lists `keep`. It is written in English unless `i18n.config.json` asks for Spanish with
+`"notesLang": "es"`, which suits a team that writes its context in Spanish, or a translation
+prompt written in Spanish that quotes the notes as they come:
+
+| Note          | `"notesLang": "en"` (the default)             | `"notesLang": "es"`                           |
+| ------------- | --------------------------------------------- | --------------------------------------------- |
+| `examples`    | used for 2, 3, 4, 22, 23…                     | se usa con 2, 3, 4, 22, 23…                   |
+| `examples`    | used for the decimals: 0.5 · 1.5 · 2.5        | se usa con los decimales: 0,5 · 1,5 · 2,5     |
+| `gender-note` | the person using the app has chosen “woman”   | quien usa la aplicación ha elegido «mujer»    |
+| `glossary`    | Never translate: FEN, PGN                     | No traducir nunca: FEN, PGN                   |
+
+The note categories, the ids and the rest of the file stay the same in both. Each language is one
+block of texts in `catalogue/note-texts.mjs`, so adding another means adding one more there.
+
 ## Freshness
 
 `state/<scope>.json` records, for every translation, a fingerprint of the source text it was
@@ -674,17 +692,18 @@ const { usages, commented } = collectUsages(config.sourceDirs);
 const findings = buildFindings({ ...config, scopes, usages, commented });
 ```
 
-| Module                  | What it offers                                                       |
-| ----------------------- | -------------------------------------------------------------------- |
-| `catalogue/config.mjs`  | `loadConfig()`, the configuration and the languages.                 |
-| `catalogue/collect.mjs` | `readScopes()`, `collectUsages()`, `parseTranslation()`.             |
-| `catalogue/message.mjs` | ICU parsing: `parse()`, `paramsOf()`, `placeholdersIn()`.            |
-| `catalogue/plurals.mjs` | `requiredCategoriesOf()`, `cardinalCategoriesOf()`.                  |
-| `catalogue/params.mjs`  | `buildScopeParams()`, the `params.ts` generator.                     |
-| `check/rules.mjs`       | `buildFindings()`, everything `check` reports.                       |
-| `check/findings.mjs`    | `severityOf()` and the fixable types.                                |
-| `add/rules.mjs`         | The rules `add` applies to a name, a text or a plural form.          |
-| `add/plan.mjs`          | `planKey()`: the files a new key changes, without writing them.      |
+| Module                     | What it offers                                                  |
+| -------------------------- | --------------------------------------------------------------- |
+| `catalogue/config.mjs`     | `loadConfig()`, the configuration and the languages.            |
+| `catalogue/collect.mjs`    | `readScopes()`, `collectUsages()`, `parseTranslation()`.        |
+| `catalogue/message.mjs`    | ICU parsing: `parse()`, `paramsOf()`, `placeholdersIn()`.       |
+| `catalogue/plurals.mjs`    | `requiredCategoriesOf()`, `cardinalCategoriesOf()`.             |
+| `catalogue/params.mjs`     | `buildScopeParams()`, the `params.ts` generator.                |
+| `check/rules.mjs`          | `buildFindings()`, everything `check` reports.                  |
+| `check/findings.mjs`       | `severityOf()` and the fixable types.                           |
+| `add/rules.mjs`            | The rules `add` applies to a name, a text or a plural form.     |
+| `add/plan.mjs`             | `planKey()`: the files a new key changes, without writing them. |
+| `catalogue/note-texts.mjs` | `noteTextsFor()`: the wording of the notes, per notes language. |
 
 While the package is in `0.x`, these modules can change in a minor version: pin it exactly when
 you build on them.
