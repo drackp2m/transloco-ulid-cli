@@ -11,6 +11,8 @@ const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
 
 const LANGUAGE_TAG = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/;
 
+export const isLanguageTag = (value) => LANGUAGE_TAG.test(String(value));
+
 const STRING_FIELDS = ['i18nDir', 'languageFile', 'rootScope', 'importAlias', 'xliffPrefix'];
 
 export function readLanguages(file) {
@@ -61,7 +63,7 @@ function checkConfig(raw, file) {
 		invalid.push('sourceDirs');
 	}
 
-	if (undefined !== raw?.notesLang && !LANGUAGE_TAG.test(String(raw.notesLang))) {
+	if (undefined !== raw?.notesLang && !isLanguageTag(raw.notesLang)) {
 		invalid.push('notesLang (a language tag such as "es" or "pt-BR")');
 	}
 

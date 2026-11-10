@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import path from 'node:path';
 import { after, describe, test } from 'node:test';
 
+import { NOTE_TEXTS } from './catalogue/note-texts.mjs';
 import { SPANISH_NOTES, createCatalogue, removeCatalogues, ulidOf } from './testing/catalogue.mjs';
 import { runCli } from './testing/cli.mjs';
 
@@ -45,13 +46,13 @@ describe('transloco-ulid', () => {
 		const { status, stderr } = runCli(project().root, []);
 
 		strictEqual(status, 1);
-		ok(stderr.includes('Usage: transloco-ulid <check|add|export|import|state|clear>'));
+		ok(stderr.includes('Usage: transloco-ulid <check|add|export|import|state|clear|notes>'));
 	});
 
-	test('prints the help of check, add, export and import', () => {
+	test('prints the help of check, add, export, import and notes', () => {
 		const { root } = project();
 
-		for (const command of ['check', 'add', 'export', 'import']) {
+		for (const command of ['check', 'add', 'export', 'import', 'notes']) {
 			const { status, stdout } = runCli(root, [command, '--help']);
 
 			strictEqual(status, 0);
@@ -275,7 +276,7 @@ describe('transloco-ulid export and import', () => {
 		runCli(english.root, ['export']);
 		runCli(spanish.root, ['export']);
 
-		ok(read(xliffOf(english)).includes('<note category="examples">used for 1</note>'));
+		ok(read(xliffOf(english)).includes('<note category="examples">the app shows this form when the number is 1</note>'));
 		ok(read(xliffOf(spanish)).includes('<note category="examples">se usa con 1</note>'));
 	});
 
@@ -479,5 +480,82 @@ describe('transloco-ulid clear', () => {
 		strictEqual(runCli(catalogue.root, ['clear', '--lang', 'es-ES', '--unseal']).status, 0);
 		deepStrictEqual(spanishOf(catalogue), { [ulidOf(0)]: '', [ulidOf(1)]: '' });
 		deepStrictEqual(JSON.parse(read(path.join(catalogue.i18nDir, 'state', 'demo.json'))), {});
+	});
+});
+
+describe('transloco-ulid notes', () => {
+	const notesIn = (catalogue, lang) =>
+		path.join(catalogue.i18nDir, 'context', `notes.${lang}.json`);
+
+	const french = () => createCatalogue({ langs: LANGS, keys: [SAVE], notesLang: 'fr' });
+
+	test('writes the notes file of notesLang from the template, which check then wants translated', () => {
+		const catalogue = french();
+		const dry = runCli(catalogue.root, ['notes', '--dry-run']);
+
+		ok(dry.stdout.includes('i18n/context/notes.fr.json  11 texts from the English template'));
+		ok(!existsSync(notesIn(catalogue, 'fr')));
+
+		const { status, stdout } = runCli(catalogue.root, ['notes']);
+
+		strictEqual(status, 0);
+		ok(stdout.includes('✔ notes.fr.json written'));
+		deepStrictEqual(JSON.parse(read(notesIn(catalogue, 'fr'))), NOTE_TEXTS);
+
+		const checked = runCli(catalogue.root, ['check', '--verbose']);
+
+		strictEqual(checked.status, 0);
+		ok(checked.stdout.includes('nothing translated yet: every text is still the English template'));
+		ok(
+			runCli(catalogue.root, ['export']).stdout.includes(
+				'⚠ i18n/context/notes.fr.json: nothing translated yet',
+			),
+		);
+	});
+
+	test('adds only what the file lacks, and then has nothing to add', () => {
+		const catalogue = french();
+		const texts = { ...SPANISH_NOTES };
+
+		delete texts.outdated;
+		mkdirSync(path.dirname(notesIn(catalogue, 'fr')), { recursive: true });
+		writeFileSync(notesIn(catalogue, 'fr'), JSON.stringify(texts));
+
+		ok(runCli(catalogue.root, ['notes']).stdout.includes('1 text added in English: "outdated"'));
+		deepStrictEqual(JSON.parse(read(notesIn(catalogue, 'fr'))), {
+			...SPANISH_NOTES,
+			outdated: NOTE_TEXTS.outdated,
+		});
+		ok(runCli(catalogue.root, ['notes']).stdout.includes('already has every text of the template'));
+	});
+
+	test('writes another language with --lang, and says how to use it', () => {
+		const catalogue = french();
+		const { stdout } = runCli(catalogue.root, ['notes', '--lang', 'de']);
+
+		ok(existsSync(notesIn(catalogue, 'de')));
+		ok(stdout.includes('Set "notesLang": "de" in i18n.config.json to use it.'));
+	});
+
+	test('offers the English file as a way to reword the template', () => {
+		const { stdout } = runCli(project().root, ['notes']);
+
+		ok(stdout.includes('✔ notes.en.json written'));
+		ok(stdout.includes('Reword what you like, and keep each {placeholder}.'));
+		ok(!stdout.includes('Set "notesLang"'));
+	});
+
+	test('refuses a language that is not a tag, and a file that does not parse', () => {
+		const catalogue = french();
+
+		mkdirSync(path.dirname(notesIn(catalogue, 'fr')), { recursive: true });
+		writeFileSync(notesIn(catalogue, 'fr'), '{ nope');
+
+		const tag = runCli(catalogue.root, ['notes', '--lang', 'German']);
+		const invalid = runCli(catalogue.root, ['notes']);
+
+		deepStrictEqual([tag.status, invalid.status], [1, 1]);
+		ok(tag.stderr.includes('✖ "German" is not a language tag such as "es" or "pt-BR"'));
+		ok(invalid.stderr.includes('✖ i18n/context/notes.fr.json is not valid JSON: '));
 	});
 });

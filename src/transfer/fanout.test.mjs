@@ -94,7 +94,10 @@ describe('formsOf over a plural', () => {
 
 		deepStrictEqual(suffixes(forms), ['#plural:=0', '#plural:one', '#plural:other']);
 		strictEqual(formAt(forms, '#plural:=0').source, 'No hay nada');
-		strictEqual(noteOf(formAt(forms, '#plural:=0'), 'examples'), 'used for exactly 0');
+		strictEqual(
+			noteOf(formAt(forms, '#plural:=0'), 'examples'),
+			'the app shows this form only when the number is exactly 0',
+		);
 	});
 });
 
@@ -149,7 +152,7 @@ describe('formsOf over a gender select', () => {
 		const forms = build(GENDER, 'tr-TR');
 
 		deepStrictEqual(suffixes(forms), ['#gender:other']);
-		ok(noteOf(forms[0], 'gender-note').includes('does not mark gender'));
+		ok(noteOf(forms[0], 'gender-note').includes('does not mark grammatical gender'));
 	});
 
 	test('repeats the rule about "other" on the form that needs it', () => {
@@ -282,18 +285,31 @@ describe('the notes each form carries', () => {
 	test('writes the numbers that select the category', () => {
 		const forms = build(PLURAL, 'ru-RU');
 
-		strictEqual(noteOf(formAt(forms, '#plural:one'), 'examples'), 'used for 1, 21, 31, 41, 51…');
-		ok(noteOf(formAt(forms, '#plural:few'), 'examples').startsWith('used for 2, 3, 4, 22'));
+		strictEqual(
+			noteOf(formAt(forms, '#plural:one'), 'examples'),
+			'the app shows this form when the number is 1, 21, 31, 41, 51…',
+		);
+		ok(
+			noteOf(formAt(forms, '#plural:few'), 'examples').startsWith(
+				'the app shows this form when the number is 2, 3, 4, 22',
+			),
+		);
 	});
 
 	test('says of the Russian "other" that only decimals reach it', () => {
 		const text = noteOf(formAt(build(PLURAL, 'ru-RU'), '#plural:other'), 'examples');
 
-		strictEqual(text, 'used for the decimals: 0.5 · 1.5 · 2.5');
+		strictEqual(
+			text,
+			'the app shows this form only for fractions such as 0.5 · 1.5 · 2.5: no whole number reaches it',
+		);
 	});
 
 	test('writes a single example where the language has a single number', () => {
-		strictEqual(noteOf(formAt(build(PLURAL, 'en-GB'), '#plural:one'), 'examples'), 'used for 1');
+		strictEqual(
+			noteOf(formAt(build(PLURAL, 'en-GB'), '#plural:one'), 'examples'),
+			'the app shows this form when the number is 1',
+		);
 	});
 
 	test('carries the sibling forms of the source, so the whole sentence is visible', () => {

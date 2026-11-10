@@ -10,7 +10,9 @@ import {
 	NOTE_TEXTS,
 	fillNote,
 	noteTextProblems,
+	quotedList,
 	readNoteTexts,
+	untranslatedKeysOf,
 	usableNoteTexts,
 } from './note-texts.mjs';
 
@@ -89,8 +91,8 @@ describe('readNoteTexts', () => {
 
 		strictEqual(notes.texts, null);
 		deepStrictEqual(messagesOf(notes.problems), [
-			'missing-notes-file: notesLang is "fr" and there is no such file: translate the English ' +
-				'template, src/catalogue/notes.en.json in @drackp2m/transloco-ulid-cli',
+			'missing-notes-file: notesLang is "fr" and there is no such file — "transloco-ulid notes" ' +
+				'writes it from the English template',
 		]);
 	});
 
@@ -116,7 +118,11 @@ describe('readNoteTexts', () => {
 		strictEqual(notes.texts, null);
 		deepStrictEqual(
 			notes.problems.map(({ message, line }) => `${line ?? '-'} ${message}`),
-			['5 "decimalPoint" is not a text', '7 "genderMale" is empty', '- "outdated" is missing'],
+			[
+				'5 "decimalPoint" is not a text',
+				'7 "genderMale" is empty',
+				'- "outdated" is missing — "transloco-ulid notes" adds it',
+			],
 		);
 	});
 
@@ -144,6 +150,45 @@ describe('readNoteTexts', () => {
 			'unknown-note-text: "general" is not in the template',
 		]);
 		deepStrictEqual(notes.texts, SPANISH_NOTES);
+	});
+});
+
+describe('readNoteTexts and what is left to translate', () => {
+	const spanishWith = (texts) => readNoteTexts(contextDir({ 'notes.es.json': texts }), 'es');
+
+	test('lists in one warning every text still as the template has it, and uses the file all the same', () => {
+		const { genderFemale, genderless, outdated } = NOTE_TEXTS;
+		const notes = spanishWith({ ...SPANISH_NOTES, genderFemale, genderless, outdated });
+
+		deepStrictEqual(messagesOf(notes.problems), [
+			'untranslated-note-text: left to translate: "genderFemale", "genderless" and "outdated"',
+		]);
+		strictEqual(notes.problems[0].line, 8);
+		strictEqual(notes.texts.genderFemale, 'woman');
+	});
+
+	test('leaves the decimal point out, which many languages share with English', () => {
+		deepStrictEqual(spanishWith({ ...SPANISH_NOTES, decimalPoint: '.' }).problems, []);
+		deepStrictEqual(untranslatedKeysOf({ ...SPANISH_NOTES, decimalPoint: '.' }), []);
+	});
+
+	test('says it once when nothing is translated yet', () => {
+		deepStrictEqual(messagesOf(spanishWith(NOTE_TEXTS).problems), [
+			'untranslated-note-text: nothing translated yet: every text is still the English template',
+		]);
+	});
+
+	test('expects the English of the template in an English file', () => {
+		deepStrictEqual(readNoteTexts(contextDir({ 'notes.en.json': NOTE_TEXTS })).problems, []);
+	});
+});
+
+describe('quotedList', () => {
+	test('joins the names the way a sentence would', () => {
+		deepStrictEqual(
+			[['a'], ['a', 'b'], ['a', 'b', 'c']].map((names) => quotedList(names)),
+			['"a"', '"a" and "b"', '"a", "b" and "c"'],
+		);
 	});
 });
 

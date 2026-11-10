@@ -3,6 +3,7 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { after, describe, test } from 'node:test';
 
+import { NOTE_TEXTS } from '../catalogue/note-texts.mjs';
 import {
 	SPANISH_NOTES,
 	createCatalogue,
@@ -335,8 +336,8 @@ describe('check — the notes for translators', () => {
 
 	test('reports a notes language without its notes file', () => {
 		deepStrictEqual(findings(catalogueWith([SAVE], { notesLang: 'fr' })), [
-			'error missing-notes-file: notesLang is "fr" and there is no such file: translate the ' +
-				'English template, src/catalogue/notes.en.json in @drackp2m/transloco-ulid-cli',
+			'error missing-notes-file: notesLang is "fr" and there is no such file — ' +
+				'"transloco-ulid notes" writes it from the English template',
 		]);
 	});
 
@@ -347,7 +348,7 @@ describe('check — the notes for translators', () => {
 
 		deepStrictEqual(findings(inSpanish(notes)), [
 			'error bad-note-text: "pluralNumbers" drops {numbers}',
-			'error bad-note-text: "outdated" is missing',
+			'error bad-note-text: "outdated" is missing — "transloco-ulid notes" adds it',
 			'warning unknown-note-text: "general" is not in the template',
 		]);
 		deepStrictEqual(placesOf(inSpanish(notes))[0], {
@@ -356,6 +357,14 @@ describe('check — the notes for translators', () => {
 			line: 3,
 			col: 1,
 		});
+	});
+
+	test('warns in one line about the texts still in English', () => {
+		const { genderFemale, outdated } = NOTE_TEXTS;
+
+		deepStrictEqual(findings(inSpanish({ ...SPANISH_NOTES, genderFemale, outdated })), [
+			'warning untranslated-note-text: left to translate: "genderFemale" and "outdated"',
+		]);
 	});
 
 	test('reports a notes file that is not valid JSON', () => {

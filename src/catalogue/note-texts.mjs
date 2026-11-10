@@ -3,13 +3,13 @@ import path from 'node:path';
 
 export const DEFAULT_NOTES_LANG = 'en';
 
-export const NOTES_TEMPLATE = 'src/catalogue/notes.en.json';
-
 export const NOTE_TEXTS = JSON.parse(
 	readFileSync(new URL('./notes.en.json', import.meta.url), 'utf8'),
 );
 
 export const notesFileName = (lang) => `notes.${lang}.json`;
+
+const NOTES_COMMAND = '"transloco-ulid notes"';
 
 const PLACEHOLDER = /\{(\w+)\}/g;
 
@@ -47,7 +47,7 @@ function textProblems(key, data, source) {
 	const text = data[key];
 
 	if (undefined === text) {
-		return [{ type: 'bad-note-text', message: `"${key}" is missing` }];
+		return [{ type: 'bad-note-text', message: `"${key}" is missing — ${NOTES_COMMAND} adds it` }];
 	}
 
 	if ('string' !== typeof text || '' === text.trim()) {
@@ -78,9 +78,42 @@ export function noteTextProblems(data, source = '') {
 const missingFile = (lang) => ({
 	type: 'missing-notes-file',
 	message:
-		`notesLang is "${lang}" and there is no such file: translate the English template, ` +
-		`${NOTES_TEMPLATE} in @drackp2m/transloco-ulid-cli`,
+		`notesLang is "${lang}" and there is no such file — ${NOTES_COMMAND} writes it from the ` +
+		'English template',
 });
+
+export const quotedList = (names) => {
+	const quoted = names.map((name) => `"${name}"`);
+
+	return 1 === quoted.length ? quoted[0] : `${quoted.slice(0, -1).join(', ')} and ${quoted.at(-1)}`;
+};
+
+const SAME_IN_EVERY_LANGUAGE = new Set(['decimalPoint']);
+
+export function untranslatedKeysOf(data) {
+	return Object.keys(NOTE_TEXTS).filter(
+		(key) => !SAME_IN_EVERY_LANGUAGE.has(key) && NOTE_TEXTS[key] === data?.[key],
+	);
+}
+
+function untranslatedProblems(data, source, lang) {
+	const keys = DEFAULT_NOTES_LANG === lang ? [] : untranslatedKeysOf(data);
+
+	if (0 === keys.length) {
+		return [];
+	}
+
+	const everything = Object.keys(NOTE_TEXTS).length - SAME_IN_EVERY_LANGUAGE.size === keys.length;
+	const message = everything
+		? 'nothing translated yet: every text is still the English template'
+		: `left to translate: ${quotedList(keys)}`;
+
+	return [{ type: 'untranslated-note-text', message, ...lineOf(source, keys[0]) }];
+}
+
+const WARNINGS = new Set(['unknown-note-text', 'untranslated-note-text']);
+
+export const isNotesWarning = ({ type }) => WARNINGS.has(type);
 
 const templateKeysOf = (data) =>
 	Object.fromEntries(Object.keys(NOTE_TEXTS).map((key) => [key, data[key]]));
@@ -97,8 +130,8 @@ function parsed(file, lang) {
 		return { file, lang, exists: true, texts: null, problems };
 	}
 
-	const problems = noteTextProblems(data, source);
-	const usable = problems.every(({ type }) => 'unknown-note-text' === type);
+	const problems = [...noteTextProblems(data, source), ...untranslatedProblems(data, source, lang)];
+	const usable = problems.every(isNotesWarning);
 
 	return { file, lang, exists: true, texts: usable ? templateKeysOf(data) : null, problems };
 }
@@ -126,7 +159,10 @@ export function usableNoteTexts(notes) {
 		return notes.texts;
 	}
 
-	const reasons = notes.problems.map(({ message }) => message).join('; ');
+	const reasons = notes.problems
+		.filter((problem) => !isNotesWarning(problem))
+		.map(({ message }) => message)
+		.join('; ');
 
 	throw new Error(`${notes.file}: ${reasons}`);
 }

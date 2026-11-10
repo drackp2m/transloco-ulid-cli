@@ -2,10 +2,13 @@
 import { collectUsages, readScopes } from './catalogue/collect.mjs';
 import { listOf, readDefaults, readLanguages, valueOf } from './catalogue/config.mjs';
 import { readContext } from './catalogue/context.mjs';
+import { isNotesWarning } from './catalogue/note-texts.mjs';
 import { c } from './shared/terminal.mjs';
 import { DEFAULT_OUT_DIR, buildExport, exportLangs, writeExport } from './transfer/build.mjs';
 import { printExportHeader, printExported, printHint } from './transfer/report.mjs';
 import { printExportUsage } from './transfer/usage.mjs';
+
+const UNTRANSLATED = 'untranslated-note-text';
 
 function filterOf(argv) {
 	if (argv.includes('--pending')) {
@@ -66,13 +69,15 @@ if (0 === targets.length) {
 const context = readContext(options);
 
 if (null === context.notes.texts) {
-	for (const { type, message } of context.notes.problems) {
-		if ('unknown-note-text' !== type) {
-			console.error(`  ${c.red}✖ ${context.notes.file}: ${message}${c.reset}`);
-		}
+	for (const problem of context.notes.problems.filter((item) => !isNotesWarning(item))) {
+		console.error(`  ${c.red}✖ ${context.notes.file}: ${problem.message}${c.reset}`);
 	}
 
 	process.exit(1);
+}
+
+for (const problem of context.notes.problems.filter((item) => UNTRANSLATED === item.type)) {
+	console.log(`  ${c.yellow}⚠ ${context.notes.file}: ${problem.message}${c.reset}\n`);
 }
 
 printExportHeader(targets, options.defaultLang);

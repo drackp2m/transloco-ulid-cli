@@ -477,36 +477,46 @@ one language too. Name the language in `i18n.config.json`:
 }
 ```
 
-Then copy the template next to the rest of the context, named after that language, and translate
-its values:
+Then let the CLI write the file, next to the rest of the context and named after that language,
+and translate its values:
 
 ```sh
-cp node_modules/@drackp2m/transloco-ulid-cli/src/catalogue/notes.en.json src/app/i18n/context/notes.es.json
+transloco-ulid notes
 ```
 
-| Key                 | English template                                 | Filled with                                         |
-| ------------------- | ------------------------------------------------ | --------------------------------------------------- |
-| `pluralExactly`     | used for exactly {value}                         | `{value}`: the number of an exact case, like `=0`.  |
-| `pluralNumbers`     | used for {numbers}                               | `{numbers}`: the first integers that pick the form. |
-| `pluralDecimals`    | used for the decimals: {numbers}                 | `{numbers}`: decimals, for a form only they pick.   |
-| `decimalPoint`      | .                                                | The separator those decimals are written with.      |
-| `genderChosen`      | the person using the app has chosen “{gender}”   | `{gender}`: `genderMale` or `genderFemale`.         |
-| `genderMale`        | man                                              |                                                     |
-| `genderFemale`      | woman                                            |                                                     |
-| `genderUnspecified` | the person using the app has not said. Do not …  | The `other` form, for which nobody chose.           |
-| `genderless`        | the target language does not mark gender, so …   | The single form of a language without gender.       |
-| `neverTranslate`    | Never translate: {terms}                         | `{terms}`: the `keep` names of the glossary.        |
-| `outdated`          | the source changed after this was translated — … | The note on a stale translation.                    |
+| Key                 | Where the export puts it                                              | Filled with                                 |
+| ------------------- | --------------------------------------------------------------------- | ------------------------------------------- |
+| `pluralExactly`     | `examples` of an exact case, like `=0`.                               | `{value}`: its number.                      |
+| `pluralNumbers`     | `examples` of a plural form some whole numbers select.                | `{numbers}`: the first of them.             |
+| `pluralDecimals`    | `examples` of a form only fractions select, like the Russian `other`. | `{numbers}`: a few of them.                 |
+| `decimalPoint`      | The separator those fractions are written with.                       |                                             |
+| `genderChosen`      | `gender-note` of the `male` and `female` forms.                       | `{gender}`: `genderMale` or `genderFemale`. |
+| `genderMale`        | The word `genderChosen` uses for `male`.                              |                                             |
+| `genderFemale`      | The word `genderChosen` uses for `female`.                            |                                             |
+| `genderUnspecified` | `gender-note` of the `other` form, for users who chose no gender.     |                                             |
+| `genderless`        | `gender-note` of the single form of a language without gender.        |                                             |
+| `neverTranslate`    | The last line of `glossary`.                                          | `{terms}`: the `keep` names.                |
+| `outdated`          | The `outdated` note of a stale translation.                           |                                             |
 
-With Spanish, a plural form for Russian arrives with `se usa con 2, 3, 4, 22, 23…` instead of
-`used for 2, 3, 4, 22, 23…`, and the glossary with `No traducir nunca: FEN, PGN`. The note
-categories, the ids and the rest of the file are the same in every language.
+The English wording is in the template itself, `src/catalogue/notes.en.json`. Each text is written
+to stand on its own, as a translation tool shows a note: what the app does with that form, and what
+the translation has to do about it. Whatever the file says goes in its place, so a Spanish file can
+turn the `examples` of a Russian `few` form into `la aplicación usa esta forma cuando el número es
+2, 3, 4, 22, 23…`. The note categories, the ids and the rest of the file are the same in every
+language.
 
-Every key of the template has to be there, with the placeholders it has and no others. A
-missing file, a text that is missing or empty, or a placeholder dropped or made up is an error in
-`check`, and `export` refuses to run rather than send a file in two languages. A key the template
-does not have is only a warning. With `notesLang` left at `en`, `context/notes.en.json` is
+Every key of the template has to be there, with the placeholders it has and no others. A missing
+file, a text that is missing or empty, or a placeholder dropped or made up is an error in `check`,
+and `export` refuses to run rather than send a file in two languages. Two things are only
+warnings: a key the template does not have, and texts still exactly as the template writes them,
+which `check` lists in one line (`left to translate: "genderFemale", "genderless" and
+"outdated"`) and `export` repeats before it writes. `decimalPoint` is left out of that, since many
+languages share the English one. With `notesLang` left at `en`, `context/notes.en.json` is
 optional: when it is there, it rewords the English template.
+
+When a newer version of the CLI brings a text the template did not have, `check` reports it as
+missing, and `transloco-ulid notes` adds it to the file in English for you to translate, leaving
+every other value as it is.
 
 ## Freshness
 
@@ -535,16 +545,17 @@ the state files.
 
 ## Commands
 
-| Command                       | What it does                                                    |
-| ----------------------------- | --------------------------------------------------------------- |
-| [`check`](#check)             | Reports everything wrong with the catalogue, and fixes some of it. |
-| [`add`](#add)                 | Adds a key in the source language.                              |
-| [`export`](#export)           | Writes XLIFF 2.0 files for translators.                         |
-| [`import`](#import)           | Merges translated XLIFF files back.                             |
-| [`state`](#state)             | Counts fresh, stale and missing translations.                   |
-| [`clear`](#clear)             | Empties the translations of some languages.                     |
+| Command             | What it does                                                       |
+| ------------------- | ------------------------------------------------------------------ |
+| [`check`](#check)   | Reports everything wrong with the catalogue, and fixes some of it. |
+| [`add`](#add)       | Adds a key in the source language.                                 |
+| [`export`](#export) | Writes XLIFF 2.0 files for translators.                            |
+| [`import`](#import) | Merges translated XLIFF files back.                                |
+| [`state`](#state)   | Counts fresh, stale and missing translations.                      |
+| [`clear`](#clear)   | Empties the translations of some languages.                        |
+| [`notes`](#notes)   | Writes the notes file of a language from the English template.     |
 
-`check`, `add`, `export` and `import` print their options with `--help`. Every command takes
+`check`, `add`, `export`, `import` and `notes` print their options with `--help`. Every command takes
 `--dir <path>` for another catalogue directory and `--languages <file>` for another language file.
 
 ### check
@@ -599,6 +610,7 @@ What it reports:
 | `missing-notes-file`           | error    |         | `notesLang` names a language without its notes file.         |
 | `bad-note-text`                | error    |         | A notes text is missing or empty, or changes a placeholder.  |
 | `unknown-note-text`            | warning  |         | The notes file has a text the template does not.             |
+| `untranslated-note-text`       | warning  |         | Texts of the notes file are still the English template.      |
 
 `--fix` also rewrites each `<lang>.json` in `keys.ts` order and keeps the state files in step.
 
@@ -700,6 +712,17 @@ transloco-ulid clear --lang <codes> [--scope <names>] [--dry-run] [--unseal]
 Empties every translation of those languages, so they read as untranslated again. The entries stay,
 with an empty value. `--unseal` also drops their fingerprints from `state/`, and the source language
 is refused. To send a fresh batch out without touching the catalogue, prefer `export --blank`.
+
+### notes
+
+```sh
+transloco-ulid notes [--lang <tag>] [--dry-run]
+```
+
+Writes `context/notes.<lang>.json` from the English template, for the language of `notesLang` or
+the one `--lang` names: see [The language of the notes](#the-language-of-the-notes-contextnoteslangjson).
+When the file is already there, it only adds the texts the template has and the file lacks, in
+English, and keeps every value already written. It never removes one.
 
 ## Running it in CI
 

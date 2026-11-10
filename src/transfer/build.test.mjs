@@ -124,7 +124,10 @@ describe('buildExport — notes', () => {
 			'The demo screen.',
 			XLIFF_PREFIX,
 		]);
-		strictEqual(notes.glossary, 'training → entrenamiento — the programme\nNever translate: FEN');
+		strictEqual(
+			notes.glossary,
+			'training → entrenamiento — the programme\nNever translate, keep exactly as written: FEN',
+		);
 	});
 
 	test('leaves out the language section of another language', () => {
@@ -188,7 +191,9 @@ describe('buildExport — what travels', () => {
 		deepStrictEqual([unit.target, unit.state, unit.subState], ['Hola {name}', 'initial', 'test:outdated']);
 		deepStrictEqual(unit.notes[0], {
 			category: 'outdated',
-			text: 'the source changed after this was translated — the target below is the old translation',
+			text:
+				'the source changed after this was translated: the target below is the old ' +
+				'translation, so bring it in line with the new source instead of keeping it',
 		});
 	});
 

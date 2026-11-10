@@ -38,17 +38,18 @@ describe('genderCategoriesOf', () => {
 
 describe('genderNoteFor', () => {
 	test('names the setting behind each form', () => {
-		strictEqual(genderNoteFor('male', 'es-ES'), 'the person using the app has chosen “man”');
-		strictEqual(genderNoteFor('female', 'es-ES'), 'the person using the app has chosen “woman”');
+		ok(genderNoteFor('male', 'es-ES').startsWith('the app shows this form to users who chose “man”'));
+		ok(genderNoteFor('female', 'es-ES').startsWith('the app shows this form to users who chose “woman”'));
 	});
 
 	test('tells the translator to reword instead of inventing an ending', () => {
-		ok(genderNoteFor('other', 'ru-RU').includes('Do not make up an ending: reword the sentence'));
+		ok(genderNoteFor('other', 'ru-RU').includes('do not guess one'));
+		ok(genderNoteFor('other', 'ru-RU').includes("reword the sentence so that nothing in it depends on the user's gender"));
 	});
 
 	test('says why a genderless language gets a single form', () => {
 		strictEqual(genderNoteFor('other', 'tr-TR'), genderNoteFor('male', 'tr-TR'));
-		ok(genderNoteFor('other', 'tr-TR').includes('does not mark gender'));
+		ok(genderNoteFor('other', 'tr-TR').includes('does not mark grammatical gender'));
 	});
 
 	test('writes with the texts it is given', () => {

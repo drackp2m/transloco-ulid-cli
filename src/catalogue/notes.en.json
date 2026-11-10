@@ -1,13 +1,13 @@
 {
-	"pluralExactly": "used for exactly {value}",
-	"pluralNumbers": "used for {numbers}",
-	"pluralDecimals": "used for the decimals: {numbers}",
+	"pluralExactly": "the app shows this form only when the number is exactly {value}",
+	"pluralNumbers": "the app shows this form when the number is {numbers}",
+	"pluralDecimals": "the app shows this form only for fractions such as {numbers}: no whole number reaches it",
 	"decimalPoint": ".",
-	"genderChosen": "the person using the app has chosen “{gender}”",
+	"genderChosen": "the app shows this form to users who chose “{gender}” as their gender in the settings: make every word that refers to the user agree with it",
 	"genderMale": "man",
 	"genderFemale": "woman",
-	"genderUnspecified": "the person using the app has not said. Do not make up an ending: reword the sentence so that nothing has to agree with them",
-	"genderless": "the target language does not mark gender, so this is the only form: write it without gender agreement",
-	"neverTranslate": "Never translate: {terms}",
-	"outdated": "the source changed after this was translated — the target below is the old translation"
+	"genderUnspecified": "the app shows this form to users who have not chosen a gender: do not guess one, and do not join two endings with a slash or brackets; reword the sentence so that nothing in it depends on the user's gender",
+	"genderless": "the target language does not mark grammatical gender, so every user sees this one form, whatever gender they chose: write it without gender agreement",
+	"neverTranslate": "Never translate, keep exactly as written: {terms}",
+	"outdated": "the source changed after this was translated: the target below is the old translation, so bring it in line with the new source instead of keeping it"
 }
