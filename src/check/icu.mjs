@@ -1,14 +1,18 @@
 import { formCountOf, isExactCase } from '../catalogue/forms.mjs';
 import { GENDER_ARG, GENDER_VALUES } from '../catalogue/genders.mjs';
-import { IcuSyntaxError, paramTag, paramsOf } from '../catalogue/message.mjs';
+import { IcuSyntaxError, paramTag, paramsOf, parse } from '../catalogue/message.mjs';
 import { cardinalCategoriesOf, requiredCategoriesOf } from '../catalogue/plurals.mjs';
 
 const OTHER = 'other';
 
-// Gender crossed with a plural is 12 forms in Russian, and 12 is already a lot to hand a
+// Two plurals crossed are 16 forms in Russian, Polish or Ukrainian, and gender over a plural
+// is 12 there: a sentence that counts two things fits, and that is already a lot to hand a
 // translator for one sentence. Past that the string is asking to be split in two, not
 // fanned out wider.
-const MAX_FORMS = 12;
+const MAX_FORMS = 16;
+
+const listOf = (items, word) =>
+	1 === items.length ? items[0] : `${items.slice(0, -1).join(', ')} ${word} ${items.at(-1)}`;
 
 const problem = (type, message, where = {}) => ({
 	type,
@@ -96,26 +100,53 @@ function argumentProblems(name, { type, cases }, lang) {
 
 // The one rule about the string as a whole rather than about an argument, so it carries no
 // name and lands on the key's own heading.
-function widthProblems(text, lang) {
-	const count = formCountOf(text, lang);
+function widthProblems(text, langs) {
+	const over = langs
+		.map((lang) => ({ lang, count: formCountOf(text, lang) }))
+		.filter(({ count }) => MAX_FORMS < count);
 
-	if (MAX_FORMS >= count) {
+	if (0 === over.length) {
 		return [];
 	}
 
+	const widths = listOf(over.map(({ lang, count }) => `${count} forms in "${lang}"`), 'and');
 	const message =
-		`opens into ${count} forms in "${lang}", over the ${MAX_FORMS} allowed — ` +
+		`opens into ${widths}, over the ${MAX_FORMS} allowed — ` +
 		'split the sentence instead of branching it further';
 
 	return [problem('too-many-forms', message)];
 }
 
+function hasHash(tokens) {
+	return tokens.some(
+		(token) =>
+			'octothorpe' === token.type || (token.cases ?? []).some((kase) => hasHash(kase.tokens)),
+	);
+}
+
+function hashProblems(tokens, params) {
+	const plurals = [...params].filter(([, { type }]) => 'plural' === type).map(([name]) => name);
+
+	if (2 > plurals.length || !hasHash(tokens)) {
+		return [];
+	}
+
+	const message =
+		`writes # under ${listOf(plurals.map(paramTag), 'and')}, and once its forms are split ` +
+		'nothing says which number each # is — write ' +
+		`${listOf(plurals.map((name) => `{${name}, number}`), 'or')} instead`;
+
+	return [problem('ambiguous-hash', message)];
+}
+
 // What is wrong inside one string, named but not located: where each one is written is the
 // caller's business, which is the one holding the file the string came out of.
-export function messageProblems(text, lang) {
+export function messageProblems(text, lang, { langs = [lang] } = {}) {
+	let tokens;
 	let params;
 
 	try {
+		tokens = parse(text);
 		params = paramsOf(text);
 	} catch (error) {
 		if (!(error instanceof IcuSyntaxError)) {
@@ -128,7 +159,8 @@ export function messageProblems(text, lang) {
 	}
 
 	return [
-		...widthProblems(text, lang),
+		...widthProblems(text, langs),
+		...hashProblems(tokens, params),
 		...[...params].flatMap(([name, signature]) => argumentProblems(name, signature, lang)),
 	];
 }

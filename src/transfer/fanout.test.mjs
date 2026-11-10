@@ -210,8 +210,12 @@ describe('formsOf over a select that is not gender', () => {
 });
 
 const TWO_PLURALS =
-	'{a, plural, one {# ejercicio} other {# ejercicios}} de ' +
-	'{b, plural, one {# ronda} other {# rondas}}';
+	'{a, plural, one {{a, number} ejercicio} other {{a, number} ejercicios}} de ' +
+	'{b, plural, one {{b, number} ronda} other {{b, number} rondas}}';
+const ONE_A = '{a, number} ejercicio';
+const MANY_A = '{a, number} ejercicios';
+const ONE_B = '{b, number} ronda';
+const MANY_B = '{b, number} rondas';
 
 describe('formsOf over two plurals in one sentence', () => {
 	test('crosses them and names each one in the suffix', () => {
@@ -229,17 +233,17 @@ describe('formsOf over two plurals in one sentence', () => {
 	test('gives each combination the leaf that is actually its own', () => {
 		const forms = build(TWO_PLURALS, 'en-GB');
 
-		strictEqual(formAt(forms, '#a:one#b:one').source, '# ejercicio de # ronda');
-		strictEqual(formAt(forms, '#a:other#b:other').source, '# ejercicios de # rondas');
-		strictEqual(formAt(forms, '#a:one#b:other').source, '# ejercicio de # rondas');
+		strictEqual(formAt(forms, '#a:one#b:one').source, `${ONE_A} de ${ONE_B}`);
+		strictEqual(formAt(forms, '#a:other#b:other').source, `${MANY_A} de ${MANY_B}`);
+		strictEqual(formAt(forms, '#a:one#b:other').source, `${ONE_A} de ${MANY_B}`);
 	});
 
 	test('falls back per dimension when the target language asks for more', () => {
 		const forms = build(TWO_PLURALS, 'ru-RU');
 
 		strictEqual(forms.length, 16);
-		strictEqual(formAt(forms, '#a:few#b:many').source, '# ejercicios de # rondas');
-		strictEqual(formAt(forms, '#a:one#b:few').source, '# ejercicio de # rondas');
+		strictEqual(formAt(forms, '#a:few#b:many').source, `${MANY_A} de ${MANY_B}`);
+		strictEqual(formAt(forms, '#a:one#b:few').source, `${ONE_A} de ${MANY_B}`);
 	});
 });
 

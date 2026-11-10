@@ -202,3 +202,41 @@ describe('the source language decides the forms', () => {
 		]);
 	});
 });
+
+describe('a sentence that counts two things', () => {
+	const ES_RU = { langs: ['es-ES', 'ru-RU'] };
+	const EMPTY = `warning empty-translation [ru-RU]: KEY (${ULID})`;
+	const branch = 'one {x} other {y}';
+
+	test('passes with each number written by name, while the Russian slot is still empty', () => {
+		const source =
+			'{messages, plural, one {{messages, number} mensaje} ' +
+			'other {{messages, number} mensajes}} de {friends, plural, ' +
+			'one {{friends, number} amigo} other {{friends, number} amigos}}';
+
+		deepStrictEqual(findings(oneKey({ 'es-ES': source, 'ru-RU': '' }, ES_RU)), [EMPTY]);
+	});
+
+	test('is refused with #, which the forms of the export cannot tell apart', () => {
+		const source =
+			'{messages, plural, one {# mensaje} other {# mensajes}} de ' +
+			'{friends, plural, one {# amigo} other {# amigos}}';
+
+		deepStrictEqual(findings(oneKey({ 'es-ES': source, 'ru-RU': '' }, ES_RU)), [
+			EMPTY,
+			`error ambiguous-hash [es-ES]: KEY (${ULID}) writes # under {messages} and {friends}, ` +
+				'and once its forms are split nothing says which number each # is — ' +
+				'write {messages, number} or {friends, number} instead',
+		]);
+	});
+
+	test('reports the source when a language it is not written in opens too wide', () => {
+		const source = `{a, plural, ${branch}} {b, plural, ${branch}} {c, plural, ${branch}}`;
+
+		deepStrictEqual(findings(oneKey({ 'es-ES': source, 'ru-RU': '' }, ES_RU)), [
+			EMPTY,
+			`error too-many-forms [es-ES]: KEY (${ULID}) opens into 64 forms in "ru-RU", ` +
+				'over the 16 allowed — split the sentence instead of branching it further',
+		]);
+	});
+});

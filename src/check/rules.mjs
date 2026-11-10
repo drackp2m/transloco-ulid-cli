@@ -299,18 +299,19 @@ function messageFinding(scope, translation, lang, ulid, item) {
 
 // Every language answers for its own strings here, the source one included: a plural the
 // developer wrote by hand in "es-ES" is exactly what this pass exists to catch.
-function checkMessages(scope, langs) {
+function checkMessages(scope, langs, defaultLang) {
 	const findings = [];
 
 	for (const lang of langs) {
 		const translation = scope.translations.get(lang);
+		const widthIn = lang === defaultLang ? langs : [lang];
 
 		for (const [ulid, value] of Object.entries(translation.data ?? {})) {
 			if (isBlank(value)) {
 				continue;
 			}
 
-			for (const item of messageProblems(value, lang)) {
+			for (const item of messageProblems(value, lang, { langs: widthIn })) {
 				findings.push(messageFinding(scope, translation, lang, ulid, item));
 			}
 		}
@@ -550,7 +551,7 @@ export function buildFindings(options) {
 
 		findings.push(...checkKeys(scope, seenUlids));
 		findings.push(...checkTranslations(scope, langs, defaultLang));
-		findings.push(...checkMessages(scope, langs));
+		findings.push(...checkMessages(scope, langs, defaultLang));
 		findings.push(...checkFreshness(scope, { langs, defaultLang, i18nDir }));
 		findings.push(...checkUsage(scope, usages, commented));
 		findings.push(...checkParamsFile(scope, params, scope.translations.get(defaultLang)));

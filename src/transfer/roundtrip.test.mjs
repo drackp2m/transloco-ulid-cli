@@ -20,6 +20,7 @@ import { readXliff } from './xliff.mjs';
 
 const LANGS = ['en-GB', 'es-ES'];
 const PLACEHOLDER = '<ph id="t1" dataRef="d1"/>';
+const SECOND = '<ph id="t2" dataRef="d2"/>';
 const EMPTY = '<target></target>';
 
 after(removeCatalogues);
@@ -91,6 +92,44 @@ describe('export, translate, import', () => {
 		importInto(catalogue, fillIn(exportOf(catalogue, 'missing'), answers));
 
 		strictEqual(spanish(catalogue)[ulidOf(0)], '{count, plural, one {# reto} other {# retos}}');
+	});
+
+	test('puts two plurals back together, each number where the translator left it', () => {
+		const source =
+			'You have {messages, plural, one {{messages, number} message} ' +
+			'other {{messages, number} messages}} from {friends, plural, ' +
+			'one {{friends, number} friend} other {{friends, number} friends}}';
+		const catalogue = catalogueWith([{ name: 'PENDING', texts: { 'en-GB': source, 'es-ES': '' } }]);
+		const pairs = [
+			['mensaje', 'amigo'],
+			['mensaje', 'amigos'],
+			['mensajes', 'amigo'],
+			['mensajes', 'amigos'],
+		];
+		const answers = pairs.map(([m, f]) => `Tienes ${PLACEHOLDER} ${m} de ${SECOND} ${f}`);
+		const form = ([m, f]) => `Tienes {messages, number} ${m} de {friends, number} ${f}`;
+		const [oneOne, oneOther, otherOne, otherOther] = pairs.map(form);
+
+		importInto(catalogue, fillIn(exportOf(catalogue, 'missing'), answers));
+
+		strictEqual(
+			spanish(catalogue)[ulidOf(0)],
+			`{messages, plural, one {{friends, plural, one {${oneOne}} other {${oneOther}}}} ` +
+				`other {{friends, plural, one {${otherOne}} other {${otherOther}}}}}`,
+		);
+		deepStrictEqual(linesOf(findingsOf(catalogue)), []);
+	});
+
+	test('reports a form of two plurals that leaves one of the numbers out', () => {
+		const source =
+			'{a, plural, one {{a, number} ejercicio} other {{a, number} ejercicios}} de ' +
+			'{b, plural, one {{b, number} ronda} other {{b, number} rondas}}';
+		const catalogue = catalogueWith([{ name: 'ROUNDS', texts: { 'en-GB': source, 'es-ES': '' } }]);
+		const whole = `${PLACEHOLDER} x de ${SECOND} y`;
+		const answers = [whole, whole, whole, `${PLACEHOLDER} x de y`];
+		const { plan } = importInto(catalogue, fillIn(exportOf(catalogue, 'missing'), answers));
+
+		deepStrictEqual(messagesOf(plan), ['placeholders differ from en-GB']);
 	});
 
 	test('leaves a plural untouched when one of its forms comes back empty', () => {

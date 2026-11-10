@@ -38,12 +38,12 @@ export const paramNameProblem = (name) =>
 const syntaxProblem = (subject, error) =>
 	`${subject} is not valid ICU: ${error.reason ?? error.message}`;
 
-export function textProblems(text, lang) {
+export function textProblems(text, lang, langs = [lang]) {
 	if (isBlank(text)) {
 		return ['The text is empty'];
 	}
 
-	return messageProblems(text, lang).map((item) =>
+	return messageProblems(text, lang, { langs }).map((item) =>
 		'icu-syntax' === item.type ? `The text ${item.message}` : item.message,
 	);
 }

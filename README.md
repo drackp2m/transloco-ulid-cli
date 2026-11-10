@@ -297,8 +297,24 @@ always required, even in Russian, where only decimals reach it. An exact match s
 accepted anywhere.
 
 Missing a form the language needs, or branching on one it does not have, is an error. So is a
-`selectordinal`, which the catalogue does not support, and a message that opens into more than 12
-forms once its plurals and selects are crossed: split the sentence instead.
+`selectordinal`, which the catalogue does not support, and a message that opens into more than 16
+forms once its plurals and selects are crossed: split the sentence instead. The source is measured
+in every language of the catalogue, so a sentence that is 4 forms in Spanish and 64 in Russian is
+refused when it is written, not when the Russian comes back.
+
+#### Two numbers in one sentence
+
+Each number gets its own plural, and each is written by name, as `{messages, number}`:
+
+```text
+Tienes {messages, plural, one {{messages, number} mensaje} other {{messages, number} mensajes}} de {friends, plural, one {{friends, number} amigo} other {{friends, number} amigos}}
+```
+
+`{messages, number}` is formatted the way `#` is (`10.000` in Spanish). `#` itself is an error
+here: the export sends one unit per combination of forms, and in «Tienes # mensajes de # amigos»
+nothing says which `#` is which, so the import would put both numbers back under one plural. Two
+plurals are 4 forms in Spanish or English and 16 in Russian, Polish or Ukrainian; in Arabic they
+are 36, past the limit.
 
 ### Selects
 
@@ -590,7 +606,8 @@ What it reports:
 | `unknown-plural-category`      | error    |         | A plural branches on a form the language does not have.      |
 | `unknown-gender-value`         | error    |         | A gender select branches on a value the setting never holds. |
 | `unsupported-argument`         | error    |         | A `selectordinal`.                                           |
-| `too-many-forms`               | error    |         | The message opens into more than 12 forms.                   |
+| `too-many-forms`               | error    |         | The message opens into more than 16 forms in some language.  |
+| `ambiguous-hash`               | error    |         | `#` under two or more plurals.                               |
 | `stale-params`                 | error    | ✔       | `params.ts` does not match the source texts.                 |
 | `missing-params-file`          | error    | ✔       | A scope with parameters has no `params.ts`.                  |
 | `unregistered-scope`           | error    | ✔       | A scope is missing from `I18n` in `index.ts`.                |
@@ -654,8 +671,9 @@ transloco-ulid export [--lang <codes>] [--scope <names>] [--missing | --stale | 
 ```
 
 Writes one bilingual XLIFF 2.0 file per target language, `translations/<lang>.xlf` by default.
-Each unit's `id` is the key's value, each `{param}` travels as an `<originalData>` and `<ph>` pair
-the translator cannot break, and a plural or gender select travels as one unit per form the target
+Each unit's `id` is the key's value, each `{param}` or `{param, number}` travels as an
+`<originalData>` and `<ph>` pair the translator cannot break, and a plural or gender select
+travels as one unit per form the target
 language needs, with ids such as `auth.01KZ…#plural:few`.
 
 | Option            | What it does                                                             |

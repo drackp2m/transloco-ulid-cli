@@ -315,6 +315,18 @@ describe('spotsIn', () => {
 	test('is empty for a string that does not parse', () => {
 		deepStrictEqual(spotsIn('Hola {name'), []);
 	});
+
+	test('locates a formatted argument whole, its style included', () => {
+		const source = 'Precio {price, number, ::currency/EUR} el {day, date, short}';
+
+		deepStrictEqual(
+			spotsIn(source).map(({ name, text, index }) => [name, text, index]),
+			[
+				['price', '{price, number, ::currency/EUR}', 7],
+				['day', '{day, date, short}', 42],
+			],
+		);
+	});
 });
 
 describe('signatureDiff', () => {
@@ -459,6 +471,13 @@ describe('placeholdersIn', () => {
 				['#', 0],
 				['total', 16],
 			],
+		);
+	});
+
+	test('takes a formatted argument for one placeholder, next to the octothorpe', () => {
+		deepStrictEqual(
+			placeholdersIn('# de {friends, number} amigos', { hash: true }).map(({ text }) => text),
+			['#', '{friends, number}'],
 		);
 	});
 

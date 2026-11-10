@@ -205,6 +205,33 @@ describe('planKey — refusals', () => {
 		]);
 	});
 
+	test('refuses a source that opens too wide in another language of the catalogue', () => {
+		const catalogue = createCatalogue({
+			langs: ['es-ES', 'ru-RU'],
+			keys: [{ name: 'SAVE', texts: { 'es-ES': 'Guardar', 'ru-RU': 'Сохранить' } }],
+		});
+		const branch = 'one {x} other {y}';
+		const text = `{a, plural, ${branch}} {b, plural, ${branch}} {c, plural, ${branch}}`;
+		const plan = planIn(catalogue, 'WIDE', text);
+
+		deepStrictEqual(plan.problems, [
+			'opens into 64 forms in "ru-RU", over the 16 allowed — ' +
+				'split the sentence instead of branching it further',
+		]);
+		deepStrictEqual(plan.writes, []);
+	});
+
+	test('refuses # under two plurals, and names the way to write it', () => {
+		const text =
+			'{messages, plural, one {# mensaje} other {# mensajes}} de ' +
+			'{friends, plural, one {# amigo} other {# amigos}}';
+
+		deepStrictEqual(planIn(createCatalogue({ keys: [SAVE] }), 'PENDING', text).problems, [
+			'writes # under {messages} and {friends}, and once its forms are split nothing says ' +
+				'which number each # is — write {messages, number} or {friends, number} instead',
+		]);
+	});
+
 	test('refuses to write into a language file that does not parse', () => {
 		const catalogue = createCatalogue({ keys: [SAVE] });
 		const file = fileOf(catalogue, 'en-GB.json');

@@ -100,16 +100,46 @@ function spotOf(name, type, key, ctx) {
 	};
 }
 
-function collectSpots(tokens, spots) {
+function closingOf(text, start) {
+	let depth = 0;
+
+	for (let index = start; index < text.length; index += 1) {
+		if ('{' === text[index]) {
+			depth += 1;
+		} else if ('}' === text[index] && 0 === --depth) {
+			return index + 1;
+		}
+	}
+
+	return text.length;
+}
+
+function functionSpot(token, text) {
+	const { offset } = token.ctx;
+	const whole = text.slice(offset, closingOf(text, offset));
+
+	return {
+		name: token.arg,
+		type: 'plain',
+		key: null,
+		text: whole,
+		index: offset,
+		length: whole.length,
+	};
+}
+
+function collectSpots(tokens, spots, text) {
 	for (const token of tokens) {
 		if ('argument' === token.type) {
 			spots.push(spotOf(token.arg, 'plain', null, token.ctx));
+		} else if ('function' === token.type) {
+			spots.push(functionSpot(token, text));
 		} else if (BRANCHING_TYPES.has(token.type)) {
 			spots.push(spotOf(token.arg, token.type, null, token.ctx));
 
 			for (const kase of token.cases) {
 				spots.push(spotOf(token.arg, token.type, kase.key, kase.ctx));
-				collectSpots(kase.tokens, spots);
+				collectSpots(kase.tokens, spots, text);
 			}
 		}
 	}
@@ -128,7 +158,7 @@ function tokensOrNone(text) {
 export function spotsIn(text) {
 	const tokens = tokensOrNone(text);
 
-	return null === tokens ? [] : collectSpots(tokens, []);
+	return null === tokens ? [] : collectSpots(tokens, [], String(text ?? ''));
 }
 
 export const paramsIn = (text) => spotsIn(text).filter(({ type }) => 'plain' === type);

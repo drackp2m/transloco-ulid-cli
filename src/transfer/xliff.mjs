@@ -25,8 +25,8 @@ function dataOf(texts, hash) {
 
 	for (const text of texts) {
 		for (const param of placeholdersIn(text, { hash })) {
-			if (!data.has(param.name)) {
-				data.set(param.name, { id: `d${data.size + 1}`, text: param.text });
+			if (!data.has(param.text)) {
+				data.set(param.text, { id: `d${data.size + 1}`, text: param.text });
 			}
 		}
 	}
@@ -42,7 +42,7 @@ function inlineOf(text, data, prefix, hash) {
 	for (const param of placeholdersIn(text, { hash })) {
 		parts.push(encodeXml(text.slice(last, param.index)));
 		count += 1;
-		parts.push(`<ph id="${prefix}${count}" dataRef="${data.get(param.name).id}"/>`);
+		parts.push(`<ph id="${prefix}${count}" dataRef="${data.get(param.text).id}"/>`);
 		last = param.index + param.length;
 	}
 

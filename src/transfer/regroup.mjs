@@ -22,7 +22,7 @@ const problem = (file, message) => ({ file, message });
 
 const isBlank = (text) => '' === String(text ?? '').trim();
 
-const markersIn = (text, hash) => placeholdersIn(text, { hash }).map(({ name }) => name);
+const markersIn = (text, hash) => placeholdersIn(text, { hash }).map(({ text: tag }) => tag);
 
 function sameMarkers(source, target, hash) {
 	const from = new Set(markersIn(source, hash));

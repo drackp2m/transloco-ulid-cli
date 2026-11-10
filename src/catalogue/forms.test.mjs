@@ -27,8 +27,8 @@ const CROSS =
 	'other {{gender, select, male {Resueltos} female {Resueltas} other {Has resuelto}}}}';
 
 const TWO_PLURALS =
-	'{a, plural, one {# ejercicio} other {# ejercicios}} de ' +
-	'{b, plural, one {# ronda} other {# rondas}}';
+	'{a, plural, one {{a, number} ejercicio} other {{a, number} ejercicios}} de ' +
+	'{b, plural, one {{b, number} ronda} other {{b, number} rondas}}';
 
 describe('dimensionsOf', () => {
 	test('finds nothing to open in a string with no branches', () => {

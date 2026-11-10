@@ -145,6 +145,17 @@ describe('textProblems — the whole source text', () => {
 	test('takes plain text', () => {
 		deepStrictEqual(textProblems('Hola', 'es-ES'), []);
 	});
+
+	test('counts the forms in every language it is given, not only the source one', () => {
+		const branch = 'one {x} other {y}';
+		const text = `{a, plural, ${branch}} {b, plural, ${branch}} {c, plural, ${branch}}`;
+
+		deepStrictEqual(textProblems(text, 'es-ES'), []);
+		deepStrictEqual(textProblems(text, 'es-ES', ['es-ES', 'en-GB', 'ru-RU']), [
+			'opens into 64 forms in "ru-RU", over the 16 allowed — ' +
+				'split the sentence instead of branching it further',
+		]);
+	});
 });
 
 describe('pluralProblems — the param and the forms given for it', () => {

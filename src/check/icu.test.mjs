@@ -155,25 +155,116 @@ describe('messageProblems — how wide a string opens', () => {
 		deepStrictEqual(messageProblems(source, 'en-GB'), []);
 	});
 
-	test('reports a string that opens past the cap, and says how wide', () => {
+	test('lets two plurals crossed through at exactly sixteen', () => {
 		const branch = 'one {x} few {x} many {x} other {y}';
 		const source = `{a, plural, ${branch}} de {b, plural, ${branch}}`;
+
+		deepStrictEqual(messageProblems(source, 'ru-RU'), []);
+	});
+
+	test('reports a string that opens past the cap, and says how wide', () => {
+		const branch = 'one {x} few {x} many {x} other {y}';
+		const source = `{a, plural, ${branch}} {b, plural, ${branch}} {c, plural, ${branch}}`;
 		const [problem, ...rest] = messageProblems(source, 'ru-RU');
 
 		strictEqual(problem.type, 'too-many-forms');
 		strictEqual(problem.name, null);
-		strictEqual(problem.message.includes('16 forms'), true);
+		strictEqual(
+			problem.message,
+			'opens into 64 forms in "ru-RU", over the 16 allowed — ' +
+				'split the sentence instead of branching it further',
+		);
 		deepStrictEqual(rest, []);
 	});
 
 	test('lets that same string through in a language that asks for fewer forms', () => {
 		const branch = 'one {x} few {x} many {x} other {y}';
-		const source = `{a, plural, ${branch}} de {b, plural, ${branch}}`;
+		const source = `{a, plural, ${branch}} {b, plural, ${branch}} {c, plural, ${branch}}`;
 
 		strictEqual(typesOf(source, 'en-GB').includes('too-many-forms'), false);
 	});
 
+	test('counts in every language it is given, and names each one past the cap', () => {
+		const branch = 'one {x} other {y}';
+		const source = `{a, plural, ${branch}} {b, plural, ${branch}} {c, plural, ${branch}}`;
+		const langs = ['es-ES', 'en-GB', 'ru-RU', 'ar'];
+		const [problem, ...rest] = messageProblems(source, 'es-ES', { langs });
+
+		strictEqual(problem.type, 'too-many-forms');
+		strictEqual(
+			problem.message.startsWith('opens into 64 forms in "ru-RU" and 216 forms in "ar",'),
+			true,
+		);
+		deepStrictEqual(rest, []);
+	});
+
+	test('keeps the categories to the language of the string while it counts in others', () => {
+		const source = '{gender, select, male {{n, plural, one {a} other {b}}} female {c} other {d}}';
+		const inArabic = messageProblems(source, 'es-ES', { langs: ['es-ES', 'ar'] });
+
+		deepStrictEqual(messageProblems(source, 'es-ES', { langs: ['es-ES', 'ru-RU'] }), []);
+		deepStrictEqual(inArabic.map(({ type }) => type), ['too-many-forms']);
+		strictEqual(inArabic[0].message.includes('18 forms in "ar"'), true);
+	});
+
 	test('has nothing to count in a string with no branches at all', () => {
 		deepStrictEqual(messageProblems('Cargados {loaded} de {total}', 'ru-RU'), []);
+	});
+});
+
+describe('messageProblems — # under more than one plural', () => {
+	const TWO =
+		'Tienes {messages, plural, one {# mensaje} other {# mensajes}} de ' +
+		'{friends, plural, one {# amigo} other {# amigos}}';
+
+	test('reports it, since the forms of the export no longer say which number each # is', () => {
+		const [problem, ...rest] = messageProblems(TWO, 'es-ES');
+
+		strictEqual(problem.type, 'ambiguous-hash');
+		strictEqual(problem.name, null);
+		strictEqual(
+			problem.message,
+			'writes # under {messages} and {friends}, and once its forms are split nothing says ' +
+				'which number each # is — write {messages, number} or {friends, number} instead',
+		);
+		deepStrictEqual(rest, []);
+	});
+
+	test('reports a single # too, wherever it is nested', () => {
+		const source = '{a, plural, one {x} other {{b, plural, one {# y} other {z}}}}';
+
+		deepStrictEqual(typesOf(source, 'es-ES'), ['ambiguous-hash']);
+	});
+
+	test('names every plural when there are more than two', () => {
+		const source =
+			'{a, plural, one {#} other {#}} {b, plural, one {x} other {y}} ' +
+			'{c, plural, one {x} other {y}}';
+
+		strictEqual(
+			messageProblems(source, 'es-ES')[0].message.endsWith(
+				'write {a, number}, {b, number} or {c, number} instead',
+			),
+			true,
+		);
+	});
+
+	test('accepts two plurals that write each number by name', () => {
+		const source =
+			'Tienes {messages, plural, one {{messages, number} mensaje} ' +
+			'other {{messages, number} mensajes}} de {friends, plural, ' +
+			'one {{friends, number} amigo} other {{friends, number} amigos}}';
+
+		deepStrictEqual(messageProblems(source, 'es-ES'), []);
+	});
+
+	test('accepts # under one plural, crossed with gender or branched on twice', () => {
+		const crossed =
+			'{gender, select, male {{n, plural, one {# a} other {# b}}} ' +
+			'other {{n, plural, one {# c} other {# d}}}}';
+		const twice = '{n, plural, one {# reto} other {# retos}} y {n, plural, one {lo} other {los}}';
+
+		deepStrictEqual(messageProblems(crossed, 'es-ES'), []);
+		deepStrictEqual(messageProblems(twice, 'es-ES'), []);
 	});
 });

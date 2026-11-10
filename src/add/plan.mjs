@@ -39,7 +39,7 @@ function problemsOf({ scope, name, text, langs, defaultLang }) {
 
 	return [
 		keyNameProblem(scope, name),
-		...textProblems(text, defaultLang),
+		...textProblems(text, defaultLang, langs),
 		...translationProblems(scope, langs),
 	].filter((problem) => null !== problem);
 }
