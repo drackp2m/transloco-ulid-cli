@@ -5,7 +5,7 @@ import { isUlid, readDefaults } from '../catalogue/config.mjs';
 import { readContext, termsIn } from '../catalogue/context.mjs';
 import { hashOf, readStates, statusOf } from '../catalogue/freshness.mjs';
 import { paramTag } from '../catalogue/message.mjs';
-import { noteTextsFor } from '../catalogue/note-texts.mjs';
+import { fillNote, usableNoteTexts } from '../catalogue/note-texts.mjs';
 import { paramsFile, readDeclaredParams } from '../catalogue/params.mjs';
 
 import { formsOf } from './fanout.mjs';
@@ -65,7 +65,7 @@ const termLine = (term, lang) => {
 
 // The whole scope's vocabulary, once per <file>: the term, what it has to
 // become in this language, and why it is in the glossary at all.
-function glossaryNote({ glossary }, sources, { lang, notesLang }) {
+function glossaryNote({ glossary }, sources, { lang, noteTexts }) {
 	const lines = termsIn(glossary, sources).map((term) => {
 		const note = undefined === term.note ? '' : ` — ${term.note}`;
 
@@ -74,7 +74,7 @@ function glossaryNote({ glossary }, sources, { lang, notesLang }) {
 	const keep = glossary.keep ?? [];
 
 	if (0 !== keep.length) {
-		lines.push(noteTextsFor(notesLang).keep(keep.join(', ')));
+		lines.push(fillNote(noteTexts.neverTranslate, { terms: keep.join(', ') }));
 	}
 
 	return 0 === lines.length ? [] : [{ category: 'glossary', text: lines.join('\n') }];
@@ -82,7 +82,7 @@ function glossaryNote({ glossary }, sources, { lang, notesLang }) {
 
 // What every unit of the file shares. The layers below these — the group and
 // the key — belong to the unit, which is what keeps a unit note short.
-function fileNotes(scope, { context, lang, units, xliffPrefix, notesLang }) {
+function fileNotes(scope, { context, lang, units, xliffPrefix, noteTexts }) {
 	const layers = context
 		.contextFor(scope.name, '', lang)
 		.filter((layer) => FILE_LEVELS.has(layer.level));
@@ -91,7 +91,7 @@ function fileNotes(scope, { context, lang, units, xliffPrefix, notesLang }) {
 
 	return [
 		...notes,
-		...glossaryNote(context, sources, { lang, notesLang }),
+		...glossaryNote(context, sources, { lang, noteTexts }),
 		{ category: SUB_STATE_PREFIX_NOTE, text: xliffPrefix },
 	];
 }
@@ -128,19 +128,19 @@ function statusFor(entry, options, forms) {
 }
 
 function unitsFor(scope, entry, options) {
-	const { source, target, lang, defaultLang, blank, notesLang } = options;
+	const { source, target, lang, defaultLang, blank, noteTexts } = options;
 	const text = source[entry.ulid] ?? '';
 	const forms = formsOf({
 		source: text,
 		target: target[entry.ulid] ?? '',
 		lang,
 		defaultLang,
-		notesLang,
+		noteTexts,
 	});
 	const status = statusFor(entry, options, forms);
 	const outdated = 'stale' === status && !blank;
 	const shared = [
-		...(outdated ? [{ category: 'outdated', text: noteTextsFor(notesLang).outdated }] : []),
+		...(outdated ? [{ category: 'outdated', text: noteTexts.outdated }] : []),
 		...notesFor(scope, entry, { ...options, source: text }),
 	];
 
@@ -173,7 +173,7 @@ function unitsOf(scope, options) {
 		state,
 		blank,
 		xliffPrefix: options.xliffPrefix,
-		notesLang: options.notesLang,
+		noteTexts: options.noteTexts,
 	};
 
 	return scope.keys.entries
@@ -183,13 +183,13 @@ function unitsOf(scope, options) {
 }
 
 function fileOf(scope, options) {
-	const { lang, root, context, xliffPrefix, notesLang } = options;
+	const { lang, root, context, xliffPrefix, noteTexts } = options;
 	const units = unitsOf(scope, options);
 
 	return {
 		id: scope.name,
 		original: relativise(scope.translations.get(lang)?.file ?? scope.keysFile, root),
-		notes: fileNotes(scope, { context, lang, units, xliffPrefix, notesLang }),
+		notes: fileNotes(scope, { context, lang, units, xliffPrefix, noteTexts }),
 		units,
 	};
 }
@@ -200,23 +200,23 @@ function countOf(files, status) {
 	return files.reduce((count, file) => count + matching(file), 0);
 }
 
-function settingsOf({ xliffPrefix, notesLang }) {
-	const defaults = undefined === xliffPrefix || undefined === notesLang ? readDefaults() : {};
+function contextOf(options) {
+	if (undefined !== options.context) {
+		return options.context;
+	}
 
-	return {
-		xliffPrefix: xliffPrefix ?? defaults.xliffPrefix,
-		notesLang: notesLang ?? defaults.notesLang,
-	};
+	return readContext({ ...options, notesLang: options.notesLang ?? readDefaults().notesLang });
 }
 
 export function buildExport(options) {
 	const { scopes, defaultLang, lang, filter, usages, only, root = null, blank = false } = options;
-	const context = options.context ?? readContext(options);
+	const context = contextOf(options);
+	const noteTexts = usableNoteTexts(context.notes);
 	const wanted = scopes.filter(
 		(scope) => scope.keys && (!only?.length || only.includes(scope.name)),
 	);
 	const states = options.states ?? readStates(options.i18nDir, wanted);
-	const { xliffPrefix, notesLang } = settingsOf(options);
+	const xliffPrefix = options.xliffPrefix ?? readDefaults().xliffPrefix;
 	const shared = {
 		defaultLang,
 		lang,
@@ -226,7 +226,7 @@ export function buildExport(options) {
 		context,
 		blank,
 		xliffPrefix,
-		notesLang,
+		noteTexts,
 	};
 	const files = wanted
 		.map((scope) => fileOf(scope, { ...shared, state: states.get(scope.name) }))

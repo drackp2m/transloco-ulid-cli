@@ -3,11 +3,13 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { GENDER_ARG } from './genders.mjs';
-import { DEFAULT_NOTES_LANG, NOTES_LANGS } from './note-texts.mjs';
+import { DEFAULT_NOTES_LANG } from './note-texts.mjs';
 
 export const CONFIG_FILE = 'i18n.config.json';
 
 const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
+
+const LANGUAGE_TAG = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/;
 
 const STRING_FIELDS = ['i18nDir', 'languageFile', 'rootScope', 'importAlias', 'xliffPrefix'];
 
@@ -59,8 +61,8 @@ function checkConfig(raw, file) {
 		invalid.push('sourceDirs');
 	}
 
-	if (undefined !== raw?.notesLang && !NOTES_LANGS.includes(raw.notesLang)) {
-		invalid.push(`notesLang (one of ${NOTES_LANGS.join(', ')})`);
+	if (undefined !== raw?.notesLang && !LANGUAGE_TAG.test(String(raw.notesLang))) {
+		invalid.push('notesLang (a language tag such as "es" or "pt-BR")');
 	}
 
 	if (invalid.length) {

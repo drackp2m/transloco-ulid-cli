@@ -1,6 +1,8 @@
 import { deepStrictEqual, ok, strictEqual } from 'node:assert/strict';
 import { describe, test } from 'node:test';
 
+import { SPANISH_NOTES } from '../testing/catalogue.mjs';
+
 import { formsOf } from './fanout.mjs';
 
 const PLURAL = '{count, plural, one {# ejercicio} other {# ejercicios}}';
@@ -19,8 +21,8 @@ const RUSSIAN =
 
 const DEFAULT_LANG = 'es-ES';
 
-const build = (source, lang, target = '', notesLang = undefined) =>
-	formsOf({ source, target, lang, defaultLang: DEFAULT_LANG, notesLang });
+const build = (source, lang, target = '', noteTexts = undefined) =>
+	formsOf({ source, target, lang, defaultLang: DEFAULT_LANG, noteTexts });
 
 const suffixes = (forms) => forms.map((form) => form.suffix);
 
@@ -331,9 +333,9 @@ describe('the notes each form carries', () => {
 	});
 });
 
-describe('the notes each form carries, in Spanish', () => {
+describe('the notes each form carries, with the texts of a translated template', () => {
 	const notesOf = (source, lang, category) =>
-		build(source, lang, '', 'es').map((form) => noteOf(form, category));
+		build(source, lang, '', SPANISH_NOTES).map((form) => noteOf(form, category));
 
 	test('writes the numbers with the Spanish words and the decimal comma', () => {
 		const source = '{count, plural, =0 {Nada} one {# ejercicio} other {# ejercicios}}';

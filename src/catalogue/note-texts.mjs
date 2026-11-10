@@ -1,53 +1,132 @@
+import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+
 export const DEFAULT_NOTES_LANG = 'en';
 
-const TEXTS = {
-	en: {
-		exactly: (value) => `used for exactly ${value}`,
-		integers: (list) => `used for ${list}`,
-		general: 'the general form of the sentence',
-		decimals: (list) => `used for the decimals: ${list}`,
-		decimalPoint: '.',
-		chosen: (gender) => `the person using the app has chosen “${gender}”`,
-		genders: { male: 'man', female: 'woman' },
-		unspecified:
-			'the person using the app has not said. Do not make up an ending: reword the sentence ' +
-			'so that nothing has to agree with them',
-		collapsed:
-			'the target language does not mark gender, so this is the only form: write it without ' +
-			'gender agreement',
-		keep: (terms) => `Never translate: ${terms}`,
-		outdated:
-			'the source changed after this was translated — the target below is the old translation',
-	},
-	es: {
-		exactly: (value) => `se usa exactamente con ${value}`,
-		integers: (list) => `se usa con ${list}`,
-		general: 'es la forma general de la frase',
-		decimals: (list) => `se usa con los decimales: ${list}`,
-		decimalPoint: ',',
-		chosen: (gender) => `quien usa la aplicación ha elegido «${gender}»`,
-		genders: { male: 'hombre', female: 'mujer' },
-		unspecified:
-			'quien usa la aplicación no lo ha dicho. No inventes una terminación: reformula la ' +
-			'frase para que no haya nada que concordar',
-		collapsed:
-			'el idioma de destino no marca género, así que ésta es la única forma: escríbela sin ' +
-			'concordancia de género',
-		keep: (terms) => `No traducir nunca: ${terms}`,
-		outdated:
-			'el original cambió después de traducir esto — el destino de abajo es la traducción ' +
-			'antigua',
-	},
+export const NOTES_TEMPLATE = 'src/catalogue/notes.en.json';
+
+export const NOTE_TEXTS = JSON.parse(
+	readFileSync(new URL('./notes.en.json', import.meta.url), 'utf8'),
+);
+
+export const notesFileName = (lang) => `notes.${lang}.json`;
+
+const PLACEHOLDER = /\{(\w+)\}/g;
+
+const placeholdersOf = (text) => new Set([...text.matchAll(PLACEHOLDER)].map(([, name]) => name));
+
+export const fillNote = (text, values) =>
+	text.replace(PLACEHOLDER, (match, name) => values[name] ?? match);
+
+const lineOf = (source, key) => {
+	const line = source.split('\n').findIndex((content) => content.includes(`"${key}"`));
+
+	return -1 === line ? {} : { line: line + 1, col: 1 };
 };
 
-export const NOTES_LANGS = Object.keys(TEXTS);
+function placeholderProblems(key, text, source) {
+	const wanted = placeholdersOf(NOTE_TEXTS[key]);
+	const written = placeholdersOf(text);
+	const at = lineOf(source, key);
 
-export function noteTextsFor(notesLang = DEFAULT_NOTES_LANG) {
-	const texts = TEXTS[notesLang];
+	return [
+		...[...wanted]
+			.filter((name) => !written.has(name))
+			.map((name) => ({ type: 'bad-note-text', message: `"${key}" drops {${name}}`, ...at })),
+		...[...written]
+			.filter((name) => !wanted.has(name))
+			.map((name) => ({
+				type: 'bad-note-text',
+				message: `"${key}" has {${name}}, which the template does not`,
+				...at,
+			})),
+	];
+}
 
-	if (undefined === texts) {
-		throw new Error(`unknown notes language "${notesLang}" — use one of ${NOTES_LANGS.join(', ')}`);
+function textProblems(key, data, source) {
+	const text = data[key];
+
+	if (undefined === text) {
+		return [{ type: 'bad-note-text', message: `"${key}" is missing` }];
 	}
 
-	return texts;
+	if ('string' !== typeof text || '' === text.trim()) {
+		const what = 'string' === typeof text ? 'is empty' : 'is not a text';
+
+		return [{ type: 'bad-note-text', message: `"${key}" ${what}`, ...lineOf(source, key) }];
+	}
+
+	return placeholderProblems(key, text, source);
+}
+
+export function noteTextProblems(data, source = '') {
+	if (null === data || 'object' !== typeof data || Array.isArray(data)) {
+		return [{ type: 'bad-note-text', message: 'the file is not a JSON object' }];
+	}
+
+	const unknown = Object.keys(data)
+		.filter((key) => !(key in NOTE_TEXTS))
+		.map((key) => ({
+			type: 'unknown-note-text',
+			message: `"${key}" is not in the template`,
+			...lineOf(source, key),
+		}));
+
+	return [...Object.keys(NOTE_TEXTS).flatMap((key) => textProblems(key, data, source)), ...unknown];
+}
+
+const missingFile = (lang) => ({
+	type: 'missing-notes-file',
+	message:
+		`notesLang is "${lang}" and there is no such file: translate the English template, ` +
+		`${NOTES_TEMPLATE} in @drackp2m/transloco-ulid-cli`,
+});
+
+const templateKeysOf = (data) =>
+	Object.fromEntries(Object.keys(NOTE_TEXTS).map((key) => [key, data[key]]));
+
+function parsed(file, lang) {
+	const source = readFileSync(file, 'utf8');
+	let data;
+
+	try {
+		data = JSON.parse(source);
+	} catch (error) {
+		const problems = [{ type: 'invalid-json', message: error.message }];
+
+		return { file, lang, exists: true, texts: null, problems };
+	}
+
+	const problems = noteTextProblems(data, source);
+	const usable = problems.every(({ type }) => 'unknown-note-text' === type);
+
+	return { file, lang, exists: true, texts: usable ? templateKeysOf(data) : null, problems };
+}
+
+export function readNoteTexts(contextDir, lang = DEFAULT_NOTES_LANG) {
+	const file = path.join(contextDir, notesFileName(lang));
+
+	if (existsSync(file)) {
+		return parsed(file, lang);
+	}
+
+	const fallback = DEFAULT_NOTES_LANG === lang;
+
+	return {
+		file,
+		lang,
+		exists: false,
+		texts: fallback ? NOTE_TEXTS : null,
+		problems: fallback ? [] : [missingFile(lang)],
+	};
+}
+
+export function usableNoteTexts(notes) {
+	if (null !== notes.texts) {
+		return notes.texts;
+	}
+
+	const reasons = notes.problems.map(({ message }) => message).join('; ');
+
+	throw new Error(`${notes.file}: ${reasons}`);
 }

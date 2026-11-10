@@ -12,7 +12,7 @@ import {
 } from '../catalogue/forms.mjs';
 import { GENDER_ARG, genderNoteFor } from '../catalogue/genders.mjs';
 import { leavesOf } from '../catalogue/message.mjs';
-import { DEFAULT_NOTES_LANG, noteTextsFor } from '../catalogue/note-texts.mjs';
+import { NOTE_TEXTS, fillNote } from '../catalogue/note-texts.mjs';
 import { pluralExamplesOf } from '../catalogue/plurals.mjs';
 
 const PLURAL = 'plural';
@@ -41,7 +41,7 @@ const decimalList = (values, point) =>
 
 function examplesText(lang, key, texts) {
 	if (isExactCase(key)) {
-		return texts.exactly(key.slice(1));
+		return fillNote(texts.pluralExactly, { value: key.slice(1) });
 	}
 
 	const found = pluralExamplesOf(lang, key);
@@ -51,26 +51,29 @@ function examplesText(lang, key, texts) {
 	}
 
 	if (0 !== found.integers.length) {
-		return texts.integers(`${found.integers.join(', ')}${found.more ? '…' : ''}`);
+		const numbers = `${found.integers.join(', ')}${found.more ? '…' : ''}`;
+
+		return fillNote(texts.pluralNumbers, { numbers });
 	}
 
 	if (0 === found.decimals.length) {
-		return texts.general;
+		return null;
 	}
 
-	return texts.decimals(decimalList(found.decimals, texts.decimalPoint));
+	const numbers = decimalList(found.decimals, texts.decimalPoint);
+
+	return fillNote(texts.pluralDecimals, { numbers });
 }
 
 function noteFor(category, text) {
 	return null === text || undefined === text ? [] : [{ category, text }];
 }
 
-function formNotes(combo, { lang, notesLang }, siblings) {
-	const texts = noteTextsFor(notesLang);
+function formNotes(combo, { lang, texts }, siblings) {
 	const plural = combo.find(({ dimension }) => PLURAL === dimension.type);
 	const gender = combo.find(({ dimension }) => GENDER_ARG === dimension.arg);
 	const examples = undefined === plural ? null : examplesText(lang, plural.key, texts);
-	const genderNote = undefined === gender ? null : genderNoteFor(gender.key, lang, notesLang);
+	const genderNote = undefined === gender ? null : genderNoteFor(gender.key, lang, texts);
 
 	return [
 		{ category: 'category', text: combo.map(labelOf).join(' · ') },
@@ -82,7 +85,7 @@ function formNotes(combo, { lang, notesLang }, siblings) {
 
 const flatForm = (source, target) => [{ suffix: '', source, target, hash: false, notes: [] }];
 
-export function formsOf({ source, target, lang, defaultLang, notesLang = DEFAULT_NOTES_LANG }) {
+export function formsOf({ source, target, lang, defaultLang, noteTexts = NOTE_TEXTS }) {
 	const leaves = leavesOrNone(source);
 	const dimensions = null === leaves ? null : dimensionsOf(source);
 
@@ -99,6 +102,6 @@ export function formsOf({ source, target, lang, defaultLang, notesLang = DEFAULT
 		source: leafFor(leaves, pathOf(combo, sourceSegmentOf))?.text ?? leaves[0].text,
 		target: leafFor(targetLeaves, pathOf(combo, segmentOf))?.text ?? '',
 		hash,
-		notes: formNotes(combo, { lang, notesLang }, siblings),
+		notes: formNotes(combo, { lang, texts: noteTexts }, siblings),
 	}));
 }

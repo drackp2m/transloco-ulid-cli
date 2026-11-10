@@ -1,0 +1,13 @@
+{
+	"pluralExactly": "se usa exactamente con {value}",
+	"pluralNumbers": "se usa con {numbers}",
+	"pluralDecimals": "se usa con los decimales: {numbers}",
+	"decimalPoint": ",",
+	"genderChosen": "quien usa la aplicación ha elegido «{gender}»",
+	"genderMale": "hombre",
+	"genderFemale": "mujer",
+	"genderUnspecified": "quien usa la aplicación no lo ha dicho. No inventes una terminación: reformula la frase para que no haya nada que concordar",
+	"genderless": "el idioma de destino no marca género, así que ésta es la única forma: escríbela sin concordancia de género",
+	"neverTranslate": "No traducir nunca: {terms}",
+	"outdated": "el original cambió después de traducir esto — el destino de abajo es la traducción antigua"
+}

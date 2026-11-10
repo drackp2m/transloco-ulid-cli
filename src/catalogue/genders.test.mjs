@@ -1,6 +1,8 @@
 import { deepStrictEqual, ok, strictEqual } from 'node:assert/strict';
 import { describe, test } from 'node:test';
 
+import { SPANISH_NOTES } from '../testing/catalogue.mjs';
+
 import { expandsGender, genderCategoriesOf, genderNoteFor, isGenderArg } from './genders.mjs';
 
 const CASES = ['male', 'female', 'other'];
@@ -49,10 +51,13 @@ describe('genderNoteFor', () => {
 		ok(genderNoteFor('other', 'tr-TR').includes('does not mark gender'));
 	});
 
-	test('writes in Spanish when the notes are in Spanish', () => {
-		strictEqual(genderNoteFor('female', 'ru-RU', 'es'), 'quien usa la aplicación ha elegido «mujer»');
-		ok(genderNoteFor('other', 'ru-RU', 'es').includes('reformula la frase'));
-		ok(genderNoteFor('other', 'tr-TR', 'es').includes('no marca género'));
+	test('writes with the texts it is given', () => {
+		strictEqual(
+			genderNoteFor('female', 'ru-RU', SPANISH_NOTES),
+			'quien usa la aplicación ha elegido «mujer»',
+		);
+		strictEqual(genderNoteFor('other', 'ru-RU', SPANISH_NOTES), SPANISH_NOTES.genderUnspecified);
+		strictEqual(genderNoteFor('other', 'tr-TR', SPANISH_NOTES), SPANISH_NOTES.genderless);
 	});
 });
 

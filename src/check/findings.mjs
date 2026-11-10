@@ -20,6 +20,8 @@ const ERROR_TYPES = new Set([
 	'missing-barrel',
 	'unregistered-scope',
 	'unregistered-params',
+	'missing-notes-file',
+	'bad-note-text',
 ]);
 
 const INFO_TYPES = new Set(['commented-usage']);

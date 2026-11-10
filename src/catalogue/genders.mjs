@@ -1,4 +1,4 @@
-import { DEFAULT_NOTES_LANG, noteTextsFor } from './note-texts.mjs';
+import { NOTE_TEXTS, fillNote } from './note-texts.mjs';
 
 export const GENDER_ARG = 'gender';
 
@@ -24,14 +24,16 @@ export function genderCategoriesOf(lang, cases) {
 	return [...known, ...cases.filter((key) => !GENDER_VALUES.includes(key))];
 }
 
-export function genderNoteFor(category, lang, notesLang = DEFAULT_NOTES_LANG) {
-	const texts = noteTextsFor(notesLang);
+const CHOSEN = { male: 'genderMale', female: 'genderFemale' };
 
+export function genderNoteFor(category, lang, texts = NOTE_TEXTS) {
 	if (!expandsGender(lang)) {
-		return texts.collapsed;
+		return texts.genderless;
 	}
 
-	const chosen = texts.genders[category];
+	const chosen = CHOSEN[category];
 
-	return undefined === chosen ? texts.unspecified : texts.chosen(chosen);
+	return undefined === chosen
+		? texts.genderUnspecified
+		: fillNote(texts.genderChosen, { gender: texts[chosen] });
 }

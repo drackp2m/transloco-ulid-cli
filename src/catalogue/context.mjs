@@ -1,6 +1,8 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 
+import { readNoteTexts } from './note-texts.mjs';
+
 export const CONTEXT_DIR = 'context';
 export const APP_FILE = 'app.md';
 export const GLOSSARY_FILE = 'glossary.json';
@@ -160,13 +162,14 @@ export function termsIn(glossary, texts) {
 	);
 }
 
-export function readContext({ i18nDir }) {
+export function readContext({ i18nDir, notesLang }) {
 	const dir = path.join(i18nDir, CONTEXT_DIR);
 	const app = readMarkdown(path.join(dir, APP_FILE));
 	const languages = new Map(app.sections.map((section) => [section.heading, section.text]));
 	const scopes = readScopeFiles(dir);
 	const glossary = readGlossary(path.join(dir, GLOSSARY_FILE));
-	const context = { dir, exists: existsSync(dir), app, languages, scopes, glossary };
+	const notes = readNoteTexts(dir, notesLang);
+	const context = { dir, exists: existsSync(dir), app, languages, scopes, glossary, notes };
 
 	return {
 		...context,

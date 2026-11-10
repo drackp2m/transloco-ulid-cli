@@ -63,6 +63,18 @@ if (0 === targets.length) {
 	process.exit(1);
 }
 
+const context = readContext(options);
+
+if (null === context.notes.texts) {
+	for (const { type, message } of context.notes.problems) {
+		if ('unknown-note-text' !== type) {
+			console.error(`  ${c.red}✖ ${context.notes.file}: ${message}${c.reset}`);
+		}
+	}
+
+	process.exit(1);
+}
+
 printExportHeader(targets, options.defaultLang);
 
 if (options.blank) {
@@ -70,7 +82,6 @@ if (options.blank) {
 }
 
 const { usages } = collectUsages(options.sourceDirs);
-const context = readContext(options);
 const built = targets.map((lang) => buildExport({ ...options, scopes, lang, usages, context }));
 const empty = built.filter((document) => 0 === document.total);
 const documents = built

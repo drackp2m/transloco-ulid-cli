@@ -1,0 +1,13 @@
+{
+	"pluralExactly": "used for exactly {value}",
+	"pluralNumbers": "used for {numbers}",
+	"pluralDecimals": "used for the decimals: {numbers}",
+	"decimalPoint": ".",
+	"genderChosen": "the person using the app has chosen “{gender}”",
+	"genderMale": "man",
+	"genderFemale": "woman",
+	"genderUnspecified": "the person using the app has not said. Do not make up an ending: reword the sentence so that nothing has to agree with them",
+	"genderless": "the target language does not mark gender, so this is the only form: write it without gender agreement",
+	"neverTranslate": "Never translate: {terms}",
+	"outdated": "the source changed after this was translated — the target below is the old translation"
+}

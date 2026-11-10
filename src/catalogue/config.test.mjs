@@ -83,10 +83,10 @@ describe('loadConfig', () => {
 		strictEqual(loadConfig(root).notesLang, 'es');
 	});
 
-	test('refuses a notes language it has no texts for', () => {
-		const { root } = project({ ...CONFIG, notesLang: 'fr' });
+	test('refuses a notesLang that is not a language tag', () => {
+		const { root } = project({ ...CONFIG, notesLang: 'Spanish' });
 
-		throws(() => loadConfig(root), /missing or invalid notesLang \(one of en, es\)$/);
+		throws(() => loadConfig(root), /missing or invalid notesLang \(a language tag such as "es" or "pt-BR"\)$/);
 	});
 
 	test('names every missing or invalid field', () => {

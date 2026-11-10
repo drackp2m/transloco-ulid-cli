@@ -4,6 +4,7 @@ import path from 'node:path';
 import { after, describe, test } from 'node:test';
 
 import {
+	SPANISH_NOTES,
 	createCatalogue,
 	findingsOf,
 	linesOf,
@@ -326,5 +327,44 @@ describe('check — the context for translators', () => {
 
 	test('has nothing to say about a context with no scope file and no glossary', () => {
 		deepStrictEqual(findings(catalogueWith([SAVE], { context: { app: '# App\n\nA trainer.\n' } })), []);
+	});
+});
+
+describe('check — the notes for translators', () => {
+	const inSpanish = (notes) => catalogueWith([SAVE], { notesLang: 'es', context: { notes: { es: notes } } });
+
+	test('reports a notes language without its notes file', () => {
+		deepStrictEqual(findings(catalogueWith([SAVE], { notesLang: 'fr' })), [
+			'error missing-notes-file: notesLang is "fr" and there is no such file: translate the ' +
+				'English template, src/catalogue/notes.en.json in @drackp2m/transloco-ulid-cli',
+		]);
+	});
+
+	test('reports each text the translation gets wrong, and warns about one the template lacks', () => {
+		const notes = { ...SPANISH_NOTES, pluralNumbers: 'se usa con varios', general: 'la forma general' };
+
+		delete notes.outdated;
+
+		deepStrictEqual(findings(inSpanish(notes)), [
+			'error bad-note-text: "pluralNumbers" drops {numbers}',
+			'error bad-note-text: "outdated" is missing',
+			'warning unknown-note-text: "general" is not in the template',
+		]);
+		deepStrictEqual(placesOf(inSpanish(notes))[0], {
+			type: 'bad-note-text',
+			file: 'i18n/context/notes.es.json',
+			line: 3,
+			col: 1,
+		});
+	});
+
+	test('reports a notes file that is not valid JSON', () => {
+		deepStrictEqual(typesOf(inSpanish('{ "outdated": ')), [
+			{ type: 'invalid-json', lang: null, file: 'i18n/context/notes.es.json' },
+		]);
+	});
+
+	test('has nothing to say about a complete translation', () => {
+		deepStrictEqual(findings(inSpanish(SPANISH_NOTES)), []);
 	});
 });

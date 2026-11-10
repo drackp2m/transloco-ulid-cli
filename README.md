@@ -127,11 +127,11 @@ so run it from the root, which is what npm and pnpm scripts do.
 | `rootScope`    | The name of the scope that lives at the top of `i18nDir`.                        |
 | `importAlias`  | The path alias for `i18nDir`, used in the imports `check --fix` writes.          |
 | `xliffPrefix`  | The prefix of the XLIFF sub-states the export writes, such as `my-app:outdated`. |
-| `notesLang`    | Optional. The language of the notes the export writes itself: `en` or `es`.      |
+| `notesLang`    | Optional. The language of the notes the export words itself, such as `es`.       |
 
 Every field but `notesLang` is required, and that one defaults to `en`: see
-[What the translator receives](#what-the-translator-receives). Paths are relative to the project
-root, where the file lives, which is also where the commands run from.
+[The language of the notes](#the-language-of-the-notes-contextnoteslangjson). Paths are relative to the project root, where the
+file lives, which is also where the commands run from.
 
 The language file declares the languages as single-quoted literals. `DEFAULT_LANGUAGE` is the
 source language: the one texts are written in, and the one every other language is translated
@@ -460,21 +460,53 @@ as notes:
 | `<unit>`  | `outdated`       | For a stale translation: that the target below is the old one.         |
 | `<unit>`  | `srcHash`        | The fingerprint of the source, used on import.                         |
 
-What comes from your context files travels as you wrote it. The rest of the wording is the CLI's
-own: the numbers of `examples`, the `gender-note`, the `outdated` note and the line of `glossary`
-that lists `keep`. It is written in English unless `i18n.config.json` asks for Spanish with
-`"notesLang": "es"`, which suits a team that writes its context in Spanish, or a translation
-prompt written in Spanish that quotes the notes as they come:
+### The language of the notes: `context/notes.<lang>.json`
 
-| Note          | `"notesLang": "en"` (the default)             | `"notesLang": "es"`                           |
-| ------------- | --------------------------------------------- | --------------------------------------------- |
-| `examples`    | used for 2, 3, 4, 22, 23…                     | se usa con 2, 3, 4, 22, 23…                   |
-| `examples`    | used for the decimals: 0.5 · 1.5 · 2.5        | se usa con los decimales: 0,5 · 1,5 · 2,5     |
-| `gender-note` | the person using the app has chosen “woman”   | quien usa la aplicación ha elegido «mujer»    |
-| `glossary`    | Never translate: FEN, PGN                     | No traducir nunca: FEN, PGN                   |
+What comes from your context files travels as you wrote it. A few notes are worded by the CLI
+itself: the numbers of `examples`, the `gender-note`, the `outdated` note and the line of
+`glossary` that lists `keep`. They come from an English template the package ships,
+`src/catalogue/notes.en.json`.
 
-The note categories, the ids and the rest of the file stay the same in both. Each language is one
-block of texts in `catalogue/note-texts.mjs`, so adding another means adding one more there.
+When the context is written in another language, those notes can follow it, so that whoever
+translates reads one language throughout, and a prompt that quotes the notes as they come stays in
+one language too. Name the language in `i18n.config.json`:
+
+```json
+{
+	"notesLang": "es"
+}
+```
+
+Then copy the template next to the rest of the context, named after that language, and translate
+its values:
+
+```sh
+cp node_modules/@drackp2m/transloco-ulid-cli/src/catalogue/notes.en.json src/app/i18n/context/notes.es.json
+```
+
+| Key                 | English template                                 | Filled with                                         |
+| ------------------- | ------------------------------------------------ | --------------------------------------------------- |
+| `pluralExactly`     | used for exactly {value}                         | `{value}`: the number of an exact case, like `=0`.  |
+| `pluralNumbers`     | used for {numbers}                               | `{numbers}`: the first integers that pick the form. |
+| `pluralDecimals`    | used for the decimals: {numbers}                 | `{numbers}`: decimals, for a form only they pick.   |
+| `decimalPoint`      | .                                                | The separator those decimals are written with.      |
+| `genderChosen`      | the person using the app has chosen “{gender}”   | `{gender}`: `genderMale` or `genderFemale`.         |
+| `genderMale`        | man                                              |                                                     |
+| `genderFemale`      | woman                                            |                                                     |
+| `genderUnspecified` | the person using the app has not said. Do not …  | The `other` form, for which nobody chose.           |
+| `genderless`        | the target language does not mark gender, so …   | The single form of a language without gender.       |
+| `neverTranslate`    | Never translate: {terms}                         | `{terms}`: the `keep` names of the glossary.        |
+| `outdated`          | the source changed after this was translated — … | The note on a stale translation.                    |
+
+With Spanish, a plural form for Russian arrives with `se usa con 2, 3, 4, 22, 23…` instead of
+`used for 2, 3, 4, 22, 23…`, and the glossary with `No traducir nunca: FEN, PGN`. The note
+categories, the ids and the rest of the file are the same in every language.
+
+Every key of the template has to be there, with the placeholders it has and no others. A
+missing file, a text that is missing or empty, or a placeholder dropped or made up is an error in
+`check`, and `export` refuses to run rather than send a file in two languages. A key the template
+does not have is only a warning. With `notesLang` left at `en`, `context/notes.en.json` is
+optional: when it is there, it rewords the English template.
 
 ## Freshness
 
@@ -555,7 +587,7 @@ What it reports:
 | `missing-barrel`               | error    |         | There is no `index.ts`.                                      |
 | `missing-keys-file`            | error    |         | A scope directory has no `keys.ts`.                          |
 | `missing-lang-file`            | error    |         | A scope has no file for a language.                          |
-| `invalid-json`                 | error    |         | A translation, state or glossary file does not parse.        |
+| `invalid-json`                 | error    |         | A translation, state, glossary or notes file does not parse. |
 | `bad-const-name`               | error    |         | `keys.ts` exports a constant not named after its scope.      |
 | `invalid-ulid`                 | error    |         | A key's value is not a ULID.                                 |
 | `bad-scope-prefix`             | error    |         | A key's value lacks its scope prefix, or has another one.    |
@@ -564,6 +596,9 @@ What it reports:
 | `commented-usage`              | note     |         | Only a comment references the key.                           |
 | `unknown-context-key`          | warning  |         | A context heading matches no key.                            |
 | `glossary-term-missing-lang`   | warning  |         | A glossary term has no translation for a language.           |
+| `missing-notes-file`           | error    |         | `notesLang` names a language without its notes file.         |
+| `bad-note-text`                | error    |         | A notes text is missing or empty, or changes a placeholder.  |
+| `unknown-note-text`            | warning  |         | The notes file has a text the template does not.             |
 
 `--fix` also rewrites each `<lang>.json` in `keys.ts` order and keeps the state files in step.
 
@@ -703,7 +738,7 @@ const findings = buildFindings({ ...config, scopes, usages, commented });
 | `check/findings.mjs`       | `severityOf()` and the fixable types.                           |
 | `add/rules.mjs`            | The rules `add` applies to a name, a text or a plural form.     |
 | `add/plan.mjs`             | `planKey()`: the files a new key changes, without writing them. |
-| `catalogue/note-texts.mjs` | `noteTextsFor()`: the wording of the notes, per notes language. |
+| `catalogue/note-texts.mjs` | `NOTE_TEXTS`, the English template, and `readNoteTexts()`.      |
 
 While the package is in `0.x`, these modules can change in a minor version: pin it exactly when
 you build on them.

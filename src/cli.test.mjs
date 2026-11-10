@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import path from 'node:path';
 import { after, describe, test } from 'node:test';
 
-import { createCatalogue, removeCatalogues, ulidOf } from './testing/catalogue.mjs';
+import { SPANISH_NOTES, createCatalogue, removeCatalogues, ulidOf } from './testing/catalogue.mjs';
 import { runCli } from './testing/cli.mjs';
 
 const LANGS = ['en-GB', 'es-ES'];
@@ -262,10 +262,15 @@ describe('transloco-ulid export and import', () => {
 		ok(runCli(catalogue.root, ['export', '--missing']).stdout.includes('Nothing to send for es-ES'));
 	});
 
-	test('writes its notes in English, or in the language notesLang names', () => {
+	test('writes its notes in English, or with the notes file of the language notesLang names', () => {
 		const keys = [{ name: 'CHALLENGES', texts: { 'en-GB': PLURAL, 'es-ES': '' } }];
 		const english = createCatalogue({ langs: LANGS, keys });
-		const spanish = createCatalogue({ langs: LANGS, keys, notesLang: 'es' });
+		const spanish = createCatalogue({
+			langs: LANGS,
+			keys,
+			notesLang: 'es',
+			context: { notes: { es: SPANISH_NOTES } },
+		});
 
 		runCli(english.root, ['export']);
 		runCli(spanish.root, ['export']);
@@ -274,12 +279,23 @@ describe('transloco-ulid export and import', () => {
 		ok(read(xliffOf(spanish)).includes('<note category="examples">se usa con 1</note>'));
 	});
 
-	test('refuses a notes language it has no texts for', () => {
+	test('refuses to export, and fails the check, without the notes file of its notes language', () => {
 		const catalogue = createCatalogue({ langs: LANGS, keys: [SAVE], notesLang: 'fr' });
+		const exported = runCli(catalogue.root, ['export']);
+		const checked = runCli(catalogue.root, ['check']);
+
+		deepStrictEqual([exported.status, checked.status], [1, 1]);
+		ok(exported.stderr.includes('✖ i18n/context/notes.fr.json: notesLang is "fr" and there is no such file'));
+		ok(checked.stdout.includes('missing-notes-file'));
+		ok(!existsSync(xliffOf(catalogue)));
+	});
+
+	test('refuses a notesLang that is not a language tag', () => {
+		const catalogue = createCatalogue({ langs: LANGS, keys: [SAVE], notesLang: 'Spanish' });
 		const { status, stderr } = runCli(catalogue.root, ['export']);
 
 		strictEqual(status, 1);
-		ok(stderr.includes('missing or invalid notesLang (one of en, es)'));
+		ok(stderr.includes('missing or invalid notesLang (a language tag such as "es" or "pt-BR")'));
 	});
 
 	test('sends only the outdated with --stale, and both kinds with --pending', () => {

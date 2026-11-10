@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -12,6 +12,10 @@ import { buildFindings } from '../check/rules.mjs';
 export const ROOT_SCOPE = 'common';
 
 export const XLIFF_PREFIX = 'test';
+
+export const SPANISH_NOTES = JSON.parse(
+	readFileSync(new URL('./notes.es.json', import.meta.url), 'utf8'),
+);
 
 const DIRS = [];
 
@@ -100,7 +104,7 @@ function projectFiles(root, langs, notesLang) {
 	);
 }
 
-function contextFiles(i18nDir, scopeName, { app, scope, glossary } = {}) {
+function contextFiles(i18nDir, scopeName, { app, scope, glossary, notes = {} } = {}) {
 	const dir = path.join(i18nDir, 'context');
 
 	if (undefined !== app) {
@@ -113,6 +117,10 @@ function contextFiles(i18nDir, scopeName, { app, scope, glossary } = {}) {
 
 	if (undefined !== glossary) {
 		write(path.join(dir, 'glossary.json'), json(glossary));
+	}
+
+	for (const [lang, texts] of Object.entries(notes)) {
+		write(path.join(dir, `notes.${lang}.json`), 'string' === typeof texts ? texts : json(texts));
 	}
 }
 
@@ -137,7 +145,17 @@ export function createCatalogue(spec) {
 		write(path.join(scopeDir, `${lang}.json`), translationOf(keys, lang));
 	}
 
-	const catalogue = { root, i18nDir, sourceDir, scopeDir, langs, defaultLang, scopeName, keys };
+	const catalogue = {
+		root,
+		i18nDir,
+		sourceDir,
+		scopeDir,
+		langs,
+		defaultLang,
+		scopeName,
+		keys,
+		notesLang,
+	};
 	const generated = buildScopeParams(scopeOf(catalogue), defaultLang).content;
 	const content = params ?? generated;
 
@@ -155,11 +173,19 @@ export const scopeOf = (catalogue) =>
 	scopesOf(catalogue).find((scope) => scope.name === catalogue.scopeName);
 
 export function findingsOf(catalogue) {
-	const { i18nDir, sourceDir, langs, defaultLang } = catalogue;
+	const { i18nDir, sourceDir, langs, defaultLang, notesLang } = catalogue;
 	const { usages, commented } = collectUsages([sourceDir]);
 
 	const scopes = scopesOf(catalogue);
-	const found = buildFindings({ scopes, usages, commented, langs, defaultLang, i18nDir });
+	const found = buildFindings({
+		scopes,
+		usages,
+		commented,
+		langs,
+		defaultLang,
+		i18nDir,
+		notesLang,
+	});
 
 	return found.map((item) => ({ ...item, severity: severityOf(item.type) }));
 }

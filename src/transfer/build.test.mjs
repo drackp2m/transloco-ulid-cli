@@ -6,6 +6,7 @@ import { collectUsages } from '../catalogue/collect.mjs';
 import { readContext } from '../catalogue/context.mjs';
 import { hashOf } from '../catalogue/freshness.mjs';
 import {
+	SPANISH_NOTES,
 	XLIFF_PREFIX,
 	createCatalogue,
 	removeCatalogues,
@@ -38,6 +39,7 @@ const CONTEXT = {
 		terms: [{ term: 'training', note: 'the programme', translations: { 'es-ES': 'entrenamiento' } }],
 		keep: ['FEN'],
 	},
+	notes: { es: SPANISH_NOTES },
 };
 
 let catalogue;
@@ -204,22 +206,33 @@ describe('buildExport — what travels', () => {
 });
 
 describe('buildExport — the language of the notes', () => {
-	const spanish = (filter) => fileOf('ru-RU', filter, { notesLang: 'es' });
+	const inSpanish = () => ({ context: readContext({ i18nDir: catalogue.i18nDir, notesLang: 'es' }) });
 
-	test('writes the words to keep, the numbers and the outdated note in Spanish with "es"', () => {
-		const file = fileOf('es-ES', 'stale', { notesLang: 'es' });
+	test('writes the words to keep, the numbers and the outdated note from notes.es.json', () => {
+		const all = fileOf('es-ES', 'all', inSpanish());
+		const stale = fileOf('es-ES', 'stale', inSpanish());
+		const few = fileOf('ru-RU', 'missing', inSpanish()).units[1];
 
-		ok(notesOf(file).glossary.endsWith('No traducir nunca: FEN'));
-		ok(file.units[0].notes[0].text.startsWith('el original cambió después de traducir esto'));
-		strictEqual(notesOf(spanish('missing').units[1]).examples, 'se usa con 1, 21, 31, 41, 51…');
+		strictEqual(notesOf(all).glossary, 'training → entrenamiento — the programme\nNo traducir nunca: FEN');
+		strictEqual(stale.units[0].notes[0].text, SPANISH_NOTES.outdated);
+		strictEqual(notesOf(few).examples, 'se usa con 1, 21, 31, 41, 51…');
 	});
 
 	test('leaves what the context files say as they wrote it', () => {
-		strictEqual(notesOf(spanish('all')).app, 'A chess trainer.');
+		strictEqual(notesOf(fileOf('ru-RU', 'all', inSpanish())).app, 'A chess trainer.');
 	});
 
-	test('refuses a notes language it has no texts for', () => {
-		throws(() => exported('es-ES', 'all', { notesLang: 'fr' }), /unknown notes language "fr"/);
+	test('reads the context in the notes language it is given when it is handed none', () => {
+		const file = fileOf('es-ES', 'all', { context: undefined, notesLang: 'es' });
+
+		ok(notesOf(file).glossary.endsWith('No traducir nunca: FEN'));
+	});
+
+	test('refuses to export without the texts of its notes language', () => {
+		throws(
+			() => exported('es-ES', 'all', { context: undefined, notesLang: 'fr' }),
+			/notes\.fr\.json: notesLang is "fr" and there is no such file/,
+		);
 	});
 });
 

@@ -493,16 +493,27 @@ function checkGlossary({ glossary }, langs, defaultLang) {
 	);
 }
 
+const NOTES = 'notes';
+
+function checkNotes({ notes }) {
+	return notes.problems.map(({ type, message, line, col }) => {
+		const at = 'invalid-json' === type ? jsonAt(message) : { line, col };
+
+		return finding(type, NOTES, notes.file, message, at);
+	});
+}
+
 function checkContext(options, scopes) {
 	const context = readContext(options);
 
 	if (!context.exists) {
-		return [];
+		return checkNotes(context);
 	}
 
 	return [
 		...checkContextKeys(context, scopes),
 		...checkGlossary(context, options.langs, options.defaultLang),
+		...checkNotes(context),
 	];
 }
 
@@ -516,7 +527,8 @@ function checkBarrel(scopes, barrel, paramsOfScope) {
 		.flatMap((scope) => barrelFindings(scope, barrel, paramsOfScope.get(scope.name)));
 }
 
-export function buildFindings({ scopes, usages, commented, langs, defaultLang, i18nDir }) {
+export function buildFindings(options) {
+	const { scopes, usages, commented, langs, defaultLang, i18nDir, notesLang } = options;
 	const seenUlids = new Map();
 	const paramsOfScope = new Map(
 		scopes
@@ -525,7 +537,7 @@ export function buildFindings({ scopes, usages, commented, langs, defaultLang, i
 	);
 	const findings = checkBarrel(scopes, readBarrel(i18nDir), paramsOfScope);
 
-	findings.push(...checkContext({ i18nDir, langs, defaultLang }, scopes));
+	findings.push(...checkContext({ i18nDir, langs, defaultLang, notesLang }, scopes));
 
 	for (const scope of scopes) {
 		findings.push(...checkStructure(scope, langs));
