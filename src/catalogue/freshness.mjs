@@ -1,8 +1,9 @@
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { isUlid } from './config.mjs';
+import { fileExists, readText } from './files.mjs';
 
 export const STATE_DIR = 'state';
 
@@ -19,11 +20,11 @@ export const stateFile = (i18nDir, scopeName) => path.join(i18nDir, STATE_DIR, `
 export function readState(i18nDir, scopeName) {
 	const file = stateFile(i18nDir, scopeName);
 
-	if (!existsSync(file)) {
+	if (!fileExists(file)) {
 		return { file, exists: false, error: null, data: {}, text: null };
 	}
 
-	const text = readFileSync(file, 'utf8');
+	const text = readText(file);
 
 	try {
 		return { file, exists: true, error: null, data: JSON.parse(text), text };
@@ -66,6 +67,34 @@ export function freshnessOf(scope, state, { langs, defaultLang }) {
 	}
 
 	return entries;
+}
+
+const emptyTally = () => Object.fromEntries(STATUSES.map((status) => [status, 0]));
+
+// How many translations of each target language are in each state, source language aside.
+export function tallyOf(entries, { langs, defaultLang }) {
+	const counts = new Map(
+		langs.filter((lang) => lang !== defaultLang).map((lang) => [lang, emptyTally()]),
+	);
+
+	for (const { lang, status } of entries) {
+		counts.get(lang)[status] += 1;
+	}
+
+	return counts;
+}
+
+// One entry per key and target language, across every scope that has keys, each naming the
+// scope it belongs to.
+export function freshnessIn(scopes, states, options) {
+	return scopes
+		.filter((scope) => scope.keys)
+		.flatMap((scope) =>
+			freshnessOf(scope, states.get(scope.name), options).map((entry) => ({
+				scope: scope.name,
+				...entry,
+			})),
+		);
 }
 
 export function sealed(data, seals) {

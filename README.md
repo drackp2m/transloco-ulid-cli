@@ -30,7 +30,7 @@ moves it to and from translators as XLIFF 2.0, with the context they need to get
 - [Freshness](#freshness)
 - [Commands](#commands)
 - [Running it in CI](#running-it-in-ci)
-- [Using the modules](#using-the-modules)
+- [Using it from code](#using-it-from-code)
 - [License](#license)
 
 ## Install
@@ -795,37 +795,67 @@ English, and keeps every value already written. It never removes one.
 The command fails on errors only. On GitHub Actions it also writes a report into the job summary:
 the table of scopes, the problems counted by rule, and how many `--fix` could solve.
 
-## Using the modules
+## Using it from code
 
-Every module is importable by path, which is how editor integrations and other tools reuse the
-same rules:
+The package is also a library: `import` it by its name and you get the same engine the commands
+run on, which is how an editor integration shows what `check` would say without running it.
 
 ```js
-import { loadConfig } from '@drackp2m/transloco-ulid-cli/catalogue/config.mjs';
-import { collectUsages, readScopes } from '@drackp2m/transloco-ulid-cli/catalogue/collect.mjs';
-import { buildFindings } from '@drackp2m/transloco-ulid-cli/check/rules.mjs';
+import { analyse, loadProject } from '@drackp2m/transloco-ulid-cli';
 
-const config = loadConfig(process.cwd());
-const scopes = readScopes(config);
-const { usages, commented } = collectUsages(config.sourceDirs);
-const findings = buildFindings({ ...config, scopes, usages, commented });
+const project = loadProject(process.cwd());
+const { findings, tally } = analyse(project);
+
+for (const { severity, type, file, line, message } of findings) {
+	console.log(`${severity} ${type} ${file}:${line} ${message}`);
+}
 ```
 
-| Module                     | What it offers                                                  |
-| -------------------------- | --------------------------------------------------------------- |
-| `catalogue/config.mjs`     | `loadConfig()`, the configuration and the languages.            |
-| `catalogue/collect.mjs`    | `readScopes()`, `collectUsages()`, `parseTranslation()`.        |
-| `catalogue/message.mjs`    | ICU parsing: `parse()`, `paramsOf()`, `placeholdersIn()`.       |
-| `catalogue/plurals.mjs`    | `requiredCategoriesOf()`, `cardinalCategoriesOf()`.             |
-| `catalogue/params.mjs`     | `buildScopeParams()`, the `params.ts` generator.                |
-| `check/rules.mjs`          | `buildFindings()`, everything `check` reports.                  |
-| `check/findings.mjs`       | `severityOf()` and the fixable types.                           |
-| `add/rules.mjs`            | The rules `add` applies to a name, a text or a plural form.     |
-| `add/plan.mjs`             | `planKey()`: the files a new key changes, without writing them. |
-| `catalogue/note-texts.mjs` | `NOTE_TEXTS`, the English template, and `readNoteTexts()`.      |
+`loadProject()` is `i18n.config.json` with every path made absolute, so it works from any
+directory. `analyse()` reads the catalogue and the sources once and returns:
 
-While the package is in `0.x`, these modules can change in a minor version: pin it exactly when
-you build on them.
+| Field       | What it holds                                                                    |
+| ----------- | -------------------------------------------------------------------------------- |
+| `findings`  | Everything `check` reports. Each one carries its `type`, `file`, `line` and `col`, the `scope`, `key` and `ulid` it is about, the `lang` where there is one, and what the table of findings says of its rule: `group`, `severity`, `fixable` and `meaning`. |
+| `freshness` | One entry per key and target language: `scope`, `ulid`, `name`, `lang` and `status`. |
+| `tally`     | Those entries counted per language, as `state` prints them.                      |
+| `scopes`    | The scopes as they were read: keys, translations and files.                      |
+| `sources`   | What the code refers to: `usages`, `commented`, `bare` and `sites`, each reference with its line and column. |
+| `params`    | The parameters `params.ts` declares for each key.                                |
+
+Two options keep an editor fast and honest:
+
+```js
+const unsaved = new Map([[file, editorText]]);
+const next = analyse(project, { texts: unsaved, sources: previous.sources });
+```
+
+`texts` are files as the editor holds them, by absolute path: they are read instead of the disk,
+whatever they are — a translation, `keys.ts`, a template, a context file. `sources` hands back what
+an earlier pass found in the code, so a change to the catalogue alone does not walk it again.
+
+The rest of what the package exports:
+
+| Export                                                    | What it is for                                       |
+| --------------------------------------------------------- | ---------------------------------------------------- |
+| `checkText(text, lang, { langs, source })`                | One text on its own, each problem with its rule. `source` asks what only the source language answers for. |
+| `usagesIn(text, file, { pipe })`                          | The references one text holds, with where each starts and ends, and whether it is commented or bare. |
+| `representativeOf(text)`                                  | The one form of a message to show in a single line.  |
+| `RULES`, `ruleOf()`, `severityOf()`, `groupOf()`, `isFixable()`, `typesOf()` | The table of findings.            |
+| `planKey()`, `keyNameProblem()`, `paramNameProblem()`, `textProblems()`, `formProblem()`, `formDoubt()`, `formsToAsk()`, `pluralSource()` | What `add` does, without writing: the plan of a new key and the rules for its name, its text and each plural form. |
+| `exportLangs()`, `buildExport()`, `writeExport()`         | What `export` does.                                  |
+| `readXliff()`, `planImport()`, `applyImport()`            | What `import` does.                                  |
+| `tallyOf()`, `STATUSES`                                   | The freshness states and their count.                |
+| `readLanguages()`, `isUlid()`, `toKebabCase()`, `toPascalCase()`, `CONFIG_FILE` | Small things every integration ends up needing. |
+| `API_VERSION`, `CLI_VERSION`                              | The contract and the package.                        |
+
+`API_VERSION` is a whole number that only moves when something in this list changes its meaning
+or goes away, so an integration can check it once and say plainly which version of the package it
+needs. Adding to the list does not move it.
+
+Every file under `src/` is still importable by path, as
+`@drackp2m/transloco-ulid-cli/catalogue/message.mjs`, and none of them is part of that contract:
+they are how the commands are built and change freely between versions.
 
 ## License
 

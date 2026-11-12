@@ -1,7 +1,7 @@
-import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { AMBIENT_PARAMS, toPascalCase } from './config.mjs';
+import { fileExists, readText } from './files.mjs';
 import { paramTypesOf } from './message.mjs';
 
 const ENTRY_LINE = /^\t'([^']+)': \{$/;
@@ -14,13 +14,13 @@ export const paramsName = (scopeName) => `${toPascalCase(scopeName)}I18nParams`;
 export function readDeclaredParams(file) {
 	const declared = new Map();
 
-	if (!existsSync(file)) {
+	if (!fileExists(file)) {
 		return declared;
 	}
 
 	let current = null;
 
-	for (const line of readFileSync(file, 'utf8').split('\n')) {
+	for (const line of readText(file).split('\n')) {
 		const entry = ENTRY_LINE.exec(line);
 		const field = FIELD_LINE.exec(line);
 
@@ -141,7 +141,7 @@ function driftOf(entries, declared, text) {
 // would hold something or already exists, where emptying it is what keeps it in step.
 export function buildScopeParams(scope, defaultLang) {
 	const file = paramsFile(scope.dir);
-	const current = existsSync(file) ? readFileSync(file, 'utf8') : null;
+	const current = fileExists(file) ? readText(file) : null;
 	const declared = readDeclaredParams(file);
 	const entries = collectEntries(scope, defaultLang, declared);
 	const needed = 0 !== entries.length || null !== current;

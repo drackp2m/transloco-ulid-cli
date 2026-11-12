@@ -1,8 +1,8 @@
 import { CATEGORY_ORDER, paramTag, parse } from '../catalogue/message.mjs';
 import { requiredCategoriesOf } from '../catalogue/plurals.mjs';
-import { messageProblems } from '../check/icu.mjs';
+import { messageProblems, strayParamsIn } from '../check/icu.mjs';
 
-export { strayParamsIn } from '../check/icu.mjs';
+export { strayParamsIn };
 
 export const KEY_NAME = /^[A-Z][A-Z0-9_]*$/;
 export const PARAM_NAME = /^[a-zA-Z][a-zA-Z0-9_]*$/;
@@ -83,6 +83,14 @@ export function pluralProblems(argument, forms, lang) {
 	}
 
 	return problems;
+}
+
+// What one form, typed on its own, leaves in doubt: nothing wrong with it, and worth a word
+// before the key is written.
+export function formDoubt(argument, category, form) {
+	const [stray] = strayParamsIn(pluralSource(argument, new Map([[category, form]])));
+
+	return undefined === stray ? null : strayMessage(stray);
 }
 
 export function strayMessage({ argument, stray }) {

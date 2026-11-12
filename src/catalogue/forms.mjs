@@ -1,5 +1,5 @@
 import { GENDER_ARG, genderCategoriesOf } from './genders.mjs';
-import { CATEGORY_ORDER, paramsOf } from './message.mjs';
+import { CATEGORY_ORDER, leavesOf, paramsOf } from './message.mjs';
 import { requiredCategoriesOf } from './plurals.mjs';
 
 const EXACT_CASE = /^=\d+$/;
@@ -157,3 +157,27 @@ export const shapeOf = (dimensions) =>
 			arg: dimension.arg,
 			order: orderOf(dimension),
 		}));
+
+const SHOWN_GENDER = 'male';
+const SHOWN_FORM = 'other';
+
+const shownCaseOf = (name, { type, cases }) =>
+	'select' === type && GENDER_ARG === name && cases.includes(SHOWN_GENDER)
+		? SHOWN_GENDER
+		: SHOWN_FORM;
+
+// The one form to show where there is room for a single line, an editor hint for instance:
+// the plural form most numbers take, and the masculine where the message marks gender.
+// `forms` names what was chosen, one per branching param, and is empty for plain text.
+export function representativeOf(text) {
+	const branching = [...paramsOf(text)].filter(([, param]) => 'plain' !== param.type);
+	const forms = branching.map(([name, param]) => shownCaseOf(name, param));
+	const wanted = branching.map(([, param], order) => `${param.type}:${forms[order]}`);
+	const leaf = leavesOf(text).find(({ path }) =>
+		path.every((segment, order) => segment === wanted[order]),
+	);
+
+	return 0 === branching.length || undefined === leaf
+		? { text, forms: [] }
+		: { text: leaf.text, forms };
+}

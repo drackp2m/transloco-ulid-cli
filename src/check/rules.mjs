@@ -5,7 +5,7 @@ import { freshnessOf, readState } from '../catalogue/freshness.mjs';
 import { paramTag, signatureDiff, spotsIn } from '../catalogue/message.mjs';
 import { buildScopeParams, entryLineOf, fieldLineOf, paramsName } from '../catalogue/params.mjs';
 
-import { messageProblems, strayProblems } from './icu.mjs';
+import { problemsIn } from './icu.mjs';
 
 const PARAMS = 'params';
 const FILE_START = { line: 1, col: 1 };
@@ -304,13 +304,6 @@ function messageFinding(scope, translation, lang, ulid, item) {
 	return finding(item.type, scope.name, translation.file, message, where);
 }
 
-// The source language answers for one thing more than the rest: how many forms the string
-// opens into wherever it is translated, and the forms that never write their number.
-function problemsOf(value, lang, { langs, defaultLang }) {
-	return lang === defaultLang
-		? [...messageProblems(value, lang, { langs }), ...strayProblems(value)]
-		: messageProblems(value, lang);
-}
 
 // Every language answers for its own strings here, the source one included: a plural the
 // developer wrote by hand in "es-ES" is exactly what this pass exists to catch.
@@ -319,13 +312,14 @@ function checkMessages(scope, langs, defaultLang) {
 
 	for (const lang of langs) {
 		const translation = scope.translations.get(lang);
+		const source = lang === defaultLang;
 
 		for (const [ulid, value] of Object.entries(translation.data ?? {})) {
 			if (isBlank(value)) {
 				continue;
 			}
 
-			for (const item of problemsOf(value, lang, { langs, defaultLang })) {
+			for (const item of problemsIn(value, lang, { langs, source })) {
 				findings.push(messageFinding(scope, translation, lang, ulid, item));
 			}
 		}

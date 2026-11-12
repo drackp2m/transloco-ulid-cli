@@ -99,7 +99,10 @@ function foldFlat(group, source, defaultLang) {
 	const { found, problems } = bySuffix(group.units);
 	const strays = [...found.values()].filter((unit) => '' !== unit.suffix);
 	const unit = found.get('');
-	const all = [...problems, ...strays.map((item) => problem('unexpected-form', item.id, FORMS_ON_FLAT))];
+	const all = [
+		...problems,
+		...strays.map((item) => problem('unexpected-form', item.id, FORMS_ON_FLAT)),
+	];
 
 	if (undefined === unit || isBlank(unit.target)) {
 		return { target: '', empty: true, problems: all };

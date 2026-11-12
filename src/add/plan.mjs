@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 import { readBarrel } from '../catalogue/collect.mjs';
+import { AMBIENT_PARAMS } from '../catalogue/config.mjs';
+import { paramNamesOf } from '../catalogue/message.mjs';
 import { buildScopeParams, paramsName } from '../catalogue/params.mjs';
 import { newUlid } from '../catalogue/ulid.mjs';
 
@@ -109,8 +111,13 @@ const refused = (ulid, problems) => ({
 	problems,
 	writes: [],
 	warnings: [],
+	params: [],
 	paramsLeft: false,
 });
+
+// What whoever renders the key has to hand over: every param of the text but the ones the
+// application fills in by itself.
+const paramsToPass = (text) => paramNamesOf(text).filter((name) => !AMBIENT_PARAMS.has(name));
 
 export function planKey(options) {
 	const { scope, name, text, langs, defaultLang, ulid = newUlid() } = options;
@@ -136,6 +143,7 @@ export function planKey(options) {
 		problems: [],
 		writes: [keys, ...translations, ...(null === params.write ? [] : [params.write])],
 		warnings: warningsOf(scope, text, params),
+		params: paramsToPass(text),
 		paramsLeft: params.left,
 	};
 }

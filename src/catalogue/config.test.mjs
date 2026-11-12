@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { after, describe, test } from 'node:test';
 
-import { CONFIG_FILE, findConfigFile, loadConfig } from './config.mjs';
+import { CONFIG_FILE, findConfigFile, loadConfig, loadProject } from './config.mjs';
 
 const DIRS = [];
 
@@ -129,5 +129,17 @@ describe('loadConfig', () => {
 		const { root } = project();
 
 		throws(() => loadConfig(root), new RegExp(`^Error: No ${CONFIG_FILE.replace('.', '\\.')} in`));
+	});
+});
+
+describe('loadProject', () => {
+	test('is the configuration with the directories absolute and the file it came from', () => {
+		const { root, nested } = project(CONFIG);
+		const loaded = loadProject(nested);
+
+		strictEqual(loaded.configFile, path.join(root, CONFIG_FILE));
+		strictEqual(loaded.i18nDir, path.join(root, 'src', 'app', 'i18n'));
+		deepStrictEqual(loaded.sourceDirs, [path.join(root, 'src'), path.join(root, 'lib')]);
+		deepStrictEqual({ ...loadConfig(nested), ...loaded }, loaded);
 	});
 });

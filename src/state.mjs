@@ -5,10 +5,11 @@ import { readScopes } from './catalogue/collect.mjs';
 import { listOf, readDefaults, readLanguages, valueOf } from './catalogue/config.mjs';
 import {
 	STATUSES,
-	freshnessOf,
+	freshnessIn,
 	hashOf,
 	readState,
 	sealed,
+	tallyOf,
 	writeState,
 } from './catalogue/freshness.mjs';
 import { c, plural } from './shared/terminal.mjs';
@@ -28,21 +29,7 @@ function parseStateArgs(argv) {
 	};
 }
 
-function tally(scopes, states, options) {
-	const counts = new Map(
-		options.langs
-			.filter((lang) => lang !== options.defaultLang)
-			.map((lang) => [lang, Object.fromEntries(STATUSES.map((status) => [status, 0]))]),
-	);
-
-	for (const scope of scopes.filter((entry) => entry.keys)) {
-		for (const { lang, status } of freshnessOf(scope, states.get(scope.name), options)) {
-			counts.get(lang)[status] += 1;
-		}
-	}
-
-	return counts;
-}
+const tally = (scopes, states, options) => tallyOf(freshnessIn(scopes, states, options), options);
 
 const cellOf = (counts, status) => `${COLORS[status]}${counts[status]} ${status}${c.reset}`;
 

@@ -1,6 +1,7 @@
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 
+import { fileExists, readText } from './files.mjs';
 import { readNoteTexts } from './note-texts.mjs';
 
 export const CONTEXT_DIR = 'context';
@@ -66,11 +67,11 @@ function parseSections(text) {
 }
 
 function readMarkdown(file) {
-	if (!existsSync(file)) {
+	if (!fileExists(file)) {
 		return { file, exists: false, intro: '', sections: [] };
 	}
 
-	return { file, exists: true, ...parseSections(readFileSync(file, 'utf8')) };
+	return { file, exists: true, ...parseSections(readText(file)) };
 }
 
 const lineOf = (text, needle) => {
@@ -82,11 +83,11 @@ const lineOf = (text, needle) => {
 };
 
 function readGlossary(file) {
-	if (!existsSync(file)) {
+	if (!fileExists(file)) {
 		return { file, exists: false, terms: [], keep: [] };
 	}
 
-	const text = readFileSync(file, 'utf8');
+	const text = readText(file);
 
 	try {
 		const data = JSON.parse(text);

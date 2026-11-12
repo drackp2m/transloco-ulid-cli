@@ -107,6 +107,20 @@ export function loadConfig(from) {
 	};
 }
 
+// The configuration with every path made absolute, for whoever does not run from the root
+// of the project: an editor, a script in another directory.
+export function loadProject(from) {
+	const config = loadConfig(from);
+	const { root } = config;
+
+	return {
+		...config,
+		configFile: path.join(root, CONFIG_FILE),
+		i18nDir: path.resolve(root, config.i18nDir),
+		sourceDirs: config.sourceDirs.map((dir) => path.resolve(root, dir)),
+	};
+}
+
 const configStart = () =>
 	null === findConfigFile(process.cwd()) && null !== findConfigFile(MODULE_DIR)
 		? MODULE_DIR

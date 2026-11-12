@@ -39,7 +39,6 @@ function sourceFiles(dir) {
 const EMITTED = [
 	/\b(?:finding|problem)\(\s*'([a-z]+(?:-[a-z]+)+)'/g,
 	/\btype: '([a-z]+(?:-[a-z]+)+)'/g,
-	/\bconst [A-Z_]+ = '([a-z]+(?:-[a-z]+)+)';/g,
 ];
 
 function emittedTypes() {

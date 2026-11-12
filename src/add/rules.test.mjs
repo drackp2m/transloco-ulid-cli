@@ -2,6 +2,7 @@ import { deepStrictEqual, strictEqual } from 'node:assert/strict';
 import { describe, test } from 'node:test';
 
 import {
+	formDoubt,
 	formProblem,
 	formsToAsk,
 	keyNameProblem,
@@ -178,6 +179,25 @@ describe('pluralProblems — the param and the forms given for it', () => {
 			'The "other" form is empty',
 			'"ru-RU" needs the forms one, few, many, other: missing few, many',
 		]);
+	});
+});
+
+describe('formDoubt — one form as it is typed, valid and worth a word', () => {
+	test('has nothing to say about a form that counts, or that names no other param', () => {
+		strictEqual(formDoubt('count', 'one', '# reto'), null);
+		strictEqual(formDoubt('count', 'one', '{count} reto'), null);
+		strictEqual(formDoubt('count', 'one', 'Un reto'), null);
+	});
+
+	test('points at # when the form names another param and never the number', () => {
+		strictEqual(
+			formDoubt('count', 'one', '{total} reto'),
+			'{total} is not the plural param {count}: write # for the number',
+		);
+	});
+
+	test('leaves a form that does not parse to formProblem', () => {
+		strictEqual(formDoubt('count', 'one', '{total'), null);
 	});
 });
 

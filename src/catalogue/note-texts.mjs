@@ -1,5 +1,7 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
+
+import { fileExists, readText } from './files.mjs';
 
 export const DEFAULT_NOTES_LANG = 'en';
 
@@ -119,7 +121,7 @@ const templateKeysOf = (data) =>
 	Object.fromEntries(Object.keys(NOTE_TEXTS).map((key) => [key, data[key]]));
 
 function parsed(file, lang) {
-	const source = readFileSync(file, 'utf8');
+	const source = readText(file);
 	let data;
 
 	try {
@@ -139,7 +141,7 @@ function parsed(file, lang) {
 export function readNoteTexts(contextDir, lang = DEFAULT_NOTES_LANG) {
 	const file = path.join(contextDir, notesFileName(lang));
 
-	if (existsSync(file)) {
+	if (fileExists(file)) {
 		return parsed(file, lang);
 	}
 

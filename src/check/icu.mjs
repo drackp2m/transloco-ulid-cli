@@ -140,6 +140,15 @@ function hashProblems(tokens, params) {
 	return [problem('ambiguous-hash', message)];
 }
 
+// Everything one text can be told on its own. The source language answers for one thing
+// more than the rest: how many forms the text opens into wherever it is translated, and the
+// forms that never write their number.
+export function problemsIn(text, lang, { langs = [lang], source = false } = {}) {
+	return source
+		? [...messageProblems(text, lang, { langs }), ...strayProblems(text)]
+		: messageProblems(text, lang);
+}
+
 // What is wrong inside one string, named but not located: where each one is written is the
 // caller's business, which is the one holding the file the string came out of.
 export function messageProblems(text, lang, { langs = [lang] } = {}) {

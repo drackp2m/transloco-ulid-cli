@@ -8,6 +8,7 @@ import {
 	labelOf,
 	leafFor,
 	pathOf,
+	representativeOf,
 	segmentOf,
 	shapeOf,
 	sourceSegmentOf,
@@ -197,5 +198,30 @@ describe('shapeOf', () => {
 		const rebuilt = buildFrom(leavesOf(CROSS), shapeOf(dimensionsOf(CROSS)));
 
 		deepStrictEqual(textsOf(rebuilt), textsOf(CROSS));
+	});
+});
+
+describe('representativeOf — the one form to show in a single line', () => {
+	test('hands plain text back as it is, with no form to name', () => {
+		deepStrictEqual(representativeOf('Hola {name}'), { text: 'Hola {name}', forms: [] });
+	});
+
+	test('shows the form most numbers take', () => {
+		deepStrictEqual(representativeOf(PLURAL), { text: '# ejercicios', forms: ['other'] });
+	});
+
+	test('shows the masculine of a message that marks gender', () => {
+		deepStrictEqual(representativeOf(GENDER), { text: 'Bienvenido', forms: ['male'] });
+	});
+
+	test('falls back to the form everyone else gets when there is no masculine', () => {
+		deepStrictEqual(representativeOf('{gender, select, female {a} other {b}}'), {
+			text: 'b',
+			forms: ['other'],
+		});
+	});
+
+	test('crosses the two choices, in the order the message nests them', () => {
+		deepStrictEqual(representativeOf(CROSS), { text: 'Resueltos', forms: ['other', 'male'] });
 	});
 });

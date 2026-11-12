@@ -100,6 +100,17 @@ describe('planKey — what it writes', () => {
 });
 
 describe('planKey — params.ts', () => {
+	test('says which params whoever renders the key has to pass, gender aside', () => {
+		const catalogue = createCatalogue({ keys: [GREET] });
+		const gendered =
+			'{gender, select, male {Bienvenido {name}} other {Te damos la bienvenida {name}}}';
+
+		deepStrictEqual(planIn(catalogue, 'CHALLENGES', PLURAL).params, ['count']);
+		deepStrictEqual(planIn(catalogue, 'WELCOME', gendered).params, ['name']);
+		deepStrictEqual(planIn(catalogue, 'DELETE', 'Borrar').params, []);
+		deepStrictEqual(planIn(catalogue, 'GREET', 'Hola {name}').params, []);
+	});
+
 	test('brings params.ts up to date with the new key alone', () => {
 		const catalogue = createCatalogue({ keys: [GREET] });
 		const plan = apply(planIn(catalogue, 'CHALLENGES', PLURAL));

@@ -1,7 +1,7 @@
 import { deepStrictEqual, strictEqual } from 'node:assert/strict';
 import { describe, test } from 'node:test';
 
-import { messageProblems, strayParamsIn, strayProblems } from './icu.mjs';
+import { messageProblems, problemsIn, strayParamsIn, strayProblems } from './icu.mjs';
 
 const typesOf = (text, lang) => messageProblems(text, lang).map(({ type }) => type);
 
@@ -335,5 +335,34 @@ describe('strayProblems — a plural form that names another param and never its
 		const text = '{count, plural, one {{total} reto} other {{total} retos}}';
 
 		deepStrictEqual(messageProblems(text, 'es-ES', { langs: ['es-ES', 'en-GB'] }), []);
+	});
+});
+
+describe('problemsIn — everything one text can be told on its own', () => {
+	const STRAY = '{count, plural, one {{total} reto} other {# retos}}';
+
+	test('is what messageProblems says for a translation', () => {
+		deepStrictEqual(problemsIn(STRAY, 'ru-RU'), messageProblems(STRAY, 'ru-RU'));
+		deepStrictEqual(problemsIn(STRAY, 'es-ES'), []);
+	});
+
+	test('adds, for the source, the forms that never write their number', () => {
+		deepStrictEqual(
+			problemsIn(STRAY, 'es-ES', { source: true }).map(({ type }) => type),
+			['stray-plural-param'],
+		);
+	});
+
+	test('measures the source across the languages it is given', () => {
+		const three =
+			'{a, plural, one {x} other {y}} {b, plural, one {x} other {y}} ' +
+			'{c, plural, one {x} other {y}}';
+		const langs = ['es-ES', 'ru-RU'];
+
+		deepStrictEqual(
+			problemsIn(three, 'es-ES', { langs, source: true }).map(({ type }) => type),
+			['too-many-forms'],
+		);
+		deepStrictEqual(problemsIn(three, 'es-ES', { langs }), []);
 	});
 });

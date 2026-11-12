@@ -1,9 +1,9 @@
-import { collectUsages, readScopes } from './catalogue/collect.mjs';
+import { readScopes } from './catalogue/collect.mjs';
 import { parseArgs } from './catalogue/config.mjs';
+import { analyse } from './check/analysis.mjs';
 import { applyFix } from './check/fix.mjs';
 import { writeI18nSummary, writeSkippedSummary } from './check/github-summary.mjs';
 import { printFindings, printWritten } from './check/report.mjs';
-import { buildFindings } from './check/rules.mjs';
 import { printUsage } from './check/usage.mjs';
 import { c, plural } from './shared/terminal.mjs';
 
@@ -34,9 +34,7 @@ if (options.fix) {
 
 // Re-read after writing: --fix reports whatever it could not fix by itself (an
 // unregistered scope, a missing translation) instead of always claiming success.
-const current = options.fix ? readScopes(options) : scopes;
-const found = collectUsages(options.sourceDirs, { pipe: options.pipe });
-const findings = buildFindings({ ...options, ...found, scopes: current });
+const { scopes: current, findings } = analyse(options, options.fix ? {} : { scopes });
 
 const exitCode = printFindings(findings, { ...options, scopes: current });
 

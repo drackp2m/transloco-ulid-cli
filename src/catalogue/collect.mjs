@@ -1,9 +1,10 @@
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 
 import ts from 'typescript';
 
 import { RESERVED_DIRS, readDefaults, toKebabCase } from './config.mjs';
+import { fileExists, readText } from './files.mjs';
 
 const SOURCE_EXTENSIONS = new Set(['.ts', '.html']);
 const CONST_USAGE = /\b([A-Z][A-Za-z0-9]*)I18n\s*\.\s*([A-Z][A-Z0-9_]*)\b/g;
@@ -52,7 +53,7 @@ function findConstDeclaration(source) {
 }
 
 function readKeysFile(file) {
-	const content = readFileSync(file, 'utf8');
+	const content = readText(file);
 	const source = ts.createSourceFile(file, content, ts.ScriptTarget.Latest, true);
 	const constant = findConstDeclaration(source);
 
@@ -131,11 +132,11 @@ function findBarrelDeclaration(source) {
 export function parseBarrelSource(i18nDir) {
 	const file = path.join(i18nDir, 'index.ts');
 
-	if (!existsSync(file)) {
+	if (!fileExists(file)) {
 		return { file, exists: false };
 	}
 
-	const text = readFileSync(file, 'utf8');
+	const text = readText(file);
 	const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true);
 	const declaration = findBarrelDeclaration(source);
 
@@ -182,12 +183,12 @@ export function parseTranslation(text) {
 }
 
 function readTranslation(file) {
-	if (!existsSync(file)) {
+	if (!fileExists(file)) {
 		return { exists: false, data: null, error: null, text: null };
 	}
 
 	try {
-		return parseTranslation(readFileSync(file, 'utf8'));
+		return parseTranslation(readText(file));
 	} catch (error) {
 		return { exists: true, data: null, error: error.message, text: null };
 	}
@@ -208,7 +209,7 @@ function readScope(dir, name, langs, prefixed) {
 		dir,
 		keysFile,
 		prefixed,
-		keys: existsSync(keysFile) ? readKeysFile(keysFile) : null,
+		keys: fileExists(keysFile) ? readKeysFile(keysFile) : null,
 		translations,
 	};
 }
@@ -222,7 +223,7 @@ export function readScopes({ i18nDir, langs, rootScope = readDefaults().rootScop
 		.filter((entry) => entry.isDirectory() && !RESERVED_DIRS.has(entry.name))
 		.map((entry) => readScope(path.join(i18nDir, entry.name), entry.name, langs, true));
 
-	if (!existsSync(path.join(i18nDir, 'keys.ts'))) {
+	if (!fileExists(path.join(i18nDir, 'keys.ts'))) {
 		return nested;
 	}
 
@@ -360,7 +361,7 @@ function record(usages, id, file) {
 }
 
 function recordFile(found, file, { pipe }) {
-	for (const usage of usagesIn(readFileSync(file, 'utf8'), file, { pipe })) {
+	for (const usage of usagesIn(readText(file), file, { pipe })) {
 		const { scope, key, barrel, line, col } = usage;
 		const length = usage.end - usage.start;
 
