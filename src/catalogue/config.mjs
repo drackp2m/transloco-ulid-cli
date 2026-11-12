@@ -15,6 +15,10 @@ export const isLanguageTag = (value) => LANGUAGE_TAG.test(String(value));
 
 const STRING_FIELDS = ['i18nDir', 'languageFile', 'rootScope', 'importAlias', 'xliffPrefix'];
 
+export const DEFAULT_PIPE = 'transloco';
+
+const PIPE_NAME = /^[A-Za-z_$][\w$]*$/;
+
 export function readLanguages(file) {
 	const source = readFileSync(file, 'utf8');
 	const list = /const LANGUAGES[^=]*=\s*\[([^\]]*)\]/.exec(source)?.[1] ?? '';
@@ -67,6 +71,10 @@ function checkConfig(raw, file) {
 		invalid.push('notesLang (a language tag such as "es" or "pt-BR")');
 	}
 
+	if (undefined !== raw?.pipe && !PIPE_NAME.test(String(raw.pipe))) {
+		invalid.push('pipe (the name of a pipe such as "transloco")');
+	}
+
 	if (invalid.length) {
 		throw new Error(`${file}: missing or invalid ${invalid.join(', ')}`);
 	}
@@ -95,6 +103,7 @@ export function loadConfig(from) {
 		importAlias: raw.importAlias,
 		xliffPrefix: raw.xliffPrefix,
 		notesLang: raw.notesLang ?? DEFAULT_NOTES_LANG,
+		pipe: raw.pipe ?? DEFAULT_PIPE,
 	};
 }
 

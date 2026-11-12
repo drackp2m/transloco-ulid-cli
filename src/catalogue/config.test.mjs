@@ -74,7 +74,20 @@ describe('loadConfig', () => {
 			importAlias: '@demo/i18n',
 			xliffPrefix: 'demo',
 			notesLang: 'en',
+			pipe: 'transloco',
 		});
+	});
+
+	test('takes the name of the translating pipe from pipe', () => {
+		const { root } = project({ ...CONFIG, pipe: 'i18n' });
+
+		strictEqual(loadConfig(root).pipe, 'i18n');
+	});
+
+	test('refuses a pipe that is not a pipe name', () => {
+		const { root } = project({ ...CONFIG, pipe: '| i18n' });
+
+		throws(() => loadConfig(root), /missing or invalid pipe \(the name of a pipe such as "transloco"\)$/);
 	});
 
 	test('takes the language of the notes from notesLang', () => {

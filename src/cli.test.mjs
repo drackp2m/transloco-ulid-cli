@@ -81,6 +81,16 @@ describe('transloco-ulid check', () => {
 		ok(stdout.includes('1 problem potentially fixable with the --fix option.'));
 	});
 
+	test('fails on a key rendered without the pipe, and points at it in the template', () => {
+		const catalogue = createCatalogue({ langs: LANGS, keys: [SAVE], usages: '<p>{{ I18n.demo.SAVE }}</p>' });
+		const { status, stdout } = runCli(catalogue.root, ['check']);
+
+		strictEqual(status, 1);
+		ok(stdout.includes(path.join(catalogue.sourceDir, 'page.html')));
+		ok(stdout.includes('2:7'));
+		ok(stdout.includes('demo.SAVE is interpolated without "| i18n", so the key itself is what renders'));
+	});
+
 	test('fixes what it can with --fix, and then passes', () => {
 		const catalogue = project([SAVE, { ...DELETE, texts: { 'en-GB': 'Delete', 'es-ES': null } }]);
 		const { status, stdout } = runCli(catalogue.root, ['check', '--fix']);

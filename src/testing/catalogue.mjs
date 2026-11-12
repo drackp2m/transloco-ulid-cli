@@ -13,6 +13,8 @@ export const ROOT_SCOPE = 'common';
 
 export const XLIFF_PREFIX = 'test';
 
+export const PIPE = 'i18n';
+
 export const SPANISH_NOTES = JSON.parse(
 	readFileSync(new URL('./notes.es.json', import.meta.url), 'utf8'),
 );
@@ -80,7 +82,7 @@ function usagesOf(scopeName, keys, extra) {
 	const property = ROOT_SCOPE === scopeName ? 'common' : scopeName;
 	const lines = keys
 		.filter(({ used }) => false !== used)
-		.map(({ name }) => `<p>{{ I18n.${property}.${name} | i18n }}</p>`);
+		.map(({ name }) => `<p>{{ I18n.${property}.${name} | ${PIPE} }}</p>`);
 
 	return [...lines, extra, ''].join('\n');
 }
@@ -94,6 +96,7 @@ function projectFiles(root, langs, notesLang) {
 		rootScope: ROOT_SCOPE,
 		importAlias: '@app/i18n',
 		xliffPrefix: XLIFF_PREFIX,
+		pipe: PIPE,
 		...(undefined === notesLang ? {} : { notesLang }),
 	};
 
@@ -174,13 +177,15 @@ export const scopeOf = (catalogue) =>
 
 export function findingsOf(catalogue) {
 	const { i18nDir, sourceDir, langs, defaultLang, notesLang } = catalogue;
-	const { usages, commented } = collectUsages([sourceDir]);
+	const { usages, commented, bare } = collectUsages([sourceDir], { pipe: PIPE });
 
 	const scopes = scopesOf(catalogue);
 	const found = buildFindings({
 		scopes,
 		usages,
 		commented,
+		bare,
+		pipe: PIPE,
 		langs,
 		defaultLang,
 		i18nDir,

@@ -549,6 +549,14 @@ function checkContext(options, scopes) {
 	];
 }
 
+function checkPipes(bare, pipe) {
+	return bare.map(({ file, scope, key, line, col }) => {
+		const detail = `is interpolated without "| ${pipe}", so the key itself is what renders`;
+
+		return finding('missing-pipe', scope, file, `${scope}.${key} ${detail}`, { line, col });
+	});
+}
+
 function checkBarrel(scopes, barrel, paramsOfScope) {
 	if (!barrel.exists) {
 		return [finding('missing-barrel', 'all', barrel.file, 'index.ts not found')];
@@ -561,6 +569,7 @@ function checkBarrel(scopes, barrel, paramsOfScope) {
 
 export function buildFindings(options) {
 	const { scopes, usages, commented, langs, defaultLang, i18nDir, notesLang } = options;
+	const { bare = [], pipe } = options;
 	const seenUlids = new Map();
 	const paramsOfScope = new Map(
 		scopes
@@ -570,6 +579,7 @@ export function buildFindings(options) {
 	const findings = checkBarrel(scopes, readBarrel(i18nDir), paramsOfScope);
 
 	findings.push(...checkContext({ i18nDir, langs, defaultLang, notesLang }, scopes));
+	findings.push(...checkPipes(bare, pipe));
 
 	for (const scope of scopes) {
 		findings.push(...checkStructure(scope, langs));

@@ -307,9 +307,48 @@ function recordUsages(content, file, usages) {
 	}
 }
 
-export function collectUsages(sourceDirs) {
+const INTERPOLATION_OPEN = '{{';
+const INTERPOLATION_CLOSE = '}}';
+
+function insideInterpolation(code, start) {
+	const opened = code.lastIndexOf(INTERPOLATION_OPEN, start);
+
+	return -1 !== opened && opened > code.lastIndexOf(INTERPOLATION_CLOSE, start);
+}
+
+function pipedBeforeClosing(code, end, piped) {
+	const closed = code.indexOf(INTERPOLATION_CLOSE, end);
+
+	return piped.test(code.slice(end, -1 === closed ? code.length : closed));
+}
+
+function positionAt(text, index) {
+	const before = text.slice(0, index);
+
+	return { line: before.split('\n').length, col: index - before.lastIndexOf('\n') };
+}
+
+function bareUsages(code, file, pipe) {
+	const piped = new RegExp(`\\|\\s*${pipe.replaceAll('$', '\\$')}(?![\\w$])`);
+	const isBare = (match) =>
+		insideInterpolation(code, match.index) &&
+		!pipedBeforeClosing(code, match.index + match[0].length, piped);
+
+	return USAGE_PATTERNS.flatMap((pattern) => [...code.matchAll(pattern)])
+		.filter(isBare)
+		.sort((left, right) => left.index - right.index)
+		.map((match) => ({
+			file,
+			scope: toKebabCase(match[1]),
+			key: match[2],
+			...positionAt(code, match.index),
+		}));
+}
+
+export function collectUsages(sourceDirs, { pipe = null } = {}) {
 	const usages = new Map();
 	const commented = new Map();
+	const bare = [];
 
 	for (const dir of sourceDirs.filter((entry) => existsSync(entry))) {
 		for (const file of walkSources(dir)) {
@@ -317,8 +356,12 @@ export function collectUsages(sourceDirs) {
 
 			recordUsages(code, file, usages);
 			recordUsages(comments, file, commented);
+
+			if (null !== pipe && '.html' === path.extname(file)) {
+				bare.push(...bareUsages(code, file, pipe));
+			}
 		}
 	}
 
-	return { usages, commented };
+	return { usages, commented, bare };
 }

@@ -16,6 +16,7 @@ const ERROR_TYPES = new Set([
 	'unsupported-argument',
 	'too-many-forms',
 	'ambiguous-hash',
+	'missing-pipe',
 	'stale-params',
 	'missing-params-file',
 	'missing-barrel',

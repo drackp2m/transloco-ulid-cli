@@ -161,6 +161,24 @@ describe('a key and where it is used', () => {
 		]);
 	});
 
+	test('is an error when an interpolation renders it without the pipe', () => {
+		const catalogue = oneKey(SAVE, {
+			usages: '<p>{{ I18n.demo.KEY }}</p>\n<p>{{ (on ? I18n.demo.KEY : DemoI18n.KEY) | i18n }}</p>',
+		});
+
+		deepStrictEqual(findings(catalogue), [
+			'error missing-pipe: demo.KEY is interpolated without "| i18n", so the key itself is what renders',
+		]);
+	});
+
+	test('leaves a key handed to a binding or held in TypeScript alone', () => {
+		const catalogue = oneKey(SAVE, {
+			usages: '<app-field [label]="I18n.demo.KEY" />\n<!-- {{ I18n.demo.KEY }} -->',
+		});
+
+		deepStrictEqual(findings(catalogue), []);
+	});
+
 	test('leaves a reference to a key keys.ts does not declare to TypeScript', () => {
 		const catalogue = oneKey(SAVE, { usages: '<p>{{ I18n.demo.NOT_DECLARED | i18n }}</p>' });
 

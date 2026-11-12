@@ -128,10 +128,12 @@ so run it from the root, which is what npm and pnpm scripts do.
 | `importAlias`  | The path alias for `i18nDir`, used in the imports `check --fix` writes.          |
 | `xliffPrefix`  | The prefix of the XLIFF sub-states the export writes, such as `my-app:outdated`. |
 | `notesLang`    | Optional. The language of the notes the export words itself, such as `es`.       |
+| `pipe`         | Optional. The pipe that translates a key in a template, `transloco` by default.  |
 
-Every field but `notesLang` is required, and that one defaults to `en`: see
-[The language of the notes](#the-language-of-the-notes-contextnoteslangjson). Paths are relative to the project root, where the
-file lives, which is also where the commands run from.
+Every field but `notesLang` and `pipe` is required. `notesLang` defaults to `en`: see
+[The language of the notes](#the-language-of-the-notes-contextnoteslangjson). `pipe` only matters
+to the templates, see [In the application](#in-the-application). Paths are relative to the project
+root, where the file lives, which is also where the commands run from.
 
 The language file declares the languages as single-quoted literals. `DEFAULT_LANGUAGE` is the
 source language: the one texts are written in, and the one every other language is translated
@@ -253,6 +255,12 @@ The keys are ordinary Transloco keys. A component exposes the barrel, as
 ICU messages need [`@jsverse/transloco-messageformat`](https://jsverse.gitbook.io/transloco/plugins-and-extensions/messageformat).
 A nested scope has to be loaded with `provideTranslocoScope('auth')`, and the loader has to serve
 `<lang>.json` from the catalogue root and `<scope>/<lang>.json` from each scope.
+
+A key interpolated without the pipe renders the key itself, so `check` reports it as an error,
+`missing-pipe`, at its line in the template. The pipe counts anywhere before the interpolation
+closes, as in `{{ (saving ? I18n.auth.SAVING : I18n.auth.SAVE) | transloco }}`, and a key handed to
+a binding, `[label]="I18n.auth.LOG_IN"`, is left alone: whatever receives it does the translating.
+A project with a pipe of its own names it in `pipe`.
 
 ## Messages
 
@@ -621,6 +629,7 @@ What it reports:
 | `duplicate-ulid`               | error    |         | Two keys share a ULID.                                       |
 | `unused-key`                   | warning  |         | Nothing references the key.                                  |
 | `commented-usage`              | note     |         | Only a comment references the key.                           |
+| `missing-pipe`                 | error    |         | A template interpolates a key without the translating pipe.  |
 | `unknown-context-key`          | warning  |         | A name in a context heading matches no key.                  |
 | `empty-context-section`        | warning  |         | A context heading has no text under it.                      |
 | `glossary-term-missing-lang`   | warning  |         | A glossary term has no translation for a language.           |

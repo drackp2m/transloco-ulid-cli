@@ -105,6 +105,58 @@ describe('collectUsages', () => {
 	});
 });
 
+describe('collectUsages — interpolations without the pipe', () => {
+	const bareIn = (files, pipe) => {
+		const root = project(files);
+
+		return collectUsages([path.join(root, 'src')], { pipe }).bare.map(({ file, ...usage }) => ({
+			file: path.relative(root, file),
+			...usage,
+		}));
+	};
+
+	test('finds a key an interpolation renders as it is, with its line and column', () => {
+		const html = '<p>{{ I18n.demo.SAVE | i18n }}</p>\n<p>\n  {{ DemoI18n.LOAD }} {{ I18n.authFlow.LOG_IN | uppercase }}\n</p>\n';
+
+		deepStrictEqual(bareIn({ 'src/page.html': html }, 'i18n'), [
+			{ file: 'src/page.html', scope: 'demo', key: 'LOAD', line: 3, col: 6 },
+			{ file: 'src/page.html', scope: 'auth-flow', key: 'LOG_IN', line: 3, col: 26 },
+		]);
+	});
+
+	test('takes a pipe further along the interpolation, with its arguments, as the one that translates', () => {
+		const html = [
+			'{{ (on ? I18n.demo.SAVE : I18n.demo.LOAD) | i18n }}',
+			'{{ I18n.demo.COUNT | i18n: { count: total } }}',
+			'{{\n  I18n.demo.WRAPPED\n  | i18n\n}}',
+			'',
+		].join('\n');
+
+		deepStrictEqual(bareIn({ 'src/page.html': html }, 'i18n'), []);
+	});
+
+	test('leaves bindings, comments and TypeScript out', () => {
+		const files = {
+			'src/page.html': '<app-field [label]="I18n.demo.SAVE" />\n<!-- {{ I18n.demo.LOAD }} -->\n',
+			'src/page.ts': "const title = `{{ ${I18n.demo.TITLE} }}`;\n",
+		};
+
+		deepStrictEqual(bareIn(files, 'i18n'), []);
+	});
+
+	test('goes by the name of the pipe, so another pipe counts as none', () => {
+		const html = '{{ I18n.demo.SAVE | transloco }}\n{{ I18n.demo.LOAD | i18nText }}\n';
+
+		deepStrictEqual(bareIn({ 'src/page.html': html }, 'transloco').map(({ key }) => key), ['LOAD']);
+	});
+
+	test('looks for none when no pipe is given', () => {
+		const root = project({ 'src/page.html': '{{ I18n.demo.SAVE }}\n' });
+
+		deepStrictEqual(collectUsages([path.join(root, 'src')]).bare, []);
+	});
+});
+
 describe('readBarrel', () => {
 	test('reads the scopes of I18n and every member of the I18nParams intersection', () => {
 		const root = project({
