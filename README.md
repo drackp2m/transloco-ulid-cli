@@ -378,7 +378,7 @@ Russian, informal "ты". Buttons in the infinitive. Chess terms are the usual R
 ```
 
 The `#` title is for you and is not sent. The text before the first `##` goes to every language;
-each `## <lang>` section goes only to that language. This is where grammar and style belong:
+each `## <lang>` section goes only to that language, and `## es-ES, ca-ES` to both. This is where grammar and style belong:
 register, how buttons are phrased, punctuation, quotes, number formats.
 
 ### Scopes and keys: `context/<scope>.md`
@@ -392,9 +392,7 @@ The two session screens: log in and create an account. Short forms with an intro
 
 Says that the session lives in a cookie and survives a reload. "My App" stays as it is.
 
-## PASSWORD
-
-## PASSWORD_MIN_LENGTH
+## PASSWORD, PASSWORD_MIN_LENGTH
 
 The password field and the minimum length it asks for. `{length}` is a number.
 
@@ -406,11 +404,12 @@ Messages under the form when the request fails: full sentences with a full stop.
 - The text before the first `##` describes the whole scope.
 - `## KEY` describes one key, by its constant name.
 - `## PREFIX_*` describes every key that matches the pattern, before the key's own section.
-- Headings stacked with nothing between them share the text that follows, as `PASSWORD` and
-  `PASSWORD_MIN_LENGTH` do above.
+- `## A, B` gives several keys the same text, as `PASSWORD` and `PASSWORD_MIN_LENGTH` share one
+  above. Names and patterns mix: `## ERROR_*, RETRY`.
 
-A heading that matches no key in the scope is a warning, so a renamed constant does not leave its
-context behind unnoticed.
+A name that matches no key in the scope is a warning, so a renamed constant does not leave its
+context behind unnoticed. So is a heading with nothing under it: each heading has its own text,
+and keys that share one are listed in a single heading.
 
 ### Vocabulary: `context/glossary.json`
 
@@ -622,7 +621,8 @@ What it reports:
 | `duplicate-ulid`               | error    |         | Two keys share a ULID.                                       |
 | `unused-key`                   | warning  |         | Nothing references the key.                                  |
 | `commented-usage`              | note     |         | Only a comment references the key.                           |
-| `unknown-context-key`          | warning  |         | A context heading matches no key.                            |
+| `unknown-context-key`          | warning  |         | A name in a context heading matches no key.                  |
+| `empty-context-section`        | warning  |         | A context heading has no text under it.                      |
 | `glossary-term-missing-lang`   | warning  |         | A glossary term has no translation for a language.           |
 | `missing-notes-file`           | error    |         | `notesLang` names a language without its notes file.         |
 | `bad-note-text`                | error    |         | A notes text is missing or empty, or changes a placeholder.  |

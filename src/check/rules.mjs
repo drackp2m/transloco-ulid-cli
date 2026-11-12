@@ -447,27 +447,58 @@ function barrelFindings(scope, barrel, params) {
 
 const GLOSSARY = 'glossary';
 
-// A heading nobody can reach: the constant was renamed, or the pattern never
+// A name nobody can reach: the constant was renamed, or the pattern never
 // caught anything. Silent otherwise, so a scope with no context file is fine.
-function checkContextKeys(context, scopes) {
+function unknownNameFindings(scopeName, file, keyNames) {
+	return file.sections.flatMap(({ names, line }) =>
+		names
+			.filter(({ name }) => !keyNames.some((key) => matchesKey(name, key)))
+			.map(({ name, col }) => {
+				const message = `"${name}" matches no key of the "${scopeName}" scope`;
+
+				return finding('unknown-context-key', scopeName, file.file, message, { line, col });
+			}),
+	);
+}
+
+const namesIn = (sections) => sections.flatMap(({ names }) => names.map(({ name }) => name));
+
+function emptyFinding(scopeName, file, section, run) {
+	const heading = `"## ${section.heading}" has no text`;
+	const list = null === run ? null : `"## ${namesIn(run).join(', ')}"`;
+	const message =
+		null === list ? heading : `${heading}: keys that share one go in a single heading, ${list}`;
+	const at = { line: section.line, col: 1 };
+
+	return finding('empty-context-section', scopeName, file, message, at);
+}
+
+function emptySectionFindings(scopeName, file) {
 	const findings = [];
+	let empty = [];
 
-	for (const [name, file] of context.scopes) {
-		const scope = scopes.find((entry) => entry.name === name);
-		const names = scope?.keys?.entries.map((entry) => entry.name) ?? [];
-
-		for (const { heading, line } of file.sections) {
-			if (names.some((key) => matchesKey(heading, key))) {
-				continue;
-			}
-
-			const message = `"${heading}" matches no key of the "${name}" scope`;
-
-			findings.push(finding('unknown-context-key', name, file.file, message, { line, col: 1 }));
+	for (const section of file.sections) {
+		if ('' === section.text) {
+			empty.push(section);
+			continue;
 		}
+
+		const run = [...empty, section];
+
+		findings.push(...empty.map((each) => emptyFinding(scopeName, file.file, each, run)));
+		empty = [];
 	}
 
-	return findings;
+	return [...findings, ...empty.map((each) => emptyFinding(scopeName, file.file, each, null))];
+}
+
+function checkContextKeys(context, scopes) {
+	return [...context.scopes].flatMap(([name, file]) => {
+		const scope = scopes.find((entry) => entry.name === name);
+		const keyNames = scope?.keys?.entries.map((entry) => entry.name) ?? [];
+
+		return [...unknownNameFindings(name, file, keyNames), ...emptySectionFindings(name, file)];
+	});
 }
 
 // A term with no entry for a language is not an error — it is the glossary's

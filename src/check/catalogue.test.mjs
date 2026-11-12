@@ -299,6 +299,32 @@ describe('check — the context for translators', () => {
 		]);
 	});
 
+	test('names the one part of a heading list that matches no key, at its column', () => {
+		const scope = '# demo\n\n## SAVE, SAEV, S*\n\nThe form.\n';
+		const catalogue = catalogueWith([SAVE], { context: { scope } });
+
+		deepStrictEqual(findings(catalogue), [
+			'warning unknown-context-key: "SAEV" matches no key of the "demo" scope',
+		]);
+		deepStrictEqual(placesOf(catalogue), [
+			{ type: 'unknown-context-key', file: 'i18n/context/demo.md', line: 3, col: 10 },
+		]);
+	});
+
+	test('reports a heading with no text, and offers the list for headings stacked over one', () => {
+		const LOAD = { name: 'LOAD', texts: { 'en-GB': 'Load', 'es-ES': 'Cargar' } };
+		const scope = '# demo\n\n## SAVE\n\n## L*\n\n## LOAD\n\nThe form.\n\n## SAVE\n';
+		const catalogue = catalogueWith([SAVE, LOAD], { context: { scope } });
+		const shared = 'keys that share one go in a single heading, "## SAVE, L*, LOAD"';
+
+		deepStrictEqual(findings(catalogue), [
+			`warning empty-context-section: "## SAVE" has no text: ${shared}`,
+			`warning empty-context-section: "## L*" has no text: ${shared}`,
+			'warning empty-context-section: "## SAVE" has no text',
+		]);
+		deepStrictEqual(placesOf(catalogue).map(({ line }) => line), [3, 5, 11]);
+	});
+
 	test('reports a glossary term without a translation, blank or absent, per language', () => {
 		const glossary = {
 			terms: [

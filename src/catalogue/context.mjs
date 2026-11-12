@@ -12,17 +12,34 @@ const TITLE = /^#\s/;
 
 const textOf = (lines) => lines.join('\n').trim();
 
-// A heading is either a constant name (SYNC_ROWS) or a group pattern
-// (SYNC_*); everything else in the line is literal.
-const isGroup = (heading) => heading.includes('*');
+// A heading lists one or more names, separated by commas: constant names
+// (SYNC_ROWS) or group patterns (SYNC_*); everything else in a name is literal.
+const isGroup = (name) => name.includes('*');
 
-const patternOf = (heading) => {
-	const escaped = heading.replace(/[.+?^${}()|[\]\\]/g, (char) => `\\${char}`);
+const patternOf = (name) => {
+	const escaped = name.replace(/[.+?^${}()|[\]\\]/g, (char) => `\\${char}`);
 
 	return new RegExp(`^${escaped.replaceAll('*', '[A-Z0-9_]*')}$`);
 };
 
-export const matchesKey = (heading, name) => patternOf(heading).test(name);
+export const matchesKey = (name, key) => patternOf(name).test(key);
+
+function namesOf(heading, offset) {
+	const names = [];
+	let from = 0;
+
+	for (const part of heading.split(',')) {
+		const name = part.trim();
+
+		if ('' !== name) {
+			names.push({ name, col: offset + from + part.indexOf(name) + 1 });
+		}
+
+		from += part.length + 1;
+	}
+
+	return names;
+}
 
 function parseSections(text) {
 	const intro = [];
@@ -33,33 +50,19 @@ function parseSections(text) {
 		const [, heading] = HEADING.exec(line) ?? [];
 
 		if (undefined !== heading) {
-			current = { heading, line: index + 1, lines: [] };
+			const names = namesOf(heading, line.indexOf(heading));
+
+			current = { heading, names, line: index + 1, lines: [] };
 			sections.push(current);
 		} else if (!TITLE.test(line)) {
 			(current?.lines ?? intro).push(line);
 		}
 	});
 
-	return { intro: textOf(intro), sections: share(sections) };
-}
-
-// Headings stacked with nothing between them all describe the paragraph that
-// follows, so writing "## A" over "## B" over one body says it once for both.
-function share(sections) {
-	const resolved = sections.map(({ heading, line, lines }) => ({
-		heading,
-		line,
-		group: isGroup(heading),
-		text: textOf(lines),
-	}));
-
-	for (let index = resolved.length - 2; 0 <= index; index -= 1) {
-		if ('' === resolved[index].text) {
-			resolved[index].text = resolved[index + 1].text;
-		}
-	}
-
-	return resolved;
+	return {
+		intro: textOf(intro),
+		sections: sections.map(({ lines, ...section }) => ({ ...section, text: textOf(lines) })),
+	};
 }
 
 function readMarkdown(file) {
@@ -116,20 +119,31 @@ function readScopeFiles(dir) {
 	return scopes;
 }
 
+function levelOf(section, keyName) {
+	const matched = section.names.filter(({ name }) => matchesKey(name, keyName));
+
+	if (0 === matched.length) {
+		return null;
+	}
+
+	return matched.some(({ name }) => !isGroup(name)) ? 'key' : 'group';
+}
+
 // General to specific, accumulating: app → language → scope → group → key. A
 // layer with nothing written for it simply drops out.
 function resolve({ app, languages, scopes }, scopeName, keyName, lang) {
 	const scope = scopes.get(scopeName);
 	const matching = (scope?.sections ?? [])
-		.filter((section) => matchesKey(section.heading, keyName ?? ''))
-		.sort((left, right) => Number(right.group) - Number(left.group));
+		.map((section) => ({ section, level: levelOf(section, keyName ?? '') }))
+		.filter(({ level }) => null !== level)
+		.sort((left, right) => Number('group' === right.level) - Number('group' === left.level));
 
 	return [
 		{ level: 'app', text: app.intro },
 		{ level: 'language', text: languages.get(lang) ?? '' },
 		{ level: 'scope', text: scope?.intro ?? '' },
-		...matching.map((section) => ({
-			level: section.group ? 'group' : 'key',
+		...matching.map(({ section, level }) => ({
+			level,
 			heading: section.heading,
 			text: section.text,
 		})),
@@ -165,7 +179,9 @@ export function termsIn(glossary, texts) {
 export function readContext({ i18nDir, notesLang }) {
 	const dir = path.join(i18nDir, CONTEXT_DIR);
 	const app = readMarkdown(path.join(dir, APP_FILE));
-	const languages = new Map(app.sections.map((section) => [section.heading, section.text]));
+	const languages = new Map(
+		app.sections.flatMap(({ names, text }) => names.map(({ name }) => [name, text])),
+	);
 	const scopes = readScopeFiles(dir);
 	const glossary = readGlossary(path.join(dir, GLOSSARY_FILE));
 	const notes = readNoteTexts(dir, notesLang);
