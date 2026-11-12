@@ -104,17 +104,27 @@ describe('printProblemList', () => {
 		deepStrictEqual(printed(() => printProblemList([])), []);
 	});
 
-	test('names the unit of each problem, and counts them', () => {
+	test('names the unit of each problem and its rule, and counts them', () => {
 		const problems = [
-			{ file: 'demo.SAVE', message: 'placeholders differ from en-GB' },
-			{ file: 'es-ES.xlf', message: 'unknown scope "other"' },
+			{ type: 'placeholder-mismatch', file: 'demo.SAVE', message: 'placeholders differ from en-GB' },
+			{ type: 'unknown-scope', file: 'es-ES.xlf', message: 'unknown scope "other"' },
 		];
 
 		deepStrictEqual(printed(() => printProblemList(problems)), [
 			'━━ Problems ━━',
-			'  ✖ demo.SAVE  placeholders differ from en-GB',
-			'  ✖ es-ES.xlf  unknown scope "other"',
+			'  ✖ demo.SAVE  placeholders differ from en-GB  placeholder-mismatch',
+			'  ✖ es-ES.xlf  unknown scope "other"  unknown-scope',
 			'  2 problems',
+		]);
+	});
+
+	test('prints a problem that names no rule as it is', () => {
+		const problems = [{ file: 'demo.SAVE', message: 'placeholders differ from en-GB' }];
+
+		deepStrictEqual(printed(() => printProblemList(problems)), [
+			'━━ Problems ━━',
+			'  ✖ demo.SAVE  placeholders differ from en-GB',
+			'  1 problem',
 		]);
 	});
 });

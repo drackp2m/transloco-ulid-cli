@@ -312,3 +312,49 @@ describe('the round trip', () => {
 		deepStrictEqual(Object.fromEntries(again.map((form) => [form.suffix, form.target])), targets);
 	});
 });
+
+describe('foldGroup and the rule each problem goes by', () => {
+	const rulesOf = (folded) => folded.problems.map(({ type, file }) => ({ type, file }));
+	const ENGLISH = { '#plural:one': '# exercise', '#plural:other': '# exercises' };
+
+	test('names a changed placeholder, on the unit that changed it', () => {
+		const flat = fold(groupUnits([unitOf('', 'Hi')])[0], 'Hola {name}', 'en-GB');
+		const form = fold(sent(PLURAL, 'en-GB', { ...ENGLISH, '#plural:one': 'one' }), PLURAL, 'en-GB');
+
+		deepStrictEqual(rulesOf(flat), [{ type: 'placeholder-mismatch', file: `puzzle.${ULID}` }]);
+		deepStrictEqual(rulesOf(form), [
+			{ type: 'placeholder-mismatch', file: `puzzle.${ULID}#plural:one` },
+		]);
+	});
+
+	test('names a unit that is no form of its key, whichever way round', () => {
+		const onFlat = fold(groupUnits([unitOf('#plural:one', 'a')])[0], 'Hola', 'en-GB');
+		const onForms = fold(groupUnits([unitOf('', 'Exercises')])[0], PLURAL, 'en-GB');
+
+		deepStrictEqual(rulesOf(onFlat), [
+			{ type: 'unexpected-form', file: `puzzle.${ULID}#plural:one` },
+		]);
+		deepStrictEqual(rulesOf(onForms), [{ type: 'unexpected-form', file: `puzzle.${ULID}` }]);
+	});
+
+	test('names a form that came twice, and forms that came short, on the key', () => {
+		const twice = sent(PLURAL, 'en-GB', ENGLISH);
+		const short = fold(sent(PLURAL, 'en-GB', { '#plural:one': '# exercise' }), PLURAL, 'en-GB');
+
+		twice.units.push({ ...unitOf('#plural:one', 'otra cosa'), suffix: '#plural:one' });
+
+		deepStrictEqual(rulesOf(fold(twice, PLURAL, 'en-GB')), [
+			{ type: 'duplicate-unit', file: `puzzle.${ULID}#plural:one` },
+		]);
+		deepStrictEqual(rulesOf(short), [{ type: 'incomplete-forms', file: `puzzle.${ULID}` }]);
+	});
+
+	test('names forms that do not rebuild, on the key', () => {
+		const group = sent(PLURAL, 'en-GB', { ...ENGLISH, '#plural:other': '{broken' });
+
+		deepStrictEqual(rulesOf(fold(group, PLURAL, 'en-GB')).at(-1), {
+			type: 'broken-forms',
+			file: `puzzle.${ULID}`,
+		});
+	});
+});

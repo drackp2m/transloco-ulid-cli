@@ -58,9 +58,9 @@ function emittedTypes() {
 	return found;
 }
 
-function readmeRows() {
+function readmeRows(heading) {
 	const lines = readFileSync(README, 'utf8').split('\n');
-	const start = lines.findIndex((line) => line.startsWith('| Finding '));
+	const start = lines.findIndex((line) => line.startsWith(`| ${heading} `));
 	const end = lines.findIndex((line, index) => index > start && !line.startsWith('|'));
 
 	return lines.slice(start + 2, end).map((line) =>
@@ -162,7 +162,18 @@ describe('the rule registry against the code', () => {
 });
 
 describe('the rule registry against the README', () => {
-	test('is the table of findings, row by row', () => {
-		deepStrictEqual(readmeRows(), RULE_TYPES.map(rowOf));
+	const IMPORT = 'import';
+
+	test('is the table of what check reports, row by row', () => {
+		const reported = RULE_TYPES.filter((type) => IMPORT !== groupOf(type));
+
+		deepStrictEqual(readmeRows('Finding'), reported.map(rowOf));
+	});
+
+	test('is the table of what import reports, row by row', () => {
+		deepStrictEqual(
+			readmeRows('Problem'),
+			typesOf(IMPORT).map((type) => [`\`${type}\``, RULES[type].meaning]),
+		);
 	});
 });

@@ -735,6 +735,25 @@ form is put back together into one ICU message, and only when every form came ba
 A ULID the catalogue does not know is offered in a picker, and an accepted one is appended to
 `keys.ts`: run `check --fix` afterwards to bring `params.ts` up to date.
 
+What comes back wrong is listed under the changes, each with its rule, and never stops the rest
+of the file from being merged:
+
+| Problem                | Meaning                                                  |
+| ---------------------- | -------------------------------------------------------- |
+| `unknown-language`     | The file targets a language the catalogue does not have. |
+| `unknown-scope`        | The file carries a scope the catalogue does not have.    |
+| `invalid-unit-id`      | The id of a unit is not a ULID.                          |
+| `new-key-forms`        | A key the catalogue lacks came split into forms.         |
+| `duplicate-unit`       | A unit came back more than once.                         |
+| `unexpected-form`      | A unit is not a form its key has in that language.       |
+| `incomplete-forms`     | Some forms of a key came back empty.                     |
+| `broken-forms`         | The forms of a key do not rebuild into one message.      |
+| `placeholder-mismatch` | A translation changes the placeholders of its source.    |
+
+Only `placeholder-mismatch` is merged all the same, for `check` to report as a `param-mismatch`
+where it now lives. Every other one leaves out what it names: the unit, the key, the scope or the
+file.
+
 ### state
 
 ```sh

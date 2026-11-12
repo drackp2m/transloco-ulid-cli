@@ -238,7 +238,9 @@ describe('planImport and the ids it refuses', () => {
 		const unit = { id: 'puzzle.NOT_A_ULID#plural:one', notes: [], source: '', target: 'a' };
 		const plan = planOf([unit]);
 
-		deepStrictEqual(plan.problems, [{ file: 'puzzle.NOT_A_ULID', message: 'id is not a ULID' }]);
+		deepStrictEqual(plan.problems, [
+			{ type: 'invalid-unit-id', file: 'puzzle.NOT_A_ULID', message: 'id is not a ULID' },
+		]);
 	});
 
 	test('reports a scope the catalogue does not have, against the file', () => {
@@ -253,7 +255,9 @@ describe('planImport and the ids it refuses', () => {
 			documents: [document],
 		});
 
-		deepStrictEqual(plan.problems, [{ file: 'ru-RU.xlf', message: 'unknown scope "other"' }]);
+		deepStrictEqual(plan.problems, [
+			{ type: 'unknown-scope', file: 'ru-RU.xlf', message: 'unknown scope "other"' },
+		]);
 	});
 
 	test('reads a language the catalogue does not have as the problem it is', () => {
@@ -265,5 +269,24 @@ describe('planImport and the ids it refuses', () => {
 		});
 
 		ok(messages(plan)[0].includes('is not a language here'));
+	});
+
+	test('names the rule of each of them', () => {
+		const foreign = planImport({
+			scopes: [scopeOf()],
+			langs: [DEFAULT_LANG],
+			defaultLang: DEFAULT_LANG,
+			documents: [documentOf(formUnits(RUSSIAN))],
+		});
+		const fresh = planOf(formUnits(RUSSIAN, NEW_ULID));
+
+		deepStrictEqual(
+			foreign.problems.map(({ type }) => type),
+			['unknown-language'],
+		);
+		deepStrictEqual(
+			fresh.problems.map(({ type }) => type),
+			['new-key-forms'],
+		);
 	});
 });

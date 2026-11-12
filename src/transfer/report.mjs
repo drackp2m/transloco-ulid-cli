@@ -103,8 +103,10 @@ export function printProblemList(problems) {
 
 	console.log(`\n${c.bold}${c.cyan}━━ Problems ━━${c.reset}`);
 
-	for (const { file, message } of problems) {
-		console.log(`  ${c.red}✖${c.reset} ${c.dim}${file}${c.reset}  ${message}`);
+	for (const { file, message, type } of problems) {
+		const rule = undefined === type ? '' : `  ${c.dim}${type}${c.reset}`;
+
+		console.log(`  ${c.red}✖${c.reset} ${c.dim}${file}${c.reset}  ${message}${rule}`);
 	}
 
 	console.log(`\n  ${c.red}${plural(problems.length, 'problem')}${c.reset}`);

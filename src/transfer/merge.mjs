@@ -13,7 +13,7 @@ const UNKNOWN_FORMS = 'the key is not in keys.ts, so its forms cannot be recompo
 
 export const unitRef = (scope, ulid) => `${scope}:${ulid}`;
 
-const problem = (file, message) => ({ file, message });
+const problem = (type, file, message) => ({ type, file, message });
 
 function slugOf(text) {
 	const slug = String(text)
@@ -86,7 +86,7 @@ const updateOf = (ulid, entry, context, to) => ({
 
 function newKeyOutcome(group, context) {
 	if (!isFlatGroup(group)) {
-		return { kind: 'problem', problem: problem(group.head, UNKNOWN_FORMS) };
+		return { kind: 'problem', problem: problem('new-key-forms', group.head, UNKNOWN_FORMS) };
 	}
 
 	return { kind: 'added', added: addedOf(group.units[0], group.ulid, context) };
@@ -97,7 +97,7 @@ function groupOutcome(group, context) {
 	const { ulid, head } = group;
 
 	if (!isUlid(ulid)) {
-		return { kind: 'problem', problem: problem(head, 'id is not a ULID') };
+		return { kind: 'problem', problem: problem('invalid-unit-id', head, 'id is not a ULID') };
 	}
 
 	const entry = scope.keys?.entries.find((item) => item.ulid === ulid);
@@ -197,7 +197,7 @@ function readDocument({ file, xliff }, plan, context) {
 		const scope = scopes.find((item) => item.name === entry.id);
 
 		if (undefined === scope) {
-			plan.problems.push(problem(file, `unknown scope "${entry.id}"`));
+			plan.problems.push(problem('unknown-scope', file, `unknown scope "${entry.id}"`));
 
 			continue;
 		}
@@ -232,7 +232,9 @@ export function planImport({ scopes, langs, defaultLang, documents }) {
 		if (langs.includes(lang)) {
 			readDocument(document, plan, context);
 		} else {
-			plan.problems.push(problem(document.file, `trgLang "${lang}" is not a language here`));
+			const message = `trgLang "${lang}" is not a language here`;
+
+			plan.problems.push(problem('unknown-language', document.file, message));
 		}
 	}
 

@@ -4,7 +4,7 @@ const INFO = 'info';
 
 export const SEVERITIES = [ERROR, WARNING, INFO];
 
-export const GROUPS = ['pending', 'message', 'structure', 'usage', 'context'];
+export const GROUPS = ['pending', 'message', 'structure', 'usage', 'context', 'import'];
 
 const FIX = true;
 
@@ -18,10 +18,12 @@ const message = ruleIn('message');
 const structure = ruleIn('structure');
 const usage = ruleIn('usage');
 const context = ruleIn('context');
+const imported = ruleIn('import');
 
 // Everything the tool can say about a catalogue, once: what each finding is called, what it
 // is about, how much it weighs, what it means and whether --fix settles it. The report, the
-// summary, the README table and any editor integration read it from here.
+// summary, the README tables and any editor integration read it from here. The `import`
+// group is the one `check` never reports: it is what a file coming back can get wrong.
 export const RULES = Object.freeze({
 	'missing-translation': pending(ERROR, 'A language has no entry for a key the source has.', FIX),
 	'empty-translation': pending(
@@ -78,6 +80,15 @@ export const RULES = Object.freeze({
 		WARNING,
 		'Texts of the notes file are still the English template.',
 	),
+	'unknown-language': imported(ERROR, 'The file targets a language the catalogue does not have.'),
+	'unknown-scope': imported(ERROR, 'The file carries a scope the catalogue does not have.'),
+	'invalid-unit-id': imported(ERROR, 'The id of a unit is not a ULID.'),
+	'new-key-forms': imported(ERROR, 'A key the catalogue lacks came split into forms.'),
+	'duplicate-unit': imported(ERROR, 'A unit came back more than once.'),
+	'unexpected-form': imported(ERROR, 'A unit is not a form its key has in that language.'),
+	'incomplete-forms': imported(ERROR, 'Some forms of a key came back empty.'),
+	'broken-forms': imported(ERROR, 'The forms of a key do not rebuild into one message.'),
+	'placeholder-mismatch': imported(ERROR, 'A translation changes the placeholders of its source.'),
 });
 
 export const RULE_TYPES = Object.keys(RULES);

@@ -18,7 +18,10 @@ const FORMS_ON_FLAT = 'the source does not branch, so a form cannot be merged';
 const NOT_A_FORM = 'not a form this key has in this language';
 const TWICE = 'came back more than once';
 
-const problem = (file, message) => ({ file, message });
+const problem = (type, file, message) => ({ type, file, message });
+
+const mismatch = (unit, defaultLang) =>
+	problem('placeholder-mismatch', unit.id, `placeholders differ from ${defaultLang}`);
 
 const isBlank = (text) => '' === String(text ?? '').trim();
 
@@ -83,7 +86,7 @@ function bySuffix(units) {
 
 	for (const unit of units) {
 		if (found.has(unit.suffix)) {
-			problems.push(problem(unit.id, TWICE));
+			problems.push(problem('duplicate-unit', unit.id, TWICE));
 		} else {
 			found.set(unit.suffix, unit);
 		}
@@ -96,7 +99,7 @@ function foldFlat(group, source, defaultLang) {
 	const { found, problems } = bySuffix(group.units);
 	const strays = [...found.values()].filter((unit) => '' !== unit.suffix);
 	const unit = found.get('');
-	const all = [...problems, ...strays.map((item) => problem(item.id, FORMS_ON_FLAT))];
+	const all = [...problems, ...strays.map((item) => problem('unexpected-form', item.id, FORMS_ON_FLAT))];
 
 	if (undefined === unit || isBlank(unit.target)) {
 		return { target: '', empty: true, problems: all };
@@ -104,7 +107,7 @@ function foldFlat(group, source, defaultLang) {
 
 	const marks = sameParams(source ?? unit.source, unit.target)
 		? []
-		: [problem(unit.id, `placeholders differ from ${defaultLang}`)];
+		: [mismatch(unit, defaultLang)];
 
 	return { target: unit.target, empty: false, problems: [...all, ...marks] };
 }
@@ -114,7 +117,9 @@ function strayProblems(found, expected) {
 
 	return [...found.values()]
 		.filter((unit) => !wanted.has(unit.suffix))
-		.map((unit) => problem(unit.id, '' === unit.suffix ? FLAT_ON_FORMS : NOT_A_FORM));
+		.map((unit) =>
+			problem('unexpected-form', unit.id, '' === unit.suffix ? FLAT_ON_FORMS : NOT_A_FORM),
+		);
 }
 
 function shortProblems(group, expected, missing) {
@@ -124,7 +129,7 @@ function shortProblems(group, expected, missing) {
 
 	const count = `${missing.length} of ${expected.forms.length} forms came back empty`;
 
-	return [problem(group.head, `${count} — the key is left untouched`)];
+	return [problem('incomplete-forms', group.head, `${count} — the key is left untouched`)];
 }
 
 function markerProblems(expected, found, defaultLang) {
@@ -133,7 +138,7 @@ function markerProblems(expected, found, defaultLang) {
 
 		return sameMarkers(form.source, unit.target, expected.hash)
 			? []
-			: [problem(unit.id, `placeholders differ from ${defaultLang}`)];
+			: [mismatch(unit, defaultLang)];
 	});
 }
 
@@ -159,7 +164,8 @@ function foldForms(group, expected, defaultLang) {
 
 		return { target, empty: false, problems: [...all, ...marks] };
 	} catch (error) {
-		const broken = problem(group.head, `the forms do not rebuild — ${error.message}`);
+		const message = `the forms do not rebuild — ${error.message}`;
+		const broken = problem('broken-forms', group.head, message);
 
 		return { target: '', empty: true, problems: [...all, ...marks, broken] };
 	}
