@@ -4,7 +4,13 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { after, describe, test } from 'node:test';
 
-import { collectUsages, parseTranslation, readBarrel, readScopes } from './collect.mjs';
+import {
+	collectUsages,
+	parseTranslation,
+	readBarrel,
+	readScopes,
+	usagesIn as usagesInText,
+} from './collect.mjs';
 
 const ULID = '01KZJ895M8N6WQ02RVEABRE000';
 const DIRS = [];
@@ -154,6 +160,87 @@ describe('collectUsages — interpolations without the pipe', () => {
 		const root = project({ 'src/page.html': '{{ I18n.demo.SAVE }}\n' });
 
 		deepStrictEqual(collectUsages([path.join(root, 'src')]).bare, []);
+	});
+});
+
+describe('collectUsages — where each reference is written', () => {
+	const sitesIn = (files) => {
+		const root = project(files);
+
+		return collectUsages([path.join(root, 'src')]).sites.map(({ file, ...site }) => ({
+			file: path.relative(root, file),
+			...site,
+		}));
+	};
+
+	test('lists every reference in the code, with its line, its column and how long it is', () => {
+		const files = {
+			'src/page.ts': 'const save = DemoI18n.SAVE;\n// DemoI18n.LOAD\nI18n.authFlow.LOG_IN;\n',
+		};
+		const at = (line, col, length) => ({ file: 'src/page.ts', line, col, length });
+
+		deepStrictEqual(sitesIn(files), [
+			{ ...at(1, 14, 13), scope: 'demo', key: 'SAVE', barrel: false },
+			{ ...at(3, 1, 20), scope: 'auth-flow', key: 'LOG_IN', barrel: true },
+		]);
+	});
+
+	test('counts the lines of a comment that spans several', () => {
+		const root = project({ 'src/page.html': '<!-- a\nb\nc -->\n{{ I18n.demo.SAVE }}\n' });
+		const { bare, sites } = collectUsages([path.join(root, 'src')], { pipe: 'i18n' });
+
+		deepStrictEqual(
+			bare.map(({ line, col }) => ({ line, col })),
+			[{ line: 4, col: 4 }],
+		);
+		deepStrictEqual(
+			sites.map(({ line, col }) => ({ line, col })),
+			[{ line: 4, col: 4 }],
+		);
+	});
+});
+
+describe('usagesIn — the references one text holds', () => {
+	const HTML = '<!-- {{ I18n.demo.A }} -->\n{{ I18n.demo.B }} {{ DemoI18n.C | i18n }}\n';
+
+	test('lists them in the order they are written, with where each one starts and ends', () => {
+		const found = usagesInText(HTML, 'page.html', { pipe: 'i18n' });
+
+		deepStrictEqual(
+			found.map(({ key, start, end, line, col }) => ({ key, start, end, line, col })),
+			[
+				{ key: 'A', start: 8, end: 19, line: 1, col: 9 },
+				{ key: 'B', start: 30, end: 41, line: 2, col: 4 },
+				{ key: 'C', start: 48, end: 58, line: 2, col: 22 },
+			],
+		);
+		strictEqual(HTML.slice(30, 41), 'I18n.demo.B');
+	});
+
+	test('tells a comment from code, the barrel from a constant and a bare key from a piped one', () => {
+		const found = usagesInText(HTML, 'page.html', { pipe: 'i18n' });
+
+		deepStrictEqual(
+			found.map(({ key, barrel, commented, bare }) => ({ key, barrel, commented, bare })),
+			[
+				{ key: 'A', barrel: true, commented: true, bare: false },
+				{ key: 'B', barrel: true, commented: false, bare: true },
+				{ key: 'C', barrel: false, commented: false, bare: false },
+			],
+		);
+	});
+
+	test('takes no key for bare without a pipe to look for, or outside a template', () => {
+		const bareOf = (file, options) => usagesInText(HTML, file, options).map(({ bare }) => bare);
+
+		deepStrictEqual(bareOf('page.html', {}), [false, false, false]);
+		deepStrictEqual(bareOf('page.ts', { pipe: 'i18n' }), [false, false, false]);
+	});
+
+	test('reads the scope in kebab-case, as the catalogue names it', () => {
+		const [found] = usagesInText('I18n.authFlow.LOG_IN;', 'page.ts');
+
+		deepStrictEqual({ scope: found.scope, key: found.key }, { scope: 'auth-flow', key: 'LOG_IN' });
 	});
 });
 

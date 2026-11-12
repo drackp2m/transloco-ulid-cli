@@ -177,14 +177,10 @@ export const scopeOf = (catalogue) =>
 
 export function findingsOf(catalogue) {
 	const { i18nDir, sourceDir, langs, defaultLang, notesLang } = catalogue;
-	const { usages, commented, bare } = collectUsages([sourceDir], { pipe: PIPE });
-
 	const scopes = scopesOf(catalogue);
 	const found = buildFindings({
+		...collectUsages([sourceDir], { pipe: PIPE }),
 		scopes,
-		usages,
-		commented,
-		bare,
 		pipe: PIPE,
 		langs,
 		defaultLang,

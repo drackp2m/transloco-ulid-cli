@@ -1,7 +1,8 @@
-import { AMBIENT_PARAMS } from '../catalogue/config.mjs';
 import { CATEGORY_ORDER, paramTag, parse } from '../catalogue/message.mjs';
 import { requiredCategoriesOf } from '../catalogue/plurals.mjs';
 import { messageProblems } from '../check/icu.mjs';
+
+export { strayParamsIn } from '../check/icu.mjs';
 
 export const KEY_NAME = /^[A-Z][A-Z0-9_]*$/;
 export const PARAM_NAME = /^[a-zA-Z][a-zA-Z0-9_]*$/;
@@ -83,52 +84,6 @@ export function pluralProblems(argument, forms, lang) {
 
 	return problems;
 }
-
-const COUNTING_TYPES = new Set(['argument', 'function']);
-
-function counts(tokens, argument) {
-	return tokens.some(
-		(token) =>
-			'octothorpe' === token.type ||
-			(COUNTING_TYPES.has(token.type) && argument === token.arg) ||
-			('select' === token.type && token.cases.some((kase) => counts(kase.tokens, argument))),
-	);
-}
-
-function namesIn(tokens) {
-	return tokens.flatMap((token) => [
-		...(undefined === token.arg ? [] : [token.arg]),
-		...(token.cases ?? []).flatMap((kase) => namesIn(kase.tokens)),
-	]);
-}
-
-function strayIn(token) {
-	return token.cases.flatMap((kase) => {
-		const names = [...new Set(namesIn(kase.tokens))];
-		const stray = names.filter((name) => name !== token.arg && !AMBIENT_PARAMS.has(name));
-
-		return 0 === stray.length || counts(kase.tokens, token.arg)
-			? []
-			: [{ argument: token.arg, key: kase.key, stray }];
-	});
-}
-
-function visit(tokens) {
-	return tokens.flatMap((token) => [
-		...('plural' === token.type ? strayIn(token) : []),
-		...(token.cases ?? []).flatMap((kase) => visit(kase.tokens)),
-	]);
-}
-
-function tokensOrNone(text) {
-	try {
-		return parse(text);
-	} catch {
-		return null;
-	}
-}
-
-export const strayParamsIn = (text) => visit(tokensOrNone(text) ?? []);
 
 export function strayMessage({ argument, stray }) {
 	const verb = 1 === stray.length ? 'is' : 'are';

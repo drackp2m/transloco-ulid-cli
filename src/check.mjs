@@ -35,8 +35,8 @@ if (options.fix) {
 // Re-read after writing: --fix reports whatever it could not fix by itself (an
 // unregistered scope, a missing translation) instead of always claiming success.
 const current = options.fix ? readScopes(options) : scopes;
-const { usages, commented, bare } = collectUsages(options.sourceDirs, { pipe: options.pipe });
-const findings = buildFindings({ ...options, scopes: current, usages, commented, bare });
+const found = collectUsages(options.sourceDirs, { pipe: options.pipe });
+const findings = buildFindings({ ...options, ...found, scopes: current });
 
 const exitCode = printFindings(findings, { ...options, scopes: current });
 

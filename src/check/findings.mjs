@@ -45,6 +45,10 @@ export const RULES = Object.freeze({
 	'unsupported-argument': message(ERROR, 'A `selectordinal`.'),
 	'too-many-forms': message(ERROR, 'The message opens into more than 16 forms in some language.'),
 	'ambiguous-hash': message(ERROR, '`#` under two or more plurals.'),
+	'stray-plural-param': message(
+		WARNING,
+		'A plural form of the source names another parameter and never its number.',
+	),
 	'stale-params': structure(ERROR, '`params.ts` does not match the source texts.', FIX),
 	'missing-params-file': structure(ERROR, 'A scope with parameters has no `params.ts`.', FIX),
 	'unregistered-scope': structure(ERROR, 'A scope is missing from `I18n` in `index.ts`.', FIX),
@@ -60,6 +64,7 @@ export const RULES = Object.freeze({
 	'unused-key': usage(WARNING, 'Nothing references the key.'),
 	'commented-usage': usage(INFO, 'Only a comment references the key.'),
 	'missing-pipe': usage(ERROR, 'A template interpolates a key without the translating pipe.'),
+	'unknown-key': usage(ERROR, 'The code refers to a key, or a scope, the catalogue does not have.'),
 	'unknown-context-key': context(WARNING, 'A name in a context heading matches no key.'),
 	'empty-context-section': context(WARNING, 'A context heading has no text under it.'),
 	'glossary-term-missing-lang': context(

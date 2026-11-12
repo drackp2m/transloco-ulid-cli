@@ -1,4 +1,4 @@
-import { deepStrictEqual } from 'node:assert/strict';
+import { deepStrictEqual, strictEqual } from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { after, describe, test } from 'node:test';
@@ -10,6 +10,13 @@ import {
 	removeCatalogues,
 	ulidOf,
 } from '../testing/catalogue.mjs';
+
+const placesOf = (catalogue) =>
+	findingsOf(catalogue).map(({ file, line, col }) => ({
+		file: path.relative(catalogue.root, file),
+		line,
+		col,
+	}));
 
 const ULID = ulidOf(0);
 const PLURAL = '{count, plural, one {# reto} other {# retos}}';
@@ -68,13 +75,28 @@ describe('a plural param, in the source language', () => {
 		deepStrictEqual(fieldsOf(catalogue), ['count: number;']);
 	});
 
-	test('takes a param the forms name instead of counting as one more, valid ICU', () => {
+	test('takes a param the forms name instead of counting as one more, and warns once', () => {
 		const source = '{count, plural, one {{total} reto} other {{total} retos}}';
 		const target = '{count, plural, one {{total} challenge} other {{total} challenges}}';
 		const catalogue = oneKey({ 'es-ES': source, 'en-GB': target });
 
-		deepStrictEqual(findings(catalogue), []);
+		deepStrictEqual(findings(catalogue), [
+			`warning stray-plural-param [es-ES]: KEY (${ULID}) names {total} and never the number ` +
+				'in the "one" and "other" forms of {count} — write # if the number belongs there',
+		]);
 		deepStrictEqual(fieldsOf(catalogue), ['count: number;', 'total: string;']);
+	});
+
+	test('points that warning at the param, in the source file', () => {
+		const source = '{count, plural, one {Un reto de {name}} other {# retos}}';
+		const target = '{count, plural, one {A challenge from {name}} other {# challenges}}';
+		const catalogue = oneKey({ 'es-ES': source, 'en-GB': target });
+		const [found, ...rest] = findingsOf(catalogue);
+		const line = readFileSync(found.file, 'utf8').split('\n')[found.line - 1];
+
+		deepStrictEqual(rest, []);
+		strictEqual(path.basename(found.file), 'es-ES.json');
+		strictEqual(line.slice(found.col - 1).startsWith('{name}'), true);
 	});
 });
 
@@ -179,10 +201,49 @@ describe('a key and where it is used', () => {
 		deepStrictEqual(findings(catalogue), []);
 	});
 
-	test('leaves a reference to a key keys.ts does not declare to TypeScript', () => {
+	test('is an error when the code refers to a key keys.ts does not declare', () => {
 		const catalogue = oneKey(SAVE, { usages: '<p>{{ I18n.demo.NOT_DECLARED | i18n }}</p>' });
 
+		deepStrictEqual(findings(catalogue), [
+			'error unknown-key: demo.NOT_DECLARED is not declared in keys.ts',
+		]);
+		deepStrictEqual(placesOf(catalogue), [{ file: 'src/page.html', line: 2, col: 7 }]);
+	});
+
+	test('is that error through the constant of the scope too', () => {
+		const catalogue = oneKey(SAVE, { usages: '<p>{{ DemoI18n.NOT_DECLARED | i18n }}</p>' });
+
+		deepStrictEqual(findings(catalogue), [
+			'error unknown-key: demo.NOT_DECLARED is not declared in keys.ts',
+		]);
+	});
+
+	test('is an error when the barrel is asked for a scope the catalogue lacks', () => {
+		const catalogue = oneKey(SAVE, { usages: '<p>{{ I18n.billing.TOTAL | i18n }}</p>' });
+
+		deepStrictEqual(findings(catalogue), [
+			'error unknown-key: billing.TOTAL names a scope the catalogue does not have',
+		]);
+	});
+
+	test('reports a key the catalogue lacks once, even when it is interpolated bare', () => {
+		const catalogue = oneKey(SAVE, { usages: '<p>{{ I18n.demo.NOT_DECLARED }}</p>' });
+
+		deepStrictEqual(findings(catalogue), [
+			'error unknown-key: demo.NOT_DECLARED is not declared in keys.ts',
+		]);
+	});
+
+	test('leaves alone a constant that only looks like the one of a scope', () => {
+		const catalogue = oneKey(SAVE, { usages: '<p>{{ DateI18n.FORMAT }}</p>' });
+
 		deepStrictEqual(findings(catalogue), []);
+	});
+
+	test('says which key each finding is about', () => {
+		const [found] = findingsOf(oneKey(SAVE, { key: { used: false } }));
+
+		deepStrictEqual({ key: found.key, ulid: found.ulid }, { key: 'KEY', ulid: ULID });
 	});
 });
 

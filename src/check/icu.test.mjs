@@ -1,7 +1,7 @@
 import { deepStrictEqual, strictEqual } from 'node:assert/strict';
 import { describe, test } from 'node:test';
 
-import { messageProblems } from './icu.mjs';
+import { messageProblems, strayParamsIn, strayProblems } from './icu.mjs';
 
 const typesOf = (text, lang) => messageProblems(text, lang).map(({ type }) => type);
 
@@ -266,5 +266,74 @@ describe('messageProblems — # under more than one plural', () => {
 
 		deepStrictEqual(messageProblems(crossed, 'es-ES'), []);
 		deepStrictEqual(messageProblems(twice, 'es-ES'), []);
+	});
+});
+
+describe('strayProblems — a plural form that names another param and never its number', () => {
+	const messagesOf = (text) => strayProblems(text).map(({ message }) => message);
+
+	test('says nothing when the form counts, with # or by name, or uses no param at all', () => {
+		deepStrictEqual(strayProblems('{count, plural, one {# reto} other {# retos}}'), []);
+		deepStrictEqual(strayProblems('{count, plural, one {{count} reto} other {# retos}}'), []);
+		deepStrictEqual(strayProblems('{count, plural, one {Un reto} other {Varios retos}}'), []);
+	});
+
+	test('is one problem for the plural, naming the param and every form that has it', () => {
+		const text = '{count, plural, one {{total} reto} other {{total} retos}}';
+
+		deepStrictEqual(strayProblems(text), [
+			{
+				type: 'stray-plural-param',
+				message:
+					'names {total} and never the number in the "one" and "other" forms of {count} ' +
+					'— write # if the number belongs there',
+				name: 'total',
+				key: null,
+				at: null,
+			},
+		]);
+	});
+
+	test('names the one form when the rest count', () => {
+		deepStrictEqual(messagesOf('{count, plural, one {Un reto de {name}} other {# retos}}'), [
+			'names {name} and never the number in the "one" form of {count} ' +
+				'— write # if the number belongs there',
+		]);
+	});
+
+	test('lists every param such a form names', () => {
+		deepStrictEqual(messagesOf('{count, plural, one {{a} {b}} other {#}}'), [
+			'names {a} and {b} and never the number in the "one" form of {count} ' +
+				'— write # if the number belongs there',
+		]);
+	});
+
+	test('has nothing to say about plain text or about ICU that does not parse', () => {
+		deepStrictEqual(strayProblems('Hola {name}'), []);
+		deepStrictEqual(strayProblems('{count, plural, one {{total'), []);
+	});
+
+	test('takes the number written by name under a nested plural, and a # there for the other one', () => {
+		const named =
+			'{messages, plural, one {{friends, plural, one {{messages, number} de # amigo} ' +
+			'other {{messages, number} de # amigos}}} other {{messages, number}}}';
+		const hashed = '{messages, plural, one {{friends, plural, one {# a} other {# b}}} other {# m}}';
+
+		deepStrictEqual(strayParamsIn(named), []);
+		deepStrictEqual(strayParamsIn(hashed), [
+			{ argument: 'messages', key: 'one', stray: ['friends'] },
+		]);
+	});
+
+	test('stands on the forms strayParamsIn finds one by one', () => {
+		deepStrictEqual(strayParamsIn('{count, plural, one {{total} reto} other {# retos}}'), [
+			{ argument: 'count', key: 'one', stray: ['total'] },
+		]);
+	});
+
+	test('is not part of what messageProblems reports for any language', () => {
+		const text = '{count, plural, one {{total} reto} other {{total} retos}}';
+
+		deepStrictEqual(messageProblems(text, 'es-ES', { langs: ['es-ES', 'en-GB'] }), []);
 	});
 });

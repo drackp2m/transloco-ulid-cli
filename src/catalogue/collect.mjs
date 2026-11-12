@@ -282,30 +282,8 @@ function htmlCommentRanges(content) {
 	]);
 }
 
-// Each file is split into real code, so a key merely mentioned in a comment is not usage,
-// and its comments alone, so one appearing only there can still be flagged.
-function splitComments(content, file) {
-	const ranges =
-		'.html' === path.extname(file) ? htmlCommentRanges(content) : tsCommentRanges(content);
-	const code = ranges.reduce((text, [start, end]) => blank(text, start, end), content);
-	const comments = ranges.map(([start, end]) => content.slice(start, end)).join('\n');
-
-	return { code, comments };
-}
-
-function recordUsages(content, file, usages) {
-	const add = (scope, key) => {
-		const id = `${scope}:${key}`;
-
-		usages.set(id, [...(usages.get(id) ?? []), file]);
-	};
-
-	for (const pattern of USAGE_PATTERNS) {
-		for (const [, scopeToken, key] of content.matchAll(pattern)) {
-			add(toKebabCase(scopeToken), key);
-		}
-	}
-}
+const commentRanges = (content, file) =>
+	'.html' === path.extname(file) ? htmlCommentRanges(content) : tsCommentRanges(content);
 
 const INTERPOLATION_OPEN = '{{';
 const INTERPOLATION_CLOSE = '}}';
@@ -328,40 +306,87 @@ function positionAt(text, index) {
 	return { line: before.split('\n').length, col: index - before.lastIndexOf('\n') };
 }
 
-function bareUsages(code, file, pipe) {
-	const piped = new RegExp(`\\|\\s*${pipe.replaceAll('$', '\\$')}(?![\\w$])`);
-	const isBare = (match) =>
-		insideInterpolation(code, match.index) &&
-		!pipedBeforeClosing(code, match.index + match[0].length, piped);
+const pipedPattern = (pipe) => new RegExp(`\\|\\s*${pipe.replaceAll('$', '\\$')}(?![\\w$])`);
 
-	return USAGE_PATTERNS.flatMap((pattern) => [...code.matchAll(pattern)])
-		.filter(isBare)
-		.sort((left, right) => left.index - right.index)
-		.map((match) => ({
-			file,
+function matchesIn(text, offset) {
+	return USAGE_PATTERNS.flatMap((pattern) =>
+		[...text.matchAll(pattern)].map((match) => ({
 			scope: toKebabCase(match[1]),
 			key: match[2],
-			...positionAt(code, match.index),
-		}));
+			barrel: BARREL_USAGE === pattern,
+			start: offset + match.index,
+			end: offset + match.index + match[0].length,
+		})),
+	);
+}
+
+function bareTest(code, file, pipe) {
+	if (null === pipe || '.html' !== path.extname(file)) {
+		return () => false;
+	}
+
+	const piped = pipedPattern(pipe);
+
+	return ({ start, end }) =>
+		insideInterpolation(code, start) && !pipedBeforeClosing(code, end, piped);
+}
+
+// Every reference to a key one text holds, in the order it is written. The code and the
+// comments are read apart, so a key merely mentioned in a comment is not usage, and one
+// appearing only there can still be flagged. `bare` is a template interpolating the key
+// without the pipe that would translate it.
+export function usagesIn(content, file, { pipe = null } = {}) {
+	const ranges = commentRanges(content, file);
+	const code = ranges.reduce((text, [start, end]) => blank(text, start, end), content);
+	const isBare = bareTest(code, file, pipe);
+	const written = matchesIn(code, 0).map((usage) => ({
+		...usage,
+		commented: false,
+		bare: isBare(usage),
+	}));
+	const mentioned = ranges
+		.flatMap(([start, end]) => matchesIn(content.slice(start, end), start))
+		.map((usage) => ({ ...usage, commented: true, bare: false }));
+
+	return [...written, ...mentioned]
+		.sort((left, right) => left.start - right.start)
+		.map((usage) => ({ ...usage, ...positionAt(content, usage.start) }));
+}
+
+const idOf = ({ scope, key }) => `${scope}:${key}`;
+
+function record(usages, id, file) {
+	usages.set(id, [...(usages.get(id) ?? []), file]);
+}
+
+function recordFile(found, file, { pipe }) {
+	for (const usage of usagesIn(readFileSync(file, 'utf8'), file, { pipe })) {
+		const { scope, key, barrel, line, col } = usage;
+		const length = usage.end - usage.start;
+
+		if (usage.commented) {
+			record(found.commented, idOf(usage), file);
+
+			continue;
+		}
+
+		record(found.usages, idOf(usage), file);
+		found.sites.push({ file, scope, key, barrel, line, col, length });
+
+		if (usage.bare) {
+			found.bare.push({ file, scope, key, line, col });
+		}
+	}
 }
 
 export function collectUsages(sourceDirs, { pipe = null } = {}) {
-	const usages = new Map();
-	const commented = new Map();
-	const bare = [];
+	const found = { usages: new Map(), commented: new Map(), bare: [], sites: [] };
 
 	for (const dir of sourceDirs.filter((entry) => existsSync(entry))) {
 		for (const file of walkSources(dir)) {
-			const { code, comments } = splitComments(readFileSync(file, 'utf8'), file);
-
-			recordUsages(code, file, usages);
-			recordUsages(comments, file, commented);
-
-			if (null !== pipe && '.html' === path.extname(file)) {
-				bare.push(...bareUsages(code, file, pipe));
-			}
+			recordFile(found, file, { pipe });
 		}
 	}
 
-	return { usages, commented, bare };
+	return found;
 }

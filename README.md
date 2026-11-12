@@ -242,6 +242,11 @@ A key is used when a `.ts` or `.html` file under `sourceDirs` mentions it as `Au
 as `I18n.auth.LOG_IN`. A mention inside a comment does not count: it is reported as a note, so a
 key left only in a comment does not pass for a live one.
 
+The other way round is an error, `unknown-key`: code that asks for `I18n.auth.LOG_OUT` when
+`auth/keys.ts` declares no `LOG_OUT`, or for `I18n.billing.TOTAL` when there is no `billing` scope.
+A constant is only read as a scope's when that scope exists, so an `OtherI18n.NAME` of your own is
+left alone.
+
 ### In the application
 
 The keys are ordinary Transloco keys. A component exposes the barrel, as
@@ -288,6 +293,10 @@ translated, and the stale warning already covers what it still owes.
 counts, and both make `count` a `number` in `params.ts`; the difference is at runtime, where `#` is
 formatted the way the language writes numbers (`10,000` in English, `10.000` in Spanish). A form that
 does not use the number at all is fine: `one {A challenge} other {Some challenges}`.
+
+A form that names another parameter and never the number, `one {{total} challenge}`, is valid as
+well: the application prints it as written. It is also what a slip looks like, so `check` warns
+about it once, in the source language, as `stray-plural-param`.
 
 Each language needs exactly the forms [CLDR](https://cldr.unicode.org/index/cldr-spec/plural-rules)
 says it has, so a translation branches on its own categories and not on those of the source:
@@ -600,43 +609,45 @@ with `--verbose`.
 
 What it reports:
 
-| Finding                      | Group     | Severity | `--fix` | Meaning                                                      |
-| ---------------------------- | --------- | -------- | ------- | ------------------------------------------------------------ |
-| `missing-translation`        | pending   | error    | ✔       | A language has no entry for a key the source has.            |
-| `empty-translation`          | pending   | warning  |         | The entry is there and empty: waiting for the translator.    |
-| `orphan-translation`         | structure | warning  | ✔       | A language has an entry no key declares.                     |
-| `stale-translation`          | pending   | warning  |         | The source changed after it was translated.                  |
-| `param-mismatch`             | message   | error    |         | A translation adds, drops or changes a parameter.            |
-| `icu-syntax`                 | message   | error    |         | The text is not valid ICU.                                   |
-| `missing-other`              | message   | error    |         | A plural or select has no `other` branch.                    |
-| `missing-plural-category`    | message   | error    |         | A plural lacks a form the language needs.                    |
-| `unknown-plural-category`    | message   | error    |         | A plural branches on a form the language does not have.      |
-| `unknown-gender-value`       | message   | error    |         | A gender select branches on a value the setting never holds. |
-| `unsupported-argument`       | message   | error    |         | A `selectordinal`.                                           |
-| `too-many-forms`             | message   | error    |         | The message opens into more than 16 forms in some language.  |
-| `ambiguous-hash`             | message   | error    |         | `#` under two or more plurals.                               |
-| `stale-params`               | structure | error    | ✔       | `params.ts` does not match the source texts.                 |
-| `missing-params-file`        | structure | error    | ✔       | A scope with parameters has no `params.ts`.                  |
-| `unregistered-scope`         | structure | error    | ✔       | A scope is missing from `I18n` in `index.ts`.                |
-| `unregistered-params`        | structure | error    |         | A scope's parameters are missing from `I18nParams`.          |
-| `missing-barrel`             | structure | error    |         | There is no `index.ts`.                                      |
-| `missing-keys-file`          | structure | error    |         | A scope directory has no `keys.ts`.                          |
-| `missing-lang-file`          | structure | error    |         | A scope has no file for a language.                          |
-| `invalid-json`               | structure | error    |         | A translation, state, glossary or notes file does not parse. |
-| `bad-const-name`             | structure | error    |         | `keys.ts` exports a constant not named after its scope.      |
-| `invalid-ulid`               | structure | error    |         | A key's value is not a ULID.                                 |
-| `bad-scope-prefix`           | structure | error    |         | A key's value lacks its scope prefix, or has another one.    |
-| `duplicate-ulid`             | structure | error    |         | Two keys share a ULID.                                       |
-| `unused-key`                 | usage     | warning  |         | Nothing references the key.                                  |
-| `commented-usage`            | usage     | note     |         | Only a comment references the key.                           |
-| `missing-pipe`               | usage     | error    |         | A template interpolates a key without the translating pipe.  |
-| `unknown-context-key`        | context   | warning  |         | A name in a context heading matches no key.                  |
-| `empty-context-section`      | context   | warning  |         | A context heading has no text under it.                      |
-| `glossary-term-missing-lang` | context   | warning  |         | A glossary term has no translation for a language.           |
-| `missing-notes-file`         | context   | error    |         | `notesLang` names a language without its notes file.         |
-| `bad-note-text`              | context   | error    |         | A notes text is missing or empty, or changes a placeholder.  |
-| `unknown-note-text`          | context   | warning  |         | The notes file has a text the template does not.             |
-| `untranslated-note-text`     | context   | warning  |         | Texts of the notes file are still the English template.      |
+| Finding                      | Group     | Severity | `--fix` | Meaning                                                                   |
+| ---------------------------- | --------- | -------- | ------- | ------------------------------------------------------------------------- |
+| `missing-translation`        | pending   | error    | ✔       | A language has no entry for a key the source has.                         |
+| `empty-translation`          | pending   | warning  |         | The entry is there and empty: waiting for the translator.                 |
+| `orphan-translation`         | structure | warning  | ✔       | A language has an entry no key declares.                                  |
+| `stale-translation`          | pending   | warning  |         | The source changed after it was translated.                               |
+| `param-mismatch`             | message   | error    |         | A translation adds, drops or changes a parameter.                         |
+| `icu-syntax`                 | message   | error    |         | The text is not valid ICU.                                                |
+| `missing-other`              | message   | error    |         | A plural or select has no `other` branch.                                 |
+| `missing-plural-category`    | message   | error    |         | A plural lacks a form the language needs.                                 |
+| `unknown-plural-category`    | message   | error    |         | A plural branches on a form the language does not have.                   |
+| `unknown-gender-value`       | message   | error    |         | A gender select branches on a value the setting never holds.              |
+| `unsupported-argument`       | message   | error    |         | A `selectordinal`.                                                        |
+| `too-many-forms`             | message   | error    |         | The message opens into more than 16 forms in some language.               |
+| `ambiguous-hash`             | message   | error    |         | `#` under two or more plurals.                                            |
+| `stray-plural-param`         | message   | warning  |         | A plural form of the source names another parameter and never its number. |
+| `stale-params`               | structure | error    | ✔       | `params.ts` does not match the source texts.                              |
+| `missing-params-file`        | structure | error    | ✔       | A scope with parameters has no `params.ts`.                               |
+| `unregistered-scope`         | structure | error    | ✔       | A scope is missing from `I18n` in `index.ts`.                             |
+| `unregistered-params`        | structure | error    |         | A scope's parameters are missing from `I18nParams`.                       |
+| `missing-barrel`             | structure | error    |         | There is no `index.ts`.                                                   |
+| `missing-keys-file`          | structure | error    |         | A scope directory has no `keys.ts`.                                       |
+| `missing-lang-file`          | structure | error    |         | A scope has no file for a language.                                       |
+| `invalid-json`               | structure | error    |         | A translation, state, glossary or notes file does not parse.              |
+| `bad-const-name`             | structure | error    |         | `keys.ts` exports a constant not named after its scope.                   |
+| `invalid-ulid`               | structure | error    |         | A key's value is not a ULID.                                              |
+| `bad-scope-prefix`           | structure | error    |         | A key's value lacks its scope prefix, or has another one.                 |
+| `duplicate-ulid`             | structure | error    |         | Two keys share a ULID.                                                    |
+| `unused-key`                 | usage     | warning  |         | Nothing references the key.                                               |
+| `commented-usage`            | usage     | note     |         | Only a comment references the key.                                        |
+| `missing-pipe`               | usage     | error    |         | A template interpolates a key without the translating pipe.               |
+| `unknown-key`                | usage     | error    |         | The code refers to a key, or a scope, the catalogue does not have.        |
+| `unknown-context-key`        | context   | warning  |         | A name in a context heading matches no key.                               |
+| `empty-context-section`      | context   | warning  |         | A context heading has no text under it.                                   |
+| `glossary-term-missing-lang` | context   | warning  |         | A glossary term has no translation for a language.                        |
+| `missing-notes-file`         | context   | error    |         | `notesLang` names a language without its notes file.                      |
+| `bad-note-text`              | context   | error    |         | A notes text is missing or empty, or changes a placeholder.               |
+| `unknown-note-text`          | context   | warning  |         | The notes file has a text the template does not.                          |
+| `untranslated-note-text`     | context   | warning  |         | Texts of the notes file are still the English template.                   |
 
 The group says what a finding is about: `pending` is translation work still to do, `message` is
 something wrong inside a text, `structure` is the files of the catalogue, `usage` is how the code

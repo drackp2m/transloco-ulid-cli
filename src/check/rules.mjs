@@ -5,7 +5,7 @@ import { freshnessOf, readState } from '../catalogue/freshness.mjs';
 import { paramTag, signatureDiff, spotsIn } from '../catalogue/message.mjs';
 import { buildScopeParams, entryLineOf, fieldLineOf, paramsName } from '../catalogue/params.mjs';
 
-import { messageProblems } from './icu.mjs';
+import { messageProblems, strayProblems } from './icu.mjs';
 
 const PARAMS = 'params';
 const FILE_START = { line: 1, col: 1 };
@@ -19,7 +19,11 @@ const finding = (type, scope, file, message, where = {}) => ({
 	col: where.col ?? null,
 	lang: where.lang ?? null,
 	column: where.column ?? null,
+	key: where.key ?? null,
+	ulid: where.ulid ?? null,
 });
+
+const keyOf = (entry) => (entry ? { key: entry.name, ulid: entry.ulid } : {});
 
 const isBlank = (value) => '' === String(value).trim();
 
@@ -75,7 +79,7 @@ function checkKeys(scope, seenUlids) {
 
 	for (const { name, value, ulid, line, col } of scope.keys.entries) {
 		const previous = seenUlids.get(ulid);
-		const at = { line, col };
+		const at = { line, col, key: name, ulid };
 
 		if (!isUlid(ulid)) {
 			findings.push(
@@ -130,12 +134,12 @@ function checkDeclared(scope, translation, lang, source) {
 		const label = `${entry.name} (${entry.ulid})`;
 
 		if (undefined === value) {
-			const at = missingAt(scope, entry, source);
+			const at = { ...missingAt(scope, entry, source), ...keyOf(entry), lang };
 			const message = `${label} has no "${lang}" entry`;
 
-			findings.push(finding('missing-translation', scope.name, at.file, message, { ...at, lang }));
+			findings.push(finding('missing-translation', scope.name, at.file, message, at));
 		} else {
-			const at = { ...positionOf(translation.text, entry.ulid), lang };
+			const at = { ...positionOf(translation.text, entry.ulid), ...keyOf(entry), lang };
 
 			findings.push(finding('empty-translation', scope.name, translation.file, label, at));
 		}
@@ -151,6 +155,7 @@ function checkOrphans(declared, { file, data, text }, lang, scopeName) {
 			finding('orphan-translation', scopeName, file, `${ulid} is not declared`, {
 				...positionOf(text, ulid),
 				lang,
+				ulid,
 			}),
 		);
 }
@@ -176,7 +181,7 @@ function checkTranslations(scope, langs, defaultLang) {
 function staleFinding(scope, { ulid, name, lang }, defaultLang) {
 	const translation = scope.translations.get(lang);
 	const message = `${name} (${ulid}) was translated from an older "${defaultLang}"`;
-	const at = { ...positionOf(translation.text, ulid), lang };
+	const at = { ...positionOf(translation.text, ulid), lang, key: name, ulid };
 
 	return finding('stale-translation', scope.name, translation.file, message, at);
 }
@@ -196,8 +201,8 @@ function checkFreshness(scope, { langs, defaultLang, i18nDir }) {
 function checkUsage(scope, usages, commented) {
 	return scope.keys.entries
 		.filter(({ name }) => !usages.has(`${scope.name}:${name}`))
-		.map(({ name, line, col }) => {
-			const at = { line, col };
+		.map(({ name, ulid, line, col }) => {
+			const at = { line, col, key: name, ulid };
 
 			if (commented.has(`${scope.name}:${name}`)) {
 				const message = `${name} is only referenced from a comment`;
@@ -241,9 +246,10 @@ function comparePairs(base, translation, lang, { scope, stale }) {
 		}
 
 		const pending = stale.has(`${lang}:${ulid}`);
+		const entry = scope.keys.entries.find((key) => key.ulid === ulid);
 
 		for (const message of comparePair(base[ulid], value, ulid, pending)) {
-			const where = { ...positionOf(translation.text, ulid), lang };
+			const where = { ...positionOf(translation.text, ulid), lang, ulid, ...keyOf(entry) };
 			const file = translation.file;
 
 			findings.push(finding('param-mismatch', scope.name, file, `${message} in "${lang}"`, where));
@@ -293,8 +299,17 @@ function messageFinding(scope, translation, lang, ulid, item) {
 		? syntaxPositionOf(translation.text, ulid, item.at, translation.data[ulid])
 		: spotPositionOf(translation.text, ulid, item);
 	const message = `${label} ${item.message}`;
+	const where = { ...at, lang, ulid, ...keyOf(entry) };
 
-	return finding(item.type, scope.name, translation.file, message, { ...at, lang });
+	return finding(item.type, scope.name, translation.file, message, where);
+}
+
+// The source language answers for one thing more than the rest: how many forms the string
+// opens into wherever it is translated, and the forms that never write their number.
+function problemsOf(value, lang, { langs, defaultLang }) {
+	return lang === defaultLang
+		? [...messageProblems(value, lang, { langs }), ...strayProblems(value)]
+		: messageProblems(value, lang);
 }
 
 // Every language answers for its own strings here, the source one included: a plural the
@@ -304,14 +319,13 @@ function checkMessages(scope, langs, defaultLang) {
 
 	for (const lang of langs) {
 		const translation = scope.translations.get(lang);
-		const widthIn = lang === defaultLang ? langs : [lang];
 
 		for (const [ulid, value] of Object.entries(translation.data ?? {})) {
 			if (isBlank(value)) {
 				continue;
 			}
 
-			for (const item of messageProblems(value, lang, { langs: widthIn })) {
+			for (const item of problemsOf(value, lang, { langs, defaultLang })) {
 				findings.push(messageFinding(scope, translation, lang, ulid, item));
 			}
 		}
@@ -375,7 +389,8 @@ const retypedFindings = (scope, params, drift, label) =>
 const usesFindings = (scope, source, drift, entry, label) =>
 	drift.missing.map((name) => {
 		const message = `${label} uses ${paramTag(name)}, not declared in ${paramsName(scope.name)}`;
-		const at = { ...paramPositionOf(source.text, entry.ulid, name), column: PARAMS };
+		const where = paramPositionOf(source.text, entry.ulid, name);
+		const at = { ...where, column: PARAMS, ...keyOf(entry) };
 
 		return finding('stale-params', scope.name, source.file, message, at);
 	});
@@ -549,11 +564,39 @@ function checkContext(options, scopes) {
 	];
 }
 
-function checkPipes(bare, pipe) {
-	return bare.map(({ file, scope, key, line, col }) => {
-		const detail = `is interpolated without "| ${pipe}", so the key itself is what renders`;
+// A constant is only taken for a scope's when that scope exists: `SomethingI18n.NAME` may
+// well be code of the project that has nothing to do with the catalogue. Through the barrel
+// there is no such doubt, and a scope nobody declared is as unknown as a key.
+function unknownMessage({ scope, key, barrel }, owner) {
+	if (undefined === owner) {
+		return barrel ? `${scope}.${key} names a scope the catalogue does not have` : null;
+	}
 
-		return finding('missing-pipe', scope, file, `${scope}.${key} ${detail}`, { line, col });
+	const declared = null === owner.keys || owner.keys.entries.some((entry) => entry.name === key);
+
+	return declared ? null : `${scope}.${key} is not declared in keys.ts`;
+}
+
+function checkSites(sites, byName) {
+	return sites.flatMap((site) => {
+		const message = unknownMessage(site, byName.get(site.scope));
+		const at = { line: site.line, col: site.col, key: site.key };
+
+		return null === message ? [] : [finding('unknown-key', site.scope, site.file, message, at)];
+	});
+}
+
+const entryOf = (scope, name) => scope?.keys?.entries.find((entry) => entry.name === name);
+
+// Only a key the catalogue has can render as itself: one it lacks is already reported as
+// unknown, and a constant of some other scope-looking name is not the catalogue's to judge.
+function checkPipes(bare, pipe, byName) {
+	return bare.flatMap(({ file, scope, key, line, col }) => {
+		const entry = entryOf(byName.get(scope), key);
+		const detail = `is interpolated without "| ${pipe}", so the key itself is what renders`;
+		const at = { line, col, ...keyOf(entry) };
+
+		return entry ? [finding('missing-pipe', scope, file, `${scope}.${key} ${detail}`, at)] : [];
 	});
 }
 
@@ -569,8 +612,9 @@ function checkBarrel(scopes, barrel, paramsOfScope) {
 
 export function buildFindings(options) {
 	const { scopes, usages, commented, langs, defaultLang, i18nDir, notesLang } = options;
-	const { bare = [], pipe } = options;
+	const { bare = [], sites = [], pipe } = options;
 	const seenUlids = new Map();
+	const byName = new Map(scopes.map((scope) => [scope.name, scope]));
 	const paramsOfScope = new Map(
 		scopes
 			.filter((scope) => scope.keys)
@@ -579,7 +623,8 @@ export function buildFindings(options) {
 	const findings = checkBarrel(scopes, readBarrel(i18nDir), paramsOfScope);
 
 	findings.push(...checkContext({ i18nDir, langs, defaultLang, notesLang }, scopes));
-	findings.push(...checkPipes(bare, pipe));
+	findings.push(...checkPipes(bare, pipe, byName));
+	findings.push(...checkSites(sites, byName));
 
 	for (const scope of scopes) {
 		findings.push(...checkStructure(scope, langs));
