@@ -6,18 +6,32 @@
 [![node](https://img.shields.io/node/v/@drackp2m/transloco-ulid-cli)](https://nodejs.org)
 [![license](https://img.shields.io/npm/l/@drackp2m/transloco-ulid-cli)](LICENSE)
 
-Keeps a [Transloco](https://jsverse.github.io/transloco/) catalogue keyed by ULIDs consistent, and
-moves it to and from translators as XLIFF 2.0, with the context they need to get it right.
+A command line that keeps a [Transloco](https://jsverse.github.io/transloco/) catalogue keyed by
+ULIDs consistent, and moves it to and from translators as XLIFF 2.0 with the context they need.
+
+```ts
+// keys.ts: a readable constant, an opaque and permanent key
+export const AuthI18n = {
+	LOG_IN: 'auth.01KZCMJMZJP7DHE9CDMSHCGZE3',
+} as const;
+```
+
+```json
+{ "01KZCMJMZJP7DHE9CDMSHCGZE3": "Log in" }
+```
+
+```html
+<button type="submit">{{ I18n.auth.LOG_IN | transloco }}</button>
+```
 
 - **Stable keys.** Every text is a constant whose value is a ULID, so renaming the constant, moving
   the text or rewording it never breaks a translation.
 - **One check for the whole catalogue.** Missing and stale translations, unused keys, ICU mistakes,
-  parameters that do not match between languages, and plural forms a language needs but lacks.
-- **Generated types.** `params.ts` declares the parameters every key takes, so passing the wrong
+  parameters that differ between languages, and plural forms a language needs but lacks.
+- **Generated types.** `params.ts` declares the parameters each key takes, so passing the wrong
   ones is a TypeScript error.
-- **Translator round-trips.** XLIFF 2.0 files that carry each key's context, glossary terms, usage
-  sites and one unit per plural or gender form, and come back without ever overwriting what was
-  already there.
+- **Translator round-trips.** XLIFF 2.0 files carry each key's context, glossary terms, usage sites
+  and one unit per plural or gender form. Importing them never overwrites what was already there.
 
 ## Contents
 
@@ -26,8 +40,8 @@ moves it to and from translators as XLIFF 2.0, with the context they need to get
 - [Configuration](#configuration)
 - [The catalogue](#the-catalogue)
 - [Messages](#messages)
-- [Context for translators](#context-for-translators)
 - [Freshness](#freshness)
+- [Context for translators](#context-for-translators)
 - [Commands](#commands)
 - [Running it in CI](#running-it-in-ci)
 - [Using it from code](#using-it-from-code)
@@ -39,8 +53,8 @@ moves it to and from translators as XLIFF 2.0, with the context they need to get
 npm install --save-dev @drackp2m/transloco-ulid-cli
 ```
 
-It needs Node 22 or later, and uses the TypeScript your project already has (5.0 or later). The
-command is `transloco-ulid`; most projects wrap it in scripts:
+Requires Node 22 or later and TypeScript 5.0 or later, which it takes from your project as a peer
+dependency. The command is `transloco-ulid`; most projects wrap it in scripts:
 
 ```json
 {
@@ -54,20 +68,19 @@ command is `transloco-ulid`; most projects wrap it in scripts:
 }
 ```
 
-The package holds the command line only. It ships no Angular code: the catalogue it manages is
-plain TypeScript and JSON that your application loads through Transloco.
+The package ships no Angular code. The catalogue it manages is plain TypeScript and JSON that your
+application loads through Transloco.
 
 ## Quick start
 
 1. Add an [`i18n.config.json`](#configuration) at the project root, and a file that declares your
    languages.
-2. Create the [catalogue](#the-catalogue) with no keys yet: an empty `{}` per language, a
-   `keys.ts` and the barrel.
+2. Create an empty [catalogue](#the-catalogue): a `{}` file per language, a `keys.ts` and the
+   barrel.
 
    ```ts
    // src/app/i18n/keys.ts
-   export const CommonI18n = {
-   } as const;
+   export const CommonI18n = {} as const;
    ```
 
    ```ts
@@ -79,24 +92,24 @@ plain TypeScript and JSON that your application loads through Transloco.
    } as const;
    ```
 
-3. Add a key:
+3. Add keys:
 
    ```sh
    transloco-ulid add --name SAVE --text "Save"
-   transloco-ulid add --name CHALLENGES --plural count --one "# challenge" --other "# challenges"
+   transloco-ulid add --name ITEMS --plural count --one "# item" --other "# items"
    ```
 
    The first key with parameters creates `params.ts`, and `add` asks you to add its type to
    [`I18nParams`](#the-barrel).
 
-4. Use it in a template, as `{{ I18n.common.SAVE | transloco }}`.
-5. Check the catalogue, and let it write what it can by itself:
+4. Use them in a template: `{{ I18n.common.SAVE | transloco }}`.
+5. Check the catalogue, and let the command fix what it can:
 
    ```sh
    transloco-ulid check --fix
    ```
 
-6. Send the untranslated texts out and read them back:
+6. Send the untranslated texts out, and read them back:
 
    ```sh
    transloco-ulid export --pending
@@ -105,8 +118,8 @@ plain TypeScript and JSON that your application loads through Transloco.
 
 ## Configuration
 
-`i18n.config.json` at the project root. The CLI looks for it from the working directory upwards,
-so run it from the root, which is what npm and pnpm scripts do.
+The CLI reads `i18n.config.json`, looking for it from the working directory upwards. Paths are
+relative to the directory that holds the file, so in a monorepo they can point into a package.
 
 ```json
 {
@@ -119,21 +132,16 @@ so run it from the root, which is what npm and pnpm scripts do.
 }
 ```
 
-| Field          | What it is                                                                       |
-| -------------- | -------------------------------------------------------------------------------- |
-| `i18nDir`      | The catalogue directory.                                                         |
-| `sourceDirs`   | Where `.ts` and `.html` files are scanned for key usages.                        |
-| `languageFile` | The file that declares `LANGUAGES` and `DEFAULT_LANGUAGE`.                       |
-| `rootScope`    | The name of the scope that lives at the top of `i18nDir`.                        |
-| `importAlias`  | The path alias for `i18nDir`, used in the imports `check --fix` writes.          |
-| `xliffPrefix`  | The prefix of the XLIFF sub-states the export writes, such as `my-app:outdated`. |
-| `notesLang`    | Optional. The language of the notes the export words itself, such as `es`.       |
-| `pipe`         | Optional. The pipe that translates a key in a template, `transloco` by default.  |
-
-Every field but `notesLang` and `pipe` is required. `notesLang` defaults to `en`: see
-[The language of the notes](#the-language-of-the-notes-contextnoteslangjson). `pipe` only matters
-to the templates, see [In the application](#in-the-application). Paths are relative to the project
-root, where the file lives, which is also where the commands run from.
+| Field          | Required | What it is                                                                       |
+| -------------- | -------- | -------------------------------------------------------------------------------- |
+| `i18nDir`      | yes      | The catalogue directory.                                                         |
+| `sourceDirs`   | yes      | Where `.ts` and `.html` files are scanned for key usages.                        |
+| `languageFile` | yes      | The file that declares `LANGUAGES` and `DEFAULT_LANGUAGE`.                       |
+| `rootScope`    | yes      | The name of the scope that lives at the top of `i18nDir`.                        |
+| `importAlias`  | yes      | The path alias for `i18nDir`, used in the imports `check --fix` writes.          |
+| `xliffPrefix`  | yes      | The prefix of the XLIFF sub-states the export writes, such as `my-app:outdated`. |
+| `notesLang`    | no       | The language of the notes the export words itself. Defaults to `en`; see [The language of the notes](#the-language-of-the-notes). |
+| `pipe`         | no       | The pipe that translates a key in a template. Defaults to `transloco`; see [In the application](#in-the-application). |
 
 The language file declares the languages as single-quoted literals. `DEFAULT_LANGUAGE` is the
 source language: the one texts are written in, and the one every other language is translated
@@ -171,8 +179,8 @@ src/app/i18n/
 ### Keys
 
 `keys.ts` exports one constant per scope, named after it: `CommonI18n` for `common`, `AuthI18n` for
-`auth`, `MatchHistoryI18n` for `match-history`. Each property is a key in `SCREAMING_SNAKE_CASE`
-whose value is a ULID. Keys in the root scope are the bare ULID; keys in a nested scope carry the
+`auth`, `OrderHistoryI18n` for `order-history`. Each property is a key in `SCREAMING_SNAKE_CASE`
+whose value is a ULID. Keys in the root scope are the bare ULID. Keys in a nested scope carry the
 scope as a prefix, which is the key Transloco looks up once that scope is loaded.
 
 ```ts
@@ -193,14 +201,13 @@ One JSON file per language and scope, keyed by the ULID alone:
 }
 ```
 
-The source language holds every text. The other languages hold an entry for every key too, empty
-until it is translated: an empty entry is a warning, a missing one an error, and `check --fix`
+The source language holds every text. Every other language holds an entry for every key too, empty
+until it is translated. An empty entry is a warning and a missing one is an error; `check --fix`
 turns the second into the first.
 
 ### Parameters
 
-`params.ts` is generated by `check --fix` and `add`, and never edited by hand except for one thing:
-the type of a plain parameter, which the ICU text cannot tell, is kept when you change it.
+`params.ts` is generated by `check --fix` and `add`:
 
 ```ts
 export interface AuthI18nParams {
@@ -210,8 +217,11 @@ export interface AuthI18nParams {
 }
 ```
 
-A parameter is `string` by default, `number` when a plural branches on it, and the union of its
-cases when a select does. `gender` is left out: see [Gender](#gender).
+A parameter is `number` when a plural branches on it, the union of its cases when a select does,
+and `string` otherwise. `gender` is left out; see [Gender](#gender).
+
+The only edit to make by hand is the type of a plain parameter, which the ICU text cannot tell:
+change `string` to `number`, as `length` above, and the generator keeps it.
 
 ### The barrel
 
@@ -233,19 +243,19 @@ export type I18nParams = AuthI18nParams & CommonI18nParams;
 ```
 
 `check --fix` adds a scope missing from `I18n`, with its import. A scope's parameters missing from
-`I18nParams` are reported, and added by hand. The barrel can hold anything else your application
-needs, such as typed wrappers around Transloco: the CLI only reads those two declarations.
+`I18nParams` are reported, and you add them by hand. The CLI only reads those two declarations, so
+the barrel can hold anything else your application needs, such as typed wrappers around Transloco.
 
 ### Usages
 
 A key is used when a `.ts` or `.html` file under `sourceDirs` mentions it as `AuthI18n.LOG_IN` or
 as `I18n.auth.LOG_IN`. A mention inside a comment does not count: it is reported as a note, so a
-key left only in a comment does not pass for a live one.
+key that only survives in a comment does not pass for a live one.
 
-The other way round is an error, `unknown-key`: code that asks for `I18n.auth.LOG_OUT` when
+The opposite case is an error, `unknown-key`: code that asks for `I18n.auth.LOG_OUT` when
 `auth/keys.ts` declares no `LOG_OUT`, or for `I18n.billing.TOTAL` when there is no `billing` scope.
-A constant is only read as a scope's when that scope exists, so an `OtherI18n.NAME` of your own is
-left alone.
+A constant is only read as a scope's when that scope exists, so an unrelated `OtherI18n.NAME` of
+your own is left alone.
 
 ### In the application
 
@@ -254,84 +264,94 @@ The keys are ordinary Transloco keys. A component exposes the barrel, as
 
 ```html
 <button type="submit">{{ I18n.auth.LOG_IN | transloco }}</button>
-<p>{{ I18n.common.CHALLENGES | transloco: { count: total } }}</p>
+<p>{{ I18n.common.ITEMS | transloco: { count: total } }}</p>
 ```
 
-ICU messages need [`@jsverse/transloco-messageformat`](https://jsverse.gitbook.io/transloco/plugins-and-extensions/messageformat).
-A nested scope has to be loaded with `provideTranslocoScope('auth')`, and the loader has to serve
-`<lang>.json` from the catalogue root and `<scope>/<lang>.json` from each scope.
+Two things have to be set up on the Transloco side:
+
+- ICU messages need
+  [`@jsverse/transloco-messageformat`](https://jsverse.gitbook.io/transloco/plugins-and-extensions/messageformat).
+- A nested scope is loaded with `provideTranslocoScope('auth')`, and the loader serves
+  `<lang>.json` from the catalogue root and `<scope>/<lang>.json` from each scope.
 
 A key interpolated without the pipe renders the key itself, so `check` reports it as an error,
 `missing-pipe`, at its line in the template. The pipe counts anywhere before the interpolation
-closes, as in `{{ (saving ? I18n.auth.SAVING : I18n.auth.SAVE) | transloco }}`, and a key handed to
-a binding, `[label]="I18n.auth.LOG_IN"`, is left alone: whatever receives it does the translating.
-A project with a pipe of its own names it in `pipe`.
+closes, as in `{{ (saving ? I18n.auth.SAVING : I18n.auth.SAVE) | transloco }}`. A key handed to a
+binding, `[label]="I18n.auth.LOG_IN"`, is left alone: whatever receives it does the translating.
+A project that translates through a pipe of its own names it in `pipe`.
 
 ## Messages
 
 Texts are [ICU messages](https://unicode-org.github.io/icu/userguide/format_parse/messages/), and
-the check applies the same rules to every language, the source one included.
+`check` applies the same rules to every language, the source included.
 
 ### Parameters
 
 ```text
-Hello {name}, you have {total} challenges left.
+Hello {name}, you have {total} items in your basket.
 ```
 
-A translation has to take exactly the parameters of the source, each as the same kind of argument.
-Adding one, or turning a plural into a plain parameter, is always an error. Leaving one out is an
-error too, unless the translation is [stale](#freshness): then the source changed after it was
-translated, and the stale warning already covers what it still owes.
+A translation takes exactly the parameters of its source, each as the same kind of argument. Adding
+one, or turning a plural into a plain parameter, is always an error. Leaving one out is an error
+too, unless the translation is [stale](#freshness): the source changed after it was translated, and
+the stale warning already covers what it still owes.
 
 ### Plurals
 
 ```text
-{count, plural, one {# challenge} other {# challenges}}
+{count, plural, one {# item} other {# items}}
 ```
 
 `#` stands for the number the plural branches on. Writing the parameter by name, `{count}`, also
-counts, and both make `count` a `number` in `params.ts`; the difference is at runtime, where `#` is
-formatted the way the language writes numbers (`10,000` in English, `10.000` in Spanish). A form that
-does not use the number at all is fine: `one {A challenge} other {Some challenges}`.
+works, and both make `count` a `number` in `params.ts`. The difference shows at runtime, where `#`
+is formatted the way the language writes numbers (`10,000` in English, `10.000` in Spanish). A form
+that does not use the number at all is fine: `one {An item} other {Some items}`.
 
-A form that names another parameter and never the number, `one {{total} challenge}`, is valid as
-well: the application prints it as written. It is also what a slip looks like, so `check` warns
-about it once, in the source language, as `stray-plural-param`.
+A form that names another parameter and never the number, `one {{total} item}`, is valid as well,
+and the application prints it as written. It is also what a slip looks like, so `check` warns about
+it once, in the source language, as `stray-plural-param`.
 
-Each language needs exactly the forms [CLDR](https://cldr.unicode.org/index/cldr-spec/plural-rules)
-says it has, so a translation branches on its own categories and not on those of the source:
+Each language needs exactly the forms
+[CLDR](https://cldr.unicode.org/index/cldr-spec/plural-rules) gives it, so a translation branches
+on its own categories and not on those of the source:
 
-| Language                               | Forms                                        |
-| -------------------------------------- | -------------------------------------------- |
-| English, Spanish, French, Italian, …   | `one`, `other`                               |
-| Russian, Polish, Ukrainian, …          | `one`, `few`, `many`, `other`                |
-| Arabic                                 | `zero`, `one`, `two`, `few`, `many`, `other` |
-| Japanese, Chinese, Indonesian, …       | `other`                                      |
+| Language                             | Forms                                        |
+| ------------------------------------ | -------------------------------------------- |
+| English, Spanish, French, Italian, … | `one`, `other`                               |
+| Russian, Polish, Ukrainian, …        | `one`, `few`, `many`, `other`                |
+| Arabic                               | `zero`, `one`, `two`, `few`, `many`, `other` |
+| Japanese, Chinese, Indonesian, …     | `other`                                      |
 
-Two refinements. A form no whole number can reach is never asked for: Spanish, French or Italian
-declare `many` only for compact millions (`1 M`), so it is accepted but not required. `other` is
-always required, even in Russian, where only decimals reach it. An exact match such as `=0` is
-accepted anywhere.
+Three refinements:
 
-Missing a form the language needs, or branching on one it does not have, is an error. So is a
-`selectordinal`, which the catalogue does not support, and a message that opens into more than 16
-forms once its plurals and selects are crossed: split the sentence instead. The source is measured
-in every language of the catalogue, so a sentence that is 4 forms in Spanish and 64 in Russian is
-refused when it is written, not when the Russian comes back.
+- `other` is always required, even in Russian, where only decimals reach it.
+- A form no whole number can reach is accepted but never required. Spanish, French and Italian
+  declare `many` only for compact millions (`1 M`).
+- An exact match such as `=0` is accepted anywhere.
+
+These are errors:
+
+- A plural that lacks a form its language needs, or branches on one the language does not have.
+- A `selectordinal`, which the catalogue does not support.
+- A message that expands into more than 16 forms once its plurals and selects are crossed. Split
+  the sentence instead. The source is measured in every language of the catalogue, so a sentence
+  that is 4 forms in Spanish and 64 in Russian is refused when it is written, not when the Russian
+  comes back.
 
 #### Two numbers in one sentence
 
 Each number gets its own plural, and each is written by name, as `{messages, number}`:
 
 ```text
-Tienes {messages, plural, one {{messages, number} mensaje} other {{messages, number} mensajes}} de {friends, plural, one {{friends, number} amigo} other {{friends, number} amigos}}
+You have {messages, plural, one {{messages, number} message} other {{messages, number} messages}} from {friends, plural, one {{friends, number} friend} other {{friends, number} friends}}
 ```
 
-`{messages, number}` is formatted the way `#` is (`10.000` in Spanish). `#` itself is an error
-here: the export sends one unit per combination of forms, and in «Tienes # mensajes de # amigos»
-nothing says which `#` is which, so the import would put both numbers back under one plural. Two
-plurals are 4 forms in Spanish or English and 16 in Russian, Polish or Ukrainian; in Arabic they
-are 36, past the limit.
+`{messages, number}` is formatted the way `#` is. `#` itself is an error here, `ambiguous-hash`:
+the export sends one unit per combination of forms, and in "You have # messages from # friends"
+nothing says which `#` is which, so the import would put both numbers back under one plural.
+
+Two plurals are 4 forms in English or Spanish and 16 in Russian, Polish or Ukrainian. In Arabic
+they are 36, past the limit.
 
 ### Selects
 
@@ -343,212 +363,21 @@ Every select needs an `other` branch. In `params.ts` the parameter becomes `'act
 
 ### Gender
 
-`gender` is an ambient parameter: the application passes it to every message, from the user's
-setting, so it never appears in `params.ts`. Its values are `male`, `female` and `other`, and a
-branch on anything else is an error, since nothing would ever reach it.
+`gender` is a reserved, ambient parameter. The application is expected to pass it to every message,
+taken from the user's setting, so it never appears in `params.ts`. Its values are `male`, `female`
+and `other`; a branch on anything else is an error, since nothing would ever reach it.
 
-A translation cannot add a select the source does not have, so a sentence that has to agree with
-the user in some language carries the select in the source too, even when its own forms read alike:
+A translation cannot add a select its source does not have. A sentence that has to agree with the
+user in some language therefore carries the select in the source too, even when the source forms
+read alike:
 
 ```text
 en-GB  {gender, select, male {You are registered} female {You are registered} other {You are registered}}
 es-ES  {gender, select, male {Estás registrado} female {Estás registrada} other {Ya tienes cuenta}}
 ```
 
-The export sends one unit per value to languages that mark gender, and a single one to those that
-do not (Turkish, Indonesian, Vietnamese, Chinese).
-
-## Context for translators
-
-A translator who only sees "Open" cannot tell a verb from an adjective. The `context/` directory
-next to the keys says what each text is, and the export hands it over inside the XLIFF file. All of
-it is optional and written in plain Markdown, in whatever language your translators read.
-
-Context accumulates from the general to the specific: the application, the target language, the
-scope, a group of keys, the key. A layer with nothing written for it drops out.
-
-### The application and its languages: `context/app.md`
-
-```md
-# My App
-
-My App trains chess tactics by repetition. The reader is a club player, so board jargon is never
-paraphrased.
-
-Tone: direct and informal, no exclamation marks. Button labels are short, imperative and have no
-full stop; status and error messages are full sentences.
-
-Rules for every language:
-
-- The ellipsis is the "…" character, never three dots.
-- Chess notation, FEN and PGN are never translated.
-
-## es-ES
-
-Spanish from Spain, informal "tú". Buttons in the infinitive (`Guardar`, `Cancelar`). Quotes are
-«angle quotes». The decimal separator is the comma.
-
-## ru-RU
-
-Russian, informal "ты". Buttons in the infinitive. Chess terms are the usual Russian ones — ладья,
-конь, слон — never transliterations of the English.
-```
-
-The `#` title is for you and is not sent. The text before the first `##` goes to every language;
-each `## <lang>` section goes only to that language, and `## es-ES, ca-ES` to both. This is where grammar and style belong:
-register, how buttons are phrased, punctuation, quotes, number formats.
-
-### Scopes and keys: `context/<scope>.md`
-
-```md
-# auth
-
-The two session screens: log in and create an account. Short forms with an introduction on top.
-
-## LOG_IN_INTRO
-
-Says that the session lives in a cookie and survives a reload. "My App" stays as it is.
-
-## PASSWORD, PASSWORD_MIN_LENGTH
-
-The password field and the minimum length it asks for. `{length}` is a number.
-
-## ERROR_*
-
-Messages under the form when the request fails: full sentences with a full stop.
-```
-
-- The text before the first `##` describes the whole scope.
-- `## KEY` describes one key, by its constant name.
-- `## PREFIX_*` describes every key that matches the pattern, before the key's own section.
-- `## A, B` gives several keys the same text, as `PASSWORD` and `PASSWORD_MIN_LENGTH` share one
-  above. Names and patterns mix: `## ERROR_*, RETRY`.
-
-A name that matches no key in the scope is a warning, so a renamed constant does not leave its
-context behind unnoticed. So is a heading with nothing under it: each heading has its own text,
-and keys that share one are listed in a single heading.
-
-### Vocabulary: `context/glossary.json`
-
-```json
-{
-	"terms": [
-		{
-			"term": "training",
-			"group": "programme",
-			"note": "the whole programme: calibration, the fixed set and its cycles. Only one runs at a time",
-			"translations": {
-				"es-ES": "entrenamiento",
-				"ru-RU": "тренировка"
-			}
-		},
-		{
-			"term": "cycle",
-			"group": "programme",
-			"note": "one pass through the whole set; never a round",
-			"translations": {
-				"es-ES": "ciclo",
-				"ru-RU": "цикл"
-			}
-		}
-	],
-	"keep": ["My App", "FEN", "PGN"]
-}
-```
-
-| Field          | What it is                                                                           |
-| -------------- | ------------------------------------------------------------------------------------ |
-| `term`         | The word or phrase, as the source language writes it.                                |
-| `translations` | The word each language has to use for it.                                            |
-| `note`         | Optional: what it means here, and what it must not be taken for.                     |
-| `group`        | Optional: a label to keep related terms together.                                    |
-| `keep`         | Names that are never translated: product names, acronyms, notations.                 |
-
-A term is found in a text as a whole word, ignoring case and allowing a plural `s` or `es`, so
-"cycles" brings in "cycle". When two terms match and one contains the other, only the longer is
-kept: "quiet move" wins over "move". A term with no translation for a language is a warning in that
-language's column.
-
-### What the translator receives
-
-Each scope becomes a `<file>` in the XLIFF document, and each key a `<unit>`. The context travels
-as notes:
-
-| Where     | Note             | What it holds                                                          |
-| --------- | ---------------- | ---------------------------------------------------------------------- |
-| `<file>`  | `app`            | The introduction of `app.md`.                                          |
-| `<file>`  | `language`       | The `## <lang>` section of `app.md` for the target language.           |
-| `<file>`  | `scope`          | The introduction of `<scope>.md`.                                      |
-| `<file>`  | `glossary`       | The terms the scope uses, with their translation and note, and `keep`. |
-| `<unit>`  | `key`            | The constant, such as `AuthI18n.LOG_IN`.                               |
-| `<unit>`  | `param`          | Each parameter with its type.                                          |
-| `<unit>`  | `usage`          | The files that use the key.                                            |
-| `<unit>`  | `context`        | The group and key sections of `<scope>.md`.                            |
-| `<unit>`  | `term`           | The glossary terms this text uses, with their translation.             |
-| `<unit>`  | `category`       | For one form of a plural or gender select: which one.                  |
-| `<unit>`  | `examples`       | For a plural form: the numbers that select it in the target language.  |
-| `<unit>`  | `gender-note`    | For a gender form: what the user chose, if anything.                   |
-| `<unit>`  | `siblings`       | For one form: every form of the source, side by side.                  |
-| `<unit>`  | `outdated`       | For a stale translation: that the target below is the old one.         |
-| `<unit>`  | `srcHash`        | The fingerprint of the source, used on import.                         |
-
-### The language of the notes: `context/notes.<lang>.json`
-
-What comes from your context files travels as you wrote it. A few notes are worded by the CLI
-itself: the numbers of `examples`, the `gender-note`, the `outdated` note and the line of
-`glossary` that lists `keep`. They come from an English template the package ships,
-`src/catalogue/notes.en.json`.
-
-When the context is written in another language, those notes can follow it, so that whoever
-translates reads one language throughout, and a prompt that quotes the notes as they come stays in
-one language too. Name the language in `i18n.config.json`:
-
-```json
-{
-	"notesLang": "es"
-}
-```
-
-Then let the CLI write the file, next to the rest of the context and named after that language,
-and translate its values:
-
-```sh
-transloco-ulid notes
-```
-
-| Key                 | Where the export puts it                                              | Filled with                                 |
-| ------------------- | --------------------------------------------------------------------- | ------------------------------------------- |
-| `pluralExactly`     | `examples` of an exact case, like `=0`.                               | `{value}`: its number.                      |
-| `pluralNumbers`     | `examples` of a plural form some whole numbers select.                | `{numbers}`: the first of them.             |
-| `pluralDecimals`    | `examples` of a form only fractions select, like the Russian `other`. | `{numbers}`: a few of them.                 |
-| `decimalPoint`      | The separator those fractions are written with.                       |                                             |
-| `genderChosen`      | `gender-note` of the `male` and `female` forms.                       | `{gender}`: `genderMale` or `genderFemale`. |
-| `genderMale`        | The word `genderChosen` uses for `male`.                              |                                             |
-| `genderFemale`      | The word `genderChosen` uses for `female`.                            |                                             |
-| `genderUnspecified` | `gender-note` of the `other` form, for users who chose no gender.     |                                             |
-| `genderless`        | `gender-note` of the single form of a language without gender.        |                                             |
-| `neverTranslate`    | The last line of `glossary`.                                          | `{terms}`: the `keep` names.                |
-| `outdated`          | The `outdated` note of a stale translation.                           |                                             |
-
-The English wording is in the template itself, `src/catalogue/notes.en.json`. Each text is written
-to stand on its own, as a translation tool shows a note: what the app does with that form, and what
-the translation has to do about it. Whatever the file says goes in its place, so a Spanish file can
-turn the `examples` of a Russian `few` form into `la aplicación usa esta forma cuando el número es
-2, 3, 4, 22, 23…`. The note categories, the ids and the rest of the file are the same in every
-language.
-
-Every key of the template has to be there, with the placeholders it has and no others. A missing
-file, a text that is missing or empty, or a placeholder dropped or made up is an error in `check`,
-and `export` refuses to run rather than send a file in two languages. Two things are only
-warnings: a key the template does not have, and texts still exactly as the template writes them,
-which `check` lists in one line (`left to translate: "genderFemale", "genderless" and
-"outdated"`) and `export` repeats before it writes. `decimalPoint` is left out of that, since many
-languages share the English one. With `notesLang` left at `en`, `context/notes.en.json` is
-optional: when it is there, it rewords the English template.
-
-When a newer version of the CLI brings a text the template did not have, `check` reports it as
-missing, and `transloco-ulid notes` adds it to the file in English for you to translate, leaving
-every other value as it is.
+The export sends one unit per value to languages that mark gender, and a single unit to those that
+do not, such as Turkish, Indonesian, Vietnamese or Chinese.
 
 ## Freshness
 
@@ -564,16 +393,228 @@ translated from:
 }
 ```
 
-When the source text changes, its fingerprint no longer matches and the translation is **stale**:
-a warning, and the export sends it again with the old target and an `outdated` sub-state. A
-translation is **fresh** when the fingerprint matches, **missing** when it is empty, and
-**unknown** when it was written without one, for example by hand.
+That fingerprint gives every translation one of four statuses:
 
-`import` seals what comes back: a unit translated from today's source becomes fresh. A stale one
-that comes back untouched stays stale, and one whose source changed while it was out is sealed
-against the source it was translated from, so it reads as stale. `state` counts each status per
-language, and `state --adopt` seals every translation as it is today, for a catalogue that predates
-the state files.
+| Status      | Meaning                                                                    |
+| ----------- | -------------------------------------------------------------------------- |
+| **fresh**   | The fingerprint matches today's source.                                    |
+| **stale**   | The source changed after the translation was made.                         |
+| **missing** | The entry is empty.                                                        |
+| **unknown** | There is a translation but no fingerprint, for example one written by hand. |
+
+A stale translation is a warning, and the export sends it again with the old target and an
+`outdated` sub-state.
+
+`import` seals what comes back. A unit translated from today's source becomes fresh. A stale one
+that comes back untouched stays stale. One whose source changed while it was out is sealed against
+the source it was translated from, so it reads as stale.
+
+[`state`](#state) counts each status per language, and `state --adopt` seals every translation as
+it is today, for a catalogue that predates the state files.
+
+## Context for translators
+
+A translator who only sees "Open" cannot tell a verb from an adjective. The `context/` directory
+next to the keys says what each text is, and the export hands it over inside the XLIFF file. All of
+it is optional and written in plain Markdown, in whatever language your translators read.
+
+Context accumulates from the general to the specific: the application, the target language, the
+scope, a group of keys, the key. A layer with nothing written for it is left out.
+
+### The application and its languages: `context/app.md`
+
+```md
+# Acme
+
+Acme is an online furniture shop. The reader is a customer, not a professional, so nothing is
+worded as trade jargon.
+
+Tone: direct and informal, no exclamation marks. Button labels are short, imperative and have no
+full stop; status and error messages are full sentences.
+
+Rules for every language:
+
+- The ellipsis is the "…" character, never three dots.
+- Product names and order references are never translated.
+
+## es-ES
+
+Spanish from Spain, informal "tú". Buttons in the infinitive (`Guardar`, `Cancelar`). Quotes are
+«angle quotes». The decimal separator is the comma.
+
+## ru-RU
+
+Russian, formal "вы". Buttons in the infinitive. The currency sign follows the amount, after a
+non-breaking space.
+```
+
+- The `#` title is for you, and is not sent.
+- The text before the first `##` goes to every language.
+- A `## <lang>` section goes only to that language, and `## es-ES, ca-ES` to both.
+
+This is where grammar and style belong: register, how buttons are phrased, punctuation, quotes,
+number formats.
+
+### Scopes and keys: `context/<scope>.md`
+
+```md
+# auth
+
+The two session screens: log in and create an account. Short forms with an introduction on top.
+
+## LOG_IN_INTRO
+
+The paragraph above the log-in form. "Acme" stays as it is.
+
+## PASSWORD, PASSWORD_MIN_LENGTH
+
+The password field and the minimum length it asks for. `{length}` is a number.
+
+## ERROR_*
+
+Messages under the form when the request fails: full sentences with a full stop.
+```
+
+- The text before the first `##` describes the whole scope.
+- `## KEY` describes one key, by its constant name.
+- `## PREFIX_*` describes every key that matches the pattern, ahead of the key's own section.
+- `## A, B` gives several keys the same text. Names and patterns mix: `## ERROR_*, RETRY`.
+
+Two mistakes are warnings: a name that matches no key in the scope, so a renamed constant does not
+leave its context behind unnoticed, and a heading with nothing under it. Keys that share a text go
+in a single heading, not in stacked ones.
+
+#### Keep formatters away from the context files
+
+The context files are data for the CLI, not documentation. Prettier, for one, reads two patterns in
+one heading, `## ERROR_*, WARNING_*`, as emphasis between the two `*`, and rewrites it as
+`## ERROR__, WARNING__`. Neither name matches a key any more, so those keys reach the translator
+without their context, and only the `unknown-context-key` warnings give it away. If you use
+Prettier, add the directory to `.prettierignore`, as your `i18nDir` followed by `context/*.md`:
+
+```text
+src/app/i18n/context/*.md
+```
+
+### Vocabulary: `context/glossary.json`
+
+```json
+{
+	"terms": [
+		{
+			"term": "basket",
+			"group": "purchase",
+			"note": "where items wait until they are paid for; never a cart or a bag",
+			"translations": {
+				"es-ES": "cesta",
+				"ru-RU": "корзина"
+			}
+		},
+		{
+			"term": "order",
+			"group": "purchase",
+			"note": "a basket that has been paid for; never a request",
+			"translations": {
+				"es-ES": "pedido",
+				"ru-RU": "заказ"
+			}
+		}
+	],
+	"keep": ["Acme", "SKU", "IBAN"]
+}
+```
+
+| Field          | What it is                                                           |
+| -------------- | -------------------------------------------------------------------- |
+| `term`         | The word or phrase, as the source language writes it.                |
+| `translations` | The word each language has to use for it.                            |
+| `note`         | Optional: what it means here, and what it must not be taken for.     |
+| `group`        | Optional: a label to keep related terms together.                    |
+| `keep`         | Names that are never translated: product names, acronyms, notations. |
+
+A term is found in a text as a whole word, ignoring case and allowing a plural `s` or `es`, so
+"orders" brings in "order". When two terms match and one contains the other, only the longer is
+kept: "gift card" wins over "card". A term with no translation for a language is a warning.
+
+### What the translator receives
+
+Each scope becomes a `<file>` in the XLIFF document, and each key a `<unit>`. The context travels
+as notes:
+
+| Where    | Note          | What it holds                                                          |
+| -------- | ------------- | ---------------------------------------------------------------------- |
+| `<file>` | `app`         | The introduction of `app.md`.                                          |
+| `<file>` | `language`    | The `## <lang>` section of `app.md` for the target language.           |
+| `<file>` | `scope`       | The introduction of `<scope>.md`.                                      |
+| `<file>` | `glossary`    | The terms the scope uses, with their translation and note, and `keep`. |
+| `<unit>` | `key`         | The constant, such as `AuthI18n.LOG_IN`.                               |
+| `<unit>` | `param`       | Each parameter with its type.                                          |
+| `<unit>` | `usage`       | The files that use the key.                                            |
+| `<unit>` | `context`     | The group and key sections of `<scope>.md`.                            |
+| `<unit>` | `term`        | The glossary terms this text uses, with their translation.             |
+| `<unit>` | `category`    | For one form of a plural or gender select: which one.                  |
+| `<unit>` | `examples`    | For a plural form: the numbers that select it in the target language.  |
+| `<unit>` | `gender-note` | For a gender form: what the user chose, if anything.                   |
+| `<unit>` | `siblings`    | For one form: every form of the source, side by side.                  |
+| `<unit>` | `outdated`    | For a stale translation: that the target below is the old one.         |
+| `<unit>` | `srcHash`     | The fingerprint of the source, used on import.                         |
+
+### The language of the notes
+
+What comes from your context files travels as you wrote it. A few notes are worded by the CLI
+itself: `examples`, `gender-note`, `outdated` and the line of `glossary` that lists `keep`. They
+come from an English template the package ships, `src/catalogue/notes.en.json`.
+
+When your context is written in another language, those notes can follow it, so translators, and
+any tool that quotes the notes, read one language throughout. Name the language in
+`i18n.config.json`:
+
+```json
+{
+	"notesLang": "es"
+}
+```
+
+Then let the CLI write `context/notes.es.json`, and translate its values:
+
+```sh
+transloco-ulid notes
+```
+
+| Key                 | Where the export puts it                                              | Placeholder                                 |
+| ------------------- | --------------------------------------------------------------------- | ------------------------------------------- |
+| `pluralExactly`     | `examples` of an exact case, like `=0`.                               | `{value}`: its number.                      |
+| `pluralNumbers`     | `examples` of a plural form some whole numbers select.                | `{numbers}`: the first of them.             |
+| `pluralDecimals`    | `examples` of a form only fractions select, like the Russian `other`. | `{numbers}`: a few of them.                 |
+| `decimalPoint`      | The separator those fractions are written with.                       |                                             |
+| `genderChosen`      | `gender-note` of the `male` and `female` forms.                       | `{gender}`: `genderMale` or `genderFemale`. |
+| `genderMale`        | The word `genderChosen` uses for `male`.                              |                                             |
+| `genderFemale`      | The word `genderChosen` uses for `female`.                            |                                             |
+| `genderUnspecified` | `gender-note` of the `other` form, for users who chose no gender.     |                                             |
+| `genderless`        | `gender-note` of the single form of a language without gender.        |                                             |
+| `neverTranslate`    | The last line of `glossary`.                                          | `{terms}`: the `keep` names.                |
+| `outdated`          | The `outdated` note of a stale translation.                           |                                             |
+
+Each text is written to stand on its own, the way a translation tool shows a note: what the
+application does with that form, and what the translation has to do about it. Your wording replaces
+the template's, so a Spanish file can turn the `examples` of a Russian `few` form into
+`la aplicación usa esta forma cuando el número es 2, 3, 4, 22, 23…`. Note categories and unit ids
+are the same in every language.
+
+The file has to hold every key of the template, with the same placeholders:
+
+- **Errors**: a missing file, a text that is missing or empty, and a placeholder dropped or made
+  up. `check` reports them, and `export` refuses to run rather than send a file in two languages.
+- **Warnings**: a key the template does not have, and texts still exactly as the template writes
+  them. `check` lists the latter in one line, and `export` repeats it before writing.
+  `decimalPoint` is exempt, since many languages share the English one.
+
+With `notesLang` left at `en`, `context/notes.en.json` is optional: when present, it rewords the
+English template.
+
+When a newer version of the CLI adds a text to the template, `check` reports it as missing.
+`transloco-ulid notes` then adds it to your file in English for you to translate, leaving every
+other value as it is.
 
 ## Commands
 
@@ -587,8 +628,9 @@ the state files.
 | [`clear`](#clear)   | Empties the translations of some languages.                        |
 | [`notes`](#notes)   | Writes the notes file of a language from the English template.     |
 
-`check`, `add`, `export`, `import` and `notes` print their options with `--help`. Every command takes
-`--dir <path>` for another catalogue directory and `--languages <file>` for another language file.
+Every command takes `--dir <path>` for another catalogue directory and `--languages <file>` for
+another language file. `check`, `add`, `export`, `import` and `notes` print their options with
+`--help`.
 
 ### check
 
@@ -596,24 +638,28 @@ the state files.
 transloco-ulid check [--fix] [--verbose]
 ```
 
-Paints one row per scope with the state of its keys, its parameters and each language, and lists
-the problems underneath. Only errors fail the command; warnings and notes are counted, and listed
+Prints one row per scope with the state of its keys, its parameters and each language, and lists
+the problems underneath. Only errors fail the command. Warnings and notes are counted, and listed
 with `--verbose`.
 
-| Option              | What it does                                                         |
-| ------------------- | -------------------------------------------------------------------- |
-| `--fix`             | Writes what can be written by itself, then reports what is left.     |
-| `--verbose`, `-v`   | Lists warnings and notes too.                                        |
-| `--source <paths>`  | Comma-separated directories to scan for usages, instead of `sourceDirs`. |
-| `--langs <codes>`   | Comma-separated languages, the first one the source.                 |
+| Option             | What it does                                                             |
+| ------------------ | ------------------------------------------------------------------------ |
+| `--fix`            | Fixes what can be fixed automatically, then reports what is left.        |
+| `--verbose`, `-v`  | Lists warnings and notes too.                                            |
+| `--source <paths>` | Comma-separated directories to scan for usages, instead of `sourceDirs`. |
+| `--langs <codes>`  | Comma-separated languages, the first one being the source.               |
 
-What it reports:
+Besides the findings marked below, `--fix` rewrites each `<lang>.json` in `keys.ts` order and
+keeps the state files in step.
+
+Every finding belongs to a group: `pending` is translation work still to do, `message` is something
+wrong inside a text, `structure` is the files of the catalogue, `usage` is how the code refers to
+the keys, and `context` is what travels to the translator.
 
 | Finding                      | Group     | Severity | `--fix` | Meaning                                                                   |
 | ---------------------------- | --------- | -------- | ------- | ------------------------------------------------------------------------- |
 | `missing-translation`        | pending   | error    | ✔       | A language has no entry for a key the source has.                         |
 | `empty-translation`          | pending   | warning  |         | The entry is there and empty: waiting for the translator.                 |
-| `orphan-translation`         | structure | warning  | ✔       | A language has an entry no key declares.                                  |
 | `stale-translation`          | pending   | warning  |         | The source changed after it was translated.                               |
 | `param-mismatch`             | message   | error    |         | A translation adds, drops or changes a parameter.                         |
 | `icu-syntax`                 | message   | error    |         | The text is not valid ICU.                                                |
@@ -622,9 +668,10 @@ What it reports:
 | `unknown-plural-category`    | message   | error    |         | A plural branches on a form the language does not have.                   |
 | `unknown-gender-value`       | message   | error    |         | A gender select branches on a value the setting never holds.              |
 | `unsupported-argument`       | message   | error    |         | A `selectordinal`.                                                        |
-| `too-many-forms`             | message   | error    |         | The message opens into more than 16 forms in some language.               |
+| `too-many-forms`             | message   | error    |         | The message expands into more than 16 forms in some language.             |
 | `ambiguous-hash`             | message   | error    |         | `#` under two or more plurals.                                            |
 | `stray-plural-param`         | message   | warning  |         | A plural form of the source names another parameter and never its number. |
+| `orphan-translation`         | structure | warning  | ✔       | A language has an entry no key declares.                                  |
 | `stale-params`               | structure | error    | ✔       | `params.ts` does not match the source texts.                              |
 | `missing-params-file`        | structure | error    | ✔       | A scope with parameters has no `params.ts`.                               |
 | `unregistered-scope`         | structure | error    | ✔       | A scope is missing from `I18n` in `index.ts`.                             |
@@ -649,12 +696,6 @@ What it reports:
 | `unknown-note-text`          | context   | warning  |         | The notes file has a text the template does not.                          |
 | `untranslated-note-text`     | context   | warning  |         | Texts of the notes file are still the English template.                   |
 
-The group says what a finding is about: `pending` is translation work still to do, `message` is
-something wrong inside a text, `structure` is the files of the catalogue, `usage` is how the code
-refers to the keys, and `context` is what travels to the translator.
-
-`--fix` also rewrites each `<lang>.json` in `keys.ts` order and keeps the state files in step.
-
 ### add
 
 ```sh
@@ -663,30 +704,32 @@ transloco-ulid add --name <NAME> --plural <param> --one <form> --other <form> [-
 ```
 
 Writes a new ULID into `keys.ts`, the text into the source `<lang>.json` and an empty entry into
-every other one. `params.ts` takes the new entry only when it was up to date before, so the key is
-the only change the command can bring; when it already had pending changes, it is left alone and
-the command says so.
+every other language.
 
-| Option             | What it does                                                            |
-| ------------------ | ----------------------------------------------------------------------- |
-| `--name <NAME>`    | The constant, in `SCREAMING_SNAKE_CASE`.                                |
-| `--scope <name>`   | The scope it goes into. Defaults to `rootScope`.                        |
-| `--text <text>`    | The source text, as an ICU message.                                     |
-| `--plural <param>` | Builds a plural on that parameter from one option per form.             |
-| `--zero`, `--one`, `--two`, `--few`, `--many`, `--other` | The forms, exactly those the source language needs. |
-| `--dry-run`        | Prints what would be written, and writes nothing.                       |
+| Option                                                   | What it does                                                |
+| -------------------------------------------------------- | ----------------------------------------------------------- |
+| `--name <NAME>`                                          | The constant, in `SCREAMING_SNAKE_CASE`.                    |
+| `--scope <name>`                                         | The scope it goes into. Defaults to `rootScope`.            |
+| `--text <text>`                                          | The source text, as an ICU message.                         |
+| `--plural <param>`                                       | Builds a plural on that parameter from one option per form. |
+| `--zero`, `--one`, `--two`, `--few`, `--many`, `--other` | The forms: exactly those the source language needs.         |
+| `--dry-run`                                              | Prints what would be written, and writes nothing.           |
 
-The text has to pass the rules `check` applies to the source language, so a key is never born with
-an error. A Russian source asks for four forms:
+The text has to pass the rules `check` applies to the source language, so a new key never starts
+out with an error. A Russian source, for instance, asks for four forms:
 
 ```sh
-transloco-ulid add --name CHALLENGES --plural count \
-  --one "# задача" --few "# задачи" --many "# задач" --other "# задачи"
+transloco-ulid add --name ITEMS --plural count \
+  --one "# товар" --few "# товара" --many "# товаров" --other "# товара"
 ```
 
-A form that names another parameter and never counts, such as `{total} challenges` under `count`,
-is written all the same with a warning, since it is usually a typo for `# challenges`, and
-`One challenge from {name}` has exactly the same shape on purpose.
+A form that names another parameter and never the number, such as `{total} items` under `count`,
+is written with a warning. It is usually a typo for `# items`, but `One item from {name}` has the
+same shape on purpose, so it is not refused.
+
+`params.ts` takes the new entry only when it was up to date before, so the key is the only change
+the command introduces. When the file already had pending changes, it is left alone and the command
+says so.
 
 ### export
 
@@ -695,23 +738,28 @@ transloco-ulid export [--lang <codes>] [--scope <names>] [--missing | --stale | 
 ```
 
 Writes one bilingual XLIFF 2.0 file per target language, `translations/<lang>.xlf` by default.
-Each unit's `id` is the key's value, each `{param}` or `{param, number}` travels as an
-`<originalData>` and `<ph>` pair the translator cannot break, and a plural or gender select
-travels as one unit per form the target
-language needs, with ids such as `auth.01KZ…#plural:few`.
 
-| Option            | What it does                                                             |
-| ----------------- | ------------------------------------------------------------------------ |
-| `--lang <codes>`  | Comma-separated target languages. Defaults to every one but the source.  |
-| `--scope <names>` | Comma-separated scopes. Defaults to all of them.                         |
-| `--out <path>`    | The directory the files are written to. Defaults to `translations`.      |
-| `--missing`       | Only the keys with no translation yet.                                   |
-| `--stale`         | Only the keys translated before the source changed.                      |
-| `--pending`       | Both.                                                                    |
-| `--blank`         | Every unit with an empty target and no outdated note, so nothing in the file can seed a machine translation. |
+- Each unit's `id` is the key's value.
+- Each `{param}` or `{param, number}` travels as an `<originalData>` and `<ph>` pair the translator
+  cannot break.
+- A plural or gender select travels as one unit per form the target language needs, with ids such
+  as `auth.01KZ…#plural:few`.
 
-Without a selection the whole catalogue travels. A key travels whole: one form short sends all of
-its siblings along.
+| Option            | What it does                                                            |
+| ----------------- | ----------------------------------------------------------------------- |
+| `--lang <codes>`  | Comma-separated target languages. Defaults to every one but the source. |
+| `--scope <names>` | Comma-separated scopes. Defaults to all of them.                        |
+| `--out <path>`    | The directory the files are written to. Defaults to `translations`.     |
+| `--missing`       | Only the keys with no translation yet.                                  |
+| `--stale`         | Only the keys translated before the source changed.                     |
+| `--pending`       | Both.                                                                   |
+| `--blank`         | Sends every selected unit with an empty target and no `outdated` note.  |
+
+Without `--missing`, `--stale` or `--pending`, the whole catalogue is exported. A key always
+travels whole: if one of its forms is selected, all of them are sent.
+
+Use `--blank` when nothing in the file should seed a machine translation, or let an old string
+pass as a new answer.
 
 ### import
 
@@ -720,23 +768,25 @@ transloco-ulid import [files|directories...] [--dry-run]
 ```
 
 Reads translated XLIFF files, from `translations/` by default, and merges their targets into the
-`<lang>.json` files in `keys.ts` order. It only ever adds: a key the file does not carry keeps its
-value, and a unit that came back empty is counted and skipped. A key that travelled as one unit per
-form is put back together into one ICU message, and only when every form came back and parses.
+`<lang>.json` files in `keys.ts` order.
 
-| Option            | What it does                                                         |
-| ----------------- | -------------------------------------------------------------------- |
-| `--dry-run`       | Reports what would change, and writes nothing.                       |
-| `--verbose`, `-v` | Lists the changed and outdated units one by one.                     |
-| `--all-new`       | Adds every ULID `keys.ts` does not know, without asking.             |
-| `--no-new`        | Skips them all instead.                                              |
-| `--langs <codes>` | Comma-separated languages, the first one the source.                 |
+The import only ever adds. A key the file does not carry keeps its value, and a unit that came back
+empty is counted and skipped. A key that travelled as one unit per form is put back together into
+one ICU message, and only when every form came back and the result parses.
 
-A ULID the catalogue does not know is offered in a picker, and an accepted one is appended to
-`keys.ts`: run `check --fix` afterwards to bring `params.ts` up to date.
+| Option            | What it does                                               |
+| ----------------- | ---------------------------------------------------------- |
+| `--dry-run`       | Reports what would change, and writes nothing.             |
+| `--verbose`, `-v` | Lists the changed and outdated units one by one.           |
+| `--all-new`       | Adds every ULID `keys.ts` does not know, without asking.   |
+| `--no-new`        | Skips them all instead.                                    |
+| `--langs <codes>` | Comma-separated languages, the first one being the source. |
 
-What comes back wrong is listed under the changes, each with its rule, and never stops the rest
-of the file from being merged:
+A ULID the catalogue does not know is offered in an interactive picker, and an accepted one is
+appended to `keys.ts`. Run `check --fix` afterwards to bring `params.ts` up to date.
+
+Problems in a file are listed under the changes, each with its rule, and never stop the rest of
+the file from being merged:
 
 | Problem                | Meaning                                                  |
 | ---------------------- | -------------------------------------------------------- |
@@ -750,9 +800,9 @@ of the file from being merged:
 | `broken-forms`         | The forms of a key do not rebuild into one message.      |
 | `placeholder-mismatch` | A translation changes the placeholders of its source.    |
 
-Only `placeholder-mismatch` is merged all the same, for `check` to report as a `param-mismatch`
-where it now lives. Every other one leaves out what it names: the unit, the key, the scope or the
-file.
+Every problem leaves out what it names (the unit, the key, the scope or the file), with one
+exception: a `placeholder-mismatch` is merged anyway, and `check` then reports it as a
+`param-mismatch` in the catalogue.
 
 ### state
 
@@ -760,9 +810,11 @@ file.
 transloco-ulid state [--adopt]
 ```
 
-Counts the fresh, stale, missing and unknown translations of each language. `--adopt` seals every
-non-empty translation against today's source, which also retires every stale one: use it once, on a
-catalogue that predates the state files.
+Counts the fresh, stale, missing and unknown translations of each language; see
+[Freshness](#freshness).
+
+`--adopt` seals every non-empty translation against today's source, which also clears every stale
+one. Use it once, on a catalogue that predates the state files.
 
 ### clear
 
@@ -770,9 +822,11 @@ catalogue that predates the state files.
 transloco-ulid clear --lang <codes> [--scope <names>] [--dry-run] [--unseal]
 ```
 
-Empties every translation of those languages, so they read as untranslated again. The entries stay,
-with an empty value. `--unseal` also drops their fingerprints from `state/`, and the source language
-is refused. To send a fresh batch out without touching the catalogue, prefer `export --blank`.
+Empties every translation of the given languages, so they read as untranslated again. The entries
+stay, with an empty value, and the source language is refused. `--unseal` also drops their
+fingerprints from `state/`.
+
+To send a fresh batch out without touching the catalogue, prefer `export --blank`.
 
 ### notes
 
@@ -781,9 +835,10 @@ transloco-ulid notes [--lang <tag>] [--dry-run]
 ```
 
 Writes `context/notes.<lang>.json` from the English template, for the language of `notesLang` or
-the one `--lang` names: see [The language of the notes](#the-language-of-the-notes-contextnoteslangjson).
-When the file is already there, it only adds the texts the template has and the file lacks, in
-English, and keeps every value already written. It never removes one.
+the one `--lang` names; see [The language of the notes](#the-language-of-the-notes).
+
+When the file already exists, the command only adds the texts the template has and the file lacks,
+in English. It keeps every value already written and never removes one.
 
 ## Running it in CI
 
@@ -793,12 +848,12 @@ English, and keeps every value already written. It never removes one.
 ```
 
 The command fails on errors only. On GitHub Actions it also writes a report into the job summary:
-the table of scopes, the problems counted by rule, and how many `--fix` could solve.
+the table of scopes, the problems counted by rule, and how many of them `--fix` could solve.
 
 ## Using it from code
 
-The package is also a library: `import` it by its name and you get the same engine the commands
-run on, which is how an editor integration shows what `check` would say without running it.
+The package is also a library. Importing it by name gives you the engine the commands run on, which
+is how an editor integration can show what `check` would say without running it.
 
 ```js
 import { analyse, loadProject } from '@drackp2m/transloco-ulid-cli';
@@ -811,52 +866,53 @@ for (const { severity, type, file, line, message } of findings) {
 }
 ```
 
-`loadProject()` is `i18n.config.json` with every path made absolute, so it works from any
+`loadProject()` returns `i18n.config.json` with every path made absolute, so it works from any
 directory. `analyse()` reads the catalogue and the sources once and returns:
 
-| Field       | What it holds                                                                    |
-| ----------- | -------------------------------------------------------------------------------- |
-| `findings`  | Everything `check` reports. Each one carries its `type`, `file`, `line` and `col`, the `scope`, `key` and `ulid` it is about, the `lang` where there is one, and what the table of findings says of its rule: `group`, `severity`, `fixable` and `meaning`. |
+| Field       | What it holds                                                                        |
+| ----------- | ------------------------------------------------------------------------------------ |
+| `findings`  | Everything `check` reports. Each finding carries its `type`, `file`, `line` and `col`; the `scope`, `key`, `ulid` and, where there is one, `lang` it is about; and the `group`, `severity`, `fixable` and `meaning` of its rule. |
 | `freshness` | One entry per key and target language: `scope`, `ulid`, `name`, `lang` and `status`. |
-| `tally`     | Those entries counted per language, as `state` prints them.                      |
-| `scopes`    | The scopes as they were read: keys, translations and files.                      |
+| `tally`     | Those entries counted per language, as `state` prints them.                          |
+| `scopes`    | The scopes as they were read: keys, translations and files.                          |
 | `sources`   | What the code refers to: `usages`, `commented`, `bare` and `sites`, each reference with its line and column. |
-| `params`    | The parameters `params.ts` declares for each key.                                |
+| `params`    | The parameters `params.ts` declares for each key.                                    |
 
-Two options keep an editor fast and honest:
+Two options are aimed at editor integrations:
 
 ```js
 const unsaved = new Map([[file, editorText]]);
 const next = analyse(project, { texts: unsaved, sources: previous.sources });
 ```
 
-`texts` are files as the editor holds them, by absolute path: they are read instead of the disk,
-whatever they are — a translation, `keys.ts`, a template, a context file. `sources` hands back what
-an earlier pass found in the code, so a change to the catalogue alone does not walk it again.
+- `texts` holds files as the editor has them, by absolute path. They are read instead of the disk,
+  whatever they are: a translation, `keys.ts`, a template, a context file.
+- `sources` hands back what an earlier pass found in the code, so a change to the catalogue alone
+  does not scan the sources again.
 
-The rest of what the package exports:
+The rest of the public API:
 
-| Export                                                    | What it is for                                       |
-| --------------------------------------------------------- | ---------------------------------------------------- |
-| `checkText(text, lang, { langs, source })`                | One text on its own, each problem with its rule. `source` asks what only the source language answers for. |
-| `usagesIn(text, file, { pipe })`                          | The references one text holds, with where each starts and ends, and whether it is commented or bare. |
-| `representativeOf(text)`                                  | The one form of a message to show in a single line.  |
-| `RULES`, `ruleOf()`, `severityOf()`, `groupOf()`, `isFixable()`, `typesOf()` | The table of findings.            |
+| Export | What it is for |
+| ------ | -------------- |
+| `checkText(text, lang, { langs, source })` | Checks one text on its own, and returns each problem with its rule. `source` also runs the checks that only apply to the source language. |
+| `usagesIn(text, file, { pipe })` | The references one text holds, with where each starts and ends, and whether it is commented or bare. |
+| `representativeOf(text)` | The one form of a message to show in a single line. |
+| `RULES`, `ruleOf()`, `severityOf()`, `groupOf()`, `isFixable()`, `typesOf()` | The table of findings. |
 | `planKey()`, `keyNameProblem()`, `paramNameProblem()`, `textProblems()`, `formProblem()`, `formDoubt()`, `formsToAsk()`, `pluralSource()` | What `add` does, without writing: the plan of a new key and the rules for its name, its text and each plural form. |
-| `exportLangs()`, `buildExport()`, `writeExport()`         | What `export` does.                                  |
-| `readXliff()`, `planImport()`, `applyImport()`            | What `import` does.                                  |
-| `tallyOf()`, `STATUSES`                                   | The freshness states and their count.                |
-| `readLanguages()`, `isUlid()`, `toKebabCase()`, `toPascalCase()`, `CONFIG_FILE` | Small things every integration ends up needing. |
-| `API_VERSION`, `CLI_VERSION`                              | The contract and the package.                        |
+| `exportLangs()`, `buildExport()`, `writeExport()` | What `export` does. |
+| `readXliff()`, `planImport()`, `applyImport()` | What `import` does. |
+| `tallyOf()`, `STATUSES` | The freshness statuses and their count. |
+| `readLanguages()`, `isUlid()`, `toKebabCase()`, `toPascalCase()`, `CONFIG_FILE` | Small helpers most integrations end up needing. |
+| `API_VERSION`, `CLI_VERSION` | The version of this contract, and of the package. |
 
-`API_VERSION` is a whole number that only moves when something in this list changes its meaning
-or goes away, so an integration can check it once and say plainly which version of the package it
-needs. Adding to the list does not move it.
+`API_VERSION` is a whole number that only changes when something in this list changes its meaning
+or is removed, so an integration can check it once and state plainly which version of the package
+it needs. Additions do not change it.
 
-Every file under `src/` is still importable by path, as
-`@drackp2m/transloco-ulid-cli/catalogue/message.mjs`, and none of them is part of that contract:
-they are how the commands are built and change freely between versions.
+Every file under `src/` can still be imported by path, as
+`@drackp2m/transloco-ulid-cli/catalogue/message.mjs`, but none of them is part of that contract:
+they are internals, and change freely between versions.
 
 ## License
 
-MIT
+[MIT](LICENSE)
