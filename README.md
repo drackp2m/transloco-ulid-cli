@@ -140,8 +140,11 @@ relative to the directory that holds the file, so in a monorepo they can point i
 | `rootScope`    | yes      | The name of the scope that lives at the top of `i18nDir`.                        |
 | `importAlias`  | yes      | The path alias for `i18nDir`, used in the imports `check --fix` writes.          |
 | `xliffPrefix`  | yes      | The prefix of the XLIFF sub-states the export writes, such as `my-app:outdated`. |
-| `notesLang`    | no       | The language of the notes the export words itself. Defaults to `en`; see [The language of the notes](#the-language-of-the-notes). |
-| `pipe`         | no       | The pipe that translates a key in a template. Defaults to `transloco`; see [In the application](#in-the-application). |
+| `notesLang`    | no       | The language of the notes the export words itself. Defaults to `en`.             |
+| `pipe`         | no       | The pipe that translates a key in a template. Defaults to `transloco`.           |
+
+`notesLang` is explained in [The language of the notes](#the-language-of-the-notes), and `pipe`
+in [In the application](#in-the-application).
 
 The language file declares the languages as single-quoted literals. `DEFAULT_LANGUAGE` is the
 source language: the one texts are written in, and the one every other language is translated
@@ -395,11 +398,11 @@ translated from:
 
 That fingerprint gives every translation one of four statuses:
 
-| Status      | Meaning                                                                    |
-| ----------- | -------------------------------------------------------------------------- |
-| **fresh**   | The fingerprint matches today's source.                                    |
-| **stale**   | The source changed after the translation was made.                         |
-| **missing** | The entry is empty.                                                        |
+| Status      | Meaning                                                                     |
+| ----------- | --------------------------------------------------------------------------- |
+| **fresh**   | The fingerprint matches today's source.                                     |
+| **stale**   | The source changed after the translation was made.                          |
+| **missing** | The entry is empty.                                                         |
 | **unknown** | There is a translation but no fingerprint, for example one written by hand. |
 
 A stale translation is a warning, and the export sends it again with the old target and an
@@ -869,14 +872,14 @@ for (const { severity, type, file, line, message } of findings) {
 `loadProject()` returns `i18n.config.json` with every path made absolute, so it works from any
 directory. `analyse()` reads the catalogue and the sources once and returns:
 
-| Field       | What it holds                                                                        |
-| ----------- | ------------------------------------------------------------------------------------ |
+| Field       | What it holds                                                                                                                                                                                                                    |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `findings`  | Everything `check` reports. Each finding carries its `type`, `file`, `line` and `col`; the `scope`, `key`, `ulid` and, where there is one, `lang` it is about; and the `group`, `severity`, `fixable` and `meaning` of its rule. |
-| `freshness` | One entry per key and target language: `scope`, `ulid`, `name`, `lang` and `status`. |
-| `tally`     | Those entries counted per language, as `state` prints them.                          |
-| `scopes`    | The scopes as they were read: keys, translations and files.                          |
-| `sources`   | What the code refers to: `usages`, `commented`, `bare` and `sites`, each reference with its line and column. |
-| `params`    | The parameters `params.ts` declares for each key.                                    |
+| `freshness` | One entry per key and target language: `scope`, `ulid`, `name`, `lang` and `status`.                                                                                                                                             |
+| `tally`     | Those entries counted per language, as `state` prints them.                                                                                                                                                                      |
+| `scopes`    | The scopes as they were read: keys, translations and files.                                                                                                                                                                      |
+| `sources`   | What the code refers to: `usages`, `commented`, `bare` and `sites`, each reference with its line and column.                                                                                                                     |
+| `params`    | The parameters `params.ts` declares for each key.                                                                                                                                                                                |
 
 Two options are aimed at editor integrations:
 
@@ -892,18 +895,18 @@ const next = analyse(project, { texts: unsaved, sources: previous.sources });
 
 The rest of the public API:
 
-| Export | What it is for |
-| ------ | -------------- |
-| `checkText(text, lang, { langs, source })` | Checks one text on its own, and returns each problem with its rule. `source` also runs the checks that only apply to the source language. |
-| `usagesIn(text, file, { pipe })` | The references one text holds, with where each starts and ends, and whether it is commented or bare. |
-| `representativeOf(text)` | The one form of a message to show in a single line. |
-| `RULES`, `ruleOf()`, `severityOf()`, `groupOf()`, `isFixable()`, `typesOf()` | The table of findings. |
-| `planKey()`, `keyNameProblem()`, `paramNameProblem()`, `textProblems()`, `formProblem()`, `formDoubt()`, `formsToAsk()`, `pluralSource()` | What `add` does, without writing: the plan of a new key and the rules for its name, its text and each plural form. |
-| `exportLangs()`, `buildExport()`, `writeExport()` | What `export` does. |
-| `readXliff()`, `planImport()`, `applyImport()` | What `import` does. |
-| `tallyOf()`, `STATUSES` | The freshness statuses and their count. |
-| `readLanguages()`, `isUlid()`, `toKebabCase()`, `toPascalCase()`, `CONFIG_FILE` | Small helpers most integrations end up needing. |
-| `API_VERSION`, `CLI_VERSION` | The version of this contract, and of the package. |
+| Export                                                                                                                                    | What it is for                                                                                                                            |
+| ----------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `checkText(text, lang, { langs, source })`                                                                                                | Checks one text on its own, and returns each problem with its rule. `source` also runs the checks that only apply to the source language. |
+| `usagesIn(text, file, { pipe })`                                                                                                          | The references one text holds, with where each starts and ends, and whether it is commented or bare.                                      |
+| `representativeOf(text)`                                                                                                                  | The one form of a message to show in a single line.                                                                                       |
+| `RULES`, `ruleOf()`, `severityOf()`, `groupOf()`, `isFixable()`, `typesOf()`                                                              | The table of findings.                                                                                                                    |
+| `planKey()`, `keyNameProblem()`, `paramNameProblem()`, `textProblems()`, `formProblem()`, `formDoubt()`, `formsToAsk()`, `pluralSource()` | What `add` does, without writing: the plan of a new key and the rules for its name, its text and each plural form.                        |
+| `exportLangs()`, `buildExport()`, `writeExport()`                                                                                         | What `export` does.                                                                                                                       |
+| `readXliff()`, `planImport()`, `applyImport()`                                                                                            | What `import` does.                                                                                                                       |
+| `tallyOf()`, `STATUSES`                                                                                                                   | The freshness statuses and their count.                                                                                                   |
+| `readLanguages()`, `isUlid()`, `toKebabCase()`, `toPascalCase()`, `CONFIG_FILE`                                                           | Small helpers most integrations end up needing.                                                                                           |
+| `API_VERSION`, `CLI_VERSION`                                                                                                              | The version of this contract, and of the package.                                                                                         |
 
 `API_VERSION` is a whole number that only changes when something in this list changes its meaning
 or is removed, so an integration can check it once and state plainly which version of the package
