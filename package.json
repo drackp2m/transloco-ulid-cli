@@ -38,8 +38,8 @@
 	},
 	"scripts": {
 		"prepare": "husky",
-		"test": "node --test",
-		"test:coverage": "c8 node --test"
+		"test": "node scripts/test.mjs",
+		"test:coverage": "c8 node scripts/test.mjs"
 	},
 	"publishConfig": {
 		"access": "public"

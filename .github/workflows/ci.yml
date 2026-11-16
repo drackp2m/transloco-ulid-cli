@@ -45,6 +45,8 @@ jobs:
         run: npm install --no-audit --no-fund
 
       - name: Run tests with coverage
+        env:
+          GITHUB_STEP_SUMMARY: ''
         run: npm run test:coverage
 
       - name: Upload to Coveralls
