@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 import { writeSummary } from './test-summary.mjs';
 
-const VERSION = '1.4.0';
+const VERSION = '1.4.1';
 const LABEL = 'unit';
 const SLOW_TEST_MS = 300;
 const TICK_MS = 100;
@@ -76,6 +76,7 @@ function fileState(path) {
 			output: { stdout: '', stderr: '' },
 			enqueued: 0,
 			seen: false,
+			done: false,
 		};
 		files.set(path, state);
 	}
@@ -174,11 +175,10 @@ const ANSI_STYLE = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, 'gu');
 
 const visible = (text) => text.replace(ANSI_STYLE, '').length;
 
-function fit(text) {
-	const width = process.stdout.columns ?? 80;
-	const over = visible(text) - width;
+const FOOTER_ROWS = 7;
 
-	return 0 >= over ? text : `${text.slice(0, text.length - over - 1)}…`;
+function shortened(path, room) {
+	return path.length <= room ? path : `…${path.slice(path.length - Math.max(room, 2) + 1)}`;
 }
 
 function divider(text, tint = (value) => value, right) {
@@ -193,8 +193,22 @@ function divider(text, tint = (value) => value, right) {
 
 function runningRow(path, state) {
 	const progress = 0 === state.enqueued ? '[queued]' : `${state.tests.length}/${state.enqueued}`;
+	const room = (process.stdout.columns ?? 80) - LABEL.length - progress.length - 8;
 
-	return fit(` ${c.yellow('❯')} ${c.label(` ${LABEL} `)} ${path} ${c.dim(progress)}`);
+	return ` ${c.yellow('❯')} ${c.label(` ${LABEL} `)} ${shortened(path, room)} ${c.dim(progress)}`;
+}
+
+function runningRows() {
+	const running = [...files.entries()]
+		.filter(([, state]) => state.seen && !state.done && undefined === state.total)
+		.map(([path, state]) => runningRow(path, state));
+	const room = Math.max(1, (process.stdout.rows ?? 24) - FOOTER_ROWS);
+
+	if (running.length <= room) {
+		return running;
+	}
+
+	return [...running.slice(0, room - 1), c.dim(`   … and ${running.length - room + 1} more`)];
 }
 
 function counters() {
@@ -212,9 +226,7 @@ function counters() {
 }
 
 function liveBlock() {
-	const running = [...files.entries()]
-		.filter(([, state]) => state.seen && undefined === state.total)
-		.map(([path, state]) => runningRow(path, state));
+	const running = runningRows();
 	const totals = counters();
 	const rows = [
 		`${label('Test Files')}  ${fileTally(totals)}`,
@@ -390,6 +402,10 @@ function trackEvent(event, data) {
 
 	if (null !== path && ('test:start' === event.type || data.name === path)) {
 		fileState(path).seen = 'test:enqueue' !== event.type;
+	}
+
+	if ('test:complete' === event.type && null !== path && data.name === path) {
+		fileState(path).done = true;
 	}
 
 	if ('test:enqueue' === event.type && null !== path && 1 <= data.nesting) {
