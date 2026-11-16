@@ -296,8 +296,8 @@ describe('check — the context for translators', () => {
 		const catalogue = catalogueWith([SAVE], { context: { scope } });
 
 		deepStrictEqual(findings(catalogue), [
-			'warning unknown-context-key: "LOAD" matches no key of the "demo" scope',
-			'warning unknown-context-key: "X_*" matches no key of the "demo" scope',
+			'error unknown-context-key: "LOAD" matches no key of the "demo" scope',
+			'error unknown-context-key: "X_*" matches no key of the "demo" scope',
 		]);
 	});
 
@@ -306,7 +306,7 @@ describe('check — the context for translators', () => {
 		const catalogue = catalogueWith([SAVE], { context: { scope } });
 
 		deepStrictEqual(findings(catalogue), [
-			'warning unknown-context-key: "SAEV" matches no key of the "demo" scope',
+			'error unknown-context-key: "SAEV" matches no key of the "demo" scope',
 		]);
 		deepStrictEqual(placesOf(catalogue), [
 			{ type: 'unknown-context-key', file: 'i18n/context/demo.md', line: 3, col: 10 },
@@ -337,8 +337,8 @@ describe('check — the context for translators', () => {
 		};
 
 		deepStrictEqual(findings(catalogueWith([SAVE], { context: { glossary } })), [
-			'warning glossary-term-missing-lang [es-ES]: "load" has no "es-ES" translation',
-			'warning glossary-term-missing-lang [es-ES]: "board" has no "es-ES" translation',
+			'error glossary-term-missing-lang [es-ES]: "load" has no "es-ES" translation',
+			'error glossary-term-missing-lang [es-ES]: "board" has no "es-ES" translation',
 		]);
 	});
 

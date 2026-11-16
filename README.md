@@ -492,7 +492,7 @@ in a single heading, not in stacked ones.
 The context files are data for the CLI, not documentation. Prettier, for one, reads two patterns in
 one heading, `## ERROR_*, WARNING_*`, as emphasis between the two `*`, and rewrites it as
 `## ERROR__, WARNING__`. Neither name matches a key any more, so those keys reach the translator
-without their context, and only the `unknown-context-key` warnings give it away. If you use
+without their context, and only the `unknown-context-key` errors give it away. If you use
 Prettier, add the directory to `.prettierignore`, as your `i18nDir` followed by `context/*.md`:
 
 ```text
@@ -691,9 +691,9 @@ the keys, and `context` is what travels to the translator.
 | `commented-usage`            | usage     | note     |         | Only a comment references the key.                                        |
 | `missing-pipe`               | usage     | error    |         | A template interpolates a key without the translating pipe.               |
 | `unknown-key`                | usage     | error    |         | The code refers to a key, or a scope, the catalogue does not have.        |
-| `unknown-context-key`        | context   | warning  |         | A name in a context heading matches no key.                               |
+| `unknown-context-key`        | context   | error    |         | A name in a context heading matches no key.                               |
 | `empty-context-section`      | context   | warning  |         | A context heading has no text under it.                                   |
-| `glossary-term-missing-lang` | context   | warning  |         | A glossary term has no translation for a language.                        |
+| `glossary-term-missing-lang` | context   | error    |         | A glossary term has no translation for a language.                        |
 | `missing-notes-file`         | context   | error    |         | `notesLang` names a language without its notes file.                      |
 | `bad-note-text`              | context   | error    |         | A notes text is missing or empty, or changes a placeholder.               |
 | `unknown-note-text`          | context   | warning  |         | The notes file has a text the template does not.                          |

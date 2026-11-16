@@ -534,8 +534,8 @@ function checkContextKeys(context, scopes) {
 	});
 }
 
-// A term with no entry for a language is not an error — it is the glossary's
-// own to-do list, in the column of the language that still needs the word.
+// A term with no entry for a language is an error: every string that uses the word would
+// be translated without it. It lands in the column of the language that still needs it.
 function checkGlossary({ glossary }, langs, defaultLang) {
 	if (glossary.error) {
 		const at = jsonAt(glossary.error);
