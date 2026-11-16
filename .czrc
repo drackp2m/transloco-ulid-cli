@@ -19,7 +19,7 @@
 				},
 				{
 					"name": "style",
-					"description": "Changes that do not affect the meaning of the code.",
+					"description": "Visual and styling changes, such as layout, colours or icons.",
 					"emoji": "🎨",
 					"code": "🎨"
 				},
