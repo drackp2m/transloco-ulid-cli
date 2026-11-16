@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 import { glob } from 'node:fs/promises';
+import { availableParallelism } from 'node:os';
 import { relative } from 'node:path';
 import { run } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import { writeSummary } from './test-summary.mjs';
 
-const VERSION = '1.4.1';
+const VERSION = '1.4.2';
 const LABEL = 'unit';
 const SLOW_TEST_MS = 300;
 const TICK_MS = 100;
@@ -176,6 +177,7 @@ const ANSI_STYLE = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, 'gu');
 const visible = (text) => text.replace(ANSI_STYLE, '').length;
 
 const FOOTER_ROWS = 7;
+const SLOTS = Math.max(1, availableParallelism() - 1);
 
 function shortened(path, room) {
 	return path.length <= room ? path : `…${path.slice(path.length - Math.max(room, 2) + 1)}`;
@@ -202,13 +204,13 @@ function runningRows() {
 	const running = [...files.entries()]
 		.filter(([, state]) => state.seen && !state.done && undefined === state.total)
 		.map(([path, state]) => runningRow(path, state));
-	const room = Math.max(1, (process.stdout.rows ?? 24) - FOOTER_ROWS);
+	const slots = Math.max(1, Math.min(SLOTS, (process.stdout.rows ?? 24) - FOOTER_ROWS));
+	const shown =
+		running.length <= slots
+			? running
+			: [...running.slice(0, slots - 1), c.dim(`   … and ${running.length - slots + 1} more`)];
 
-	if (running.length <= room) {
-		return running;
-	}
-
-	return [...running.slice(0, room - 1), c.dim(`   … and ${running.length - room + 1} more`)];
+	return [...shown, ...Array.from({ length: slots - shown.length }, () => '')];
 }
 
 function counters() {
@@ -449,7 +451,7 @@ let totals = { tests: 0, passed: 0, failed: 0, skipped: 0, todo: 0 };
 
 refreshLive();
 
-for await (const event of run({ files: [...files.keys()], concurrency: true })) {
+for await (const event of run({ files: [...files.keys()], concurrency: SLOTS })) {
 	const data = event.data;
 
 	trackEvent(event, data);
