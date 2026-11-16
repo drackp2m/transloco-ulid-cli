@@ -412,8 +412,9 @@ A stale translation is a warning, and the export sends it again with the old tar
 that comes back untouched stays stale. One whose source changed while it was out is sealed against
 the source it was translated from, so it reads as stale.
 
-[`state`](#state) counts each status per language, and `state --adopt` seals every translation as
-it is today, for a catalogue that predates the state files.
+[`state`](#state) counts each status per language, and `state --adopt` seals translations as they
+are today: the whole catalogue, for one that predates the state files, or only the scopes, keys and
+languages it is given.
 
 ## Context for translators
 
@@ -810,14 +811,36 @@ exception: a `placeholder-mismatch` is merged anyway, and `check` then reports i
 ### state
 
 ```sh
-transloco-ulid state [--adopt]
+transloco-ulid state [--adopt [<targets>]]
 ```
 
 Counts the fresh, stale, missing and unknown translations of each language; see
 [Freshness](#freshness).
 
 `--adopt` seals every non-empty translation against today's source, which also clears every stale
-one. Use it once, on a catalogue that predates the state files.
+one. On its own it covers the whole catalogue, for one that predates the state files. Followed by
+a comma-separated list it seals only what the list names:
+
+| Target           | Seals                                     |
+| ---------------- | ----------------------------------------- |
+| `scope`          | Every translation of the scope.           |
+| `scope.lang`     | The scope in one language.                |
+| `scope.KEY`      | The key in every target language.         |
+| `scope.KEY.lang` | One translation. `KEY` can be its ULID.   |
+
+```sh
+transloco-ulid state --adopt auth.LOG_IN.en-GB,dashboard.fr-FR
+```
+
+That is the way to say a translation still stands after a change to the source that did not
+affect it, or to give a translation written or corrected by hand for good. A target that names
+nothing stops the command before it writes.
+
+Two kinds of translation are never sealed, since a seal says the translation is right: an empty
+one, and one `check` would report as an error — invalid ICU, a plural form missing, a parameter
+added, dropped or used as another kind. A stale translation is forgiven the parameters it has not
+caught up with yet; sealing it would end that, so it is judged as a fresh one. They are listed
+with the reason, and the command exits with 1 when they were among the targets asked for.
 
 ### clear
 
@@ -904,6 +927,7 @@ The rest of the public API:
 | `planKey()`, `keyNameProblem()`, `paramNameProblem()`, `textProblems()`, `formProblem()`, `formDoubt()`, `formsToAsk()`, `pluralSource()` | What `add` does, without writing: the plan of a new key and the rules for its name, its text and each plural form.                        |
 | `exportLangs()`, `buildExport()`, `writeExport()`                                                                                         | What `export` does.                                                                                                                       |
 | `readXliff()`, `planImport()`, `applyImport()`                                                                                            | What `import` does.                                                                                                                       |
+| `planSeal(project, targets)`, `applySeal(project, plan)`                                                                                  | What `state --adopt` does: the seals a list of targets would write, what it refuses and why, and writing them. `project` carries the `scopes` of `analyse()`. |
 | `tallyOf()`, `STATUSES`                                                                                                                   | The freshness statuses and their count.                                                                                                   |
 | `readLanguages()`, `isUlid()`, `toKebabCase()`, `toPascalCase()`, `CONFIG_FILE`                                                           | Small helpers most integrations end up needing.                                                                                           |
 | `API_VERSION`, `CLI_VERSION`                                                                                                              | The version of this contract, and of the package.                                                                                         |
