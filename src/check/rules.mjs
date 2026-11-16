@@ -25,6 +25,11 @@ const finding = (type, scope, file, message, where = {}) => ({
 
 const keyOf = (entry) => (entry ? { key: entry.name, ulid: entry.ulid } : {});
 
+const labelOf = (scope, name) => `${scope.name}.${name}`;
+
+const joined = (items) =>
+	items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`;
+
 const isBlank = (value) => '' === String(value).trim();
 
 const JSON_POSITION = /\bline (\d+) column (\d+)\b/;
@@ -82,9 +87,9 @@ function checkKeys(scope, seenUlids) {
 		const at = { line, col, key: name, ulid };
 
 		if (!isUlid(ulid)) {
-			findings.push(
-				finding('invalid-ulid', scope.name, scope.keysFile, `${name} = "${value}"`, at),
-			);
+			const message = `${name} = "${value}", not a ULID`;
+
+			findings.push(finding('invalid-ulid', scope.name, scope.keysFile, message, at));
 		} else if (value !== expectedValue(scope, ulid)) {
 			const message = `${name} = "${value}", expected "${expectedValue(scope, ulid)}"`;
 
@@ -131,28 +136,31 @@ function checkDeclared(scope, translation, lang, source) {
 			continue;
 		}
 
-		const label = `${entry.name} (${entry.ulid})`;
+		const label = labelOf(scope, entry.name);
 
 		if (undefined === value) {
 			const at = { ...missingAt(scope, entry, source), ...keyOf(entry), lang };
-			const message = `${label} has no "${lang}" entry`;
+			const message = `${label} has no ${lang} translation`;
 
 			findings.push(finding('missing-translation', scope.name, at.file, message, at));
 		} else {
 			const at = { ...positionOf(translation.text, entry.ulid), ...keyOf(entry), lang };
+			const message = `${label} is empty`;
 
-			findings.push(finding('empty-translation', scope.name, translation.file, label, at));
+			findings.push(finding('empty-translation', scope.name, translation.file, message, at));
 		}
 	}
 
 	return findings;
 }
 
+const ORPHAN = 'this ULID is not declared in keys.ts';
+
 function checkOrphans(declared, { file, data, text }, lang, scopeName) {
 	return Object.keys(data)
 		.filter((ulid) => !declared.has(ulid))
 		.map((ulid) =>
-			finding('orphan-translation', scopeName, file, `${ulid} is not declared`, {
+			finding('orphan-translation', scopeName, file, ORPHAN, {
 				...positionOf(text, ulid),
 				lang,
 				ulid,
@@ -178,9 +186,9 @@ function checkTranslations(scope, langs, defaultLang) {
 	return findings;
 }
 
-function staleFinding(scope, { ulid, name, lang }, defaultLang) {
+function staleFinding(scope, { ulid, name, lang }) {
 	const translation = scope.translations.get(lang);
-	const message = `${name} (${ulid}) was translated from an older "${defaultLang}"`;
+	const message = `${labelOf(scope, name)} was translated from an older text`;
 	const at = { ...positionOf(translation.text, ulid), lang, key: name, ulid };
 
 	return finding('stale-translation', scope.name, translation.file, message, at);
@@ -195,7 +203,7 @@ function checkFreshness(scope, { langs, defaultLang, i18nDir }) {
 
 	return freshnessOf(scope, state, { langs, defaultLang })
 		.filter((entry) => 'stale' === entry.status)
-		.map((entry) => staleFinding(scope, entry, defaultLang));
+		.map((entry) => staleFinding(scope, entry));
 }
 
 function checkUsage(scope, usages, commented) {
@@ -204,36 +212,52 @@ function checkUsage(scope, usages, commented) {
 		.map(({ name, ulid, line, col }) => {
 			const at = { line, col, key: name, ulid };
 
+			const label = labelOf(scope, name);
+
 			if (commented.has(`${scope.name}:${name}`)) {
-				const message = `${name} is only referenced from a comment`;
+				const message = `${label} is only used in a comment`;
 
 				return finding('commented-usage', scope.name, scope.keysFile, message, at);
 			}
 
-			return finding('unused-key', scope.name, scope.keysFile, `${name} is never referenced`, at);
+			return finding('unused-key', scope.name, scope.keysFile, `${label} is never used`, at);
 		});
 }
 
-const listOf = (names) => names.map(paramTag).join(', ');
+const listOf = (names) => joined(names.map(paramTag));
 
-const quoted = (keys) => keys.map((key) => `"${key}"`).join(', ');
+const extraOf = (items, noun = '') => {
+	const nouns = '' === noun ? '' : `${noun}s`;
+
+	return 1 === items.length ? `an extra ${items[0]}${noun}` : `extra ${joined(items)}${nouns}`;
+};
+
+const KINDS = {
+	plain: 'a plain value',
+	plural: 'a plural',
+	select: 'a select',
+	selectordinal: 'an ordinal',
+};
+
+const kindOf = (type) => KINDS[type] ?? type;
 
 // A param the source does not have is this language's own to answer for. One it lacks is
 // part of what a stale translation still owes, and the stale finding already says so.
 // What never gets a pass is the signature: a name both sides write, written as another
 // kind of argument or with a branch the source never declares.
-export function comparePair(base, value, ulid, pending) {
+export function comparePair(base, value, label, pending) {
 	const { dropped, added, retyped, surplus } = signatureDiff(base, value);
 	const drops = pending ? [] : dropped;
+	const casesOf = (keys) => extraOf(keys.map((key) => `"${key}"`), ' case');
 
 	return [
-		...(drops.length ? [`${ulid} drops ${listOf(drops)}`] : []),
-		...(added.length ? [`${ulid} adds ${listOf(added)}`] : []),
+		...(drops.length ? [`${label} has no ${listOf(drops)}`] : []),
+		...(added.length ? [`${label} has ${extraOf(added.map(paramTag))}`] : []),
 		...retyped.map(
 			({ name, expected, actual }) =>
-				`${ulid} writes ${paramTag(name)} as ${actual}, not as ${expected}`,
+				`${label} uses ${paramTag(name)} as ${kindOf(actual)}, not as ${kindOf(expected)}`,
 		),
-		...surplus.map(({ name, cases }) => `${ulid} adds ${quoted(cases)} to ${paramTag(name)}`),
+		...surplus.map(({ name, cases }) => `${label} has ${casesOf(cases)} in ${paramTag(name)}`),
 	];
 }
 
@@ -247,12 +271,12 @@ function comparePairs(base, translation, lang, { scope, stale }) {
 
 		const pending = stale.has(`${lang}:${ulid}`);
 		const entry = scope.keys.entries.find((key) => key.ulid === ulid);
+		const label = entry ? labelOf(scope, entry.name) : ulid;
 
-		for (const message of comparePair(base[ulid], value, ulid, pending)) {
+		for (const message of comparePair(base[ulid], value, label, pending)) {
 			const where = { ...positionOf(translation.text, ulid), lang, ulid, ...keyOf(entry) };
-			const file = translation.file;
 
-			findings.push(finding('param-mismatch', scope.name, file, `${message} in "${lang}"`, where));
+			findings.push(finding('param-mismatch', scope.name, translation.file, message, where));
 		}
 	}
 
@@ -294,7 +318,7 @@ export function syntaxPositionOf(text, ulid, at, value) {
 
 function messageFinding(scope, translation, lang, ulid, item) {
 	const entry = scope.keys.entries.find((key) => key.ulid === ulid);
-	const label = entry ? `${entry.name} (${ulid})` : ulid;
+	const label = entry ? labelOf(scope, entry.name) : ulid;
 	const at = item.at
 		? syntaxPositionOf(translation.text, ulid, item.at, translation.data[ulid])
 		: spotPositionOf(translation.text, ulid, item);
@@ -366,7 +390,7 @@ function checkParams(scope, params, options) {
 
 const declaresFindings = (scope, params, drift, label) =>
 	drift.extra.map((name) => {
-		const message = `${paramsName(scope.name)} declares ${paramTag(name)} for ${label}, absent from the default language`;
+		const message = `${paramsName(scope.name)} declares ${paramTag(name)} for ${label}, not in its source text`;
 		const at = { ...FILE_START, ...fieldLineOf(params.current, drift.key, name), column: PARAMS };
 
 		return finding('stale-params', scope.name, params.file, message, at);
@@ -374,7 +398,7 @@ const declaresFindings = (scope, params, drift, label) =>
 
 const retypedFindings = (scope, params, drift, label) =>
 	drift.retyped.map(({ name, type, declared }) => {
-		const message = `${paramsName(scope.name)} declares ${paramTag(name)} as ${declared} for ${label}, ICU says ${type}`;
+		const message = `${paramsName(scope.name)} declares ${paramTag(name)} for ${label} as ${declared}, not as ${type}`;
 		const at = { ...FILE_START, ...fieldLineOf(params.current, drift.key, name), column: PARAMS };
 
 		return finding('stale-params', scope.name, params.file, message, at);
@@ -382,7 +406,7 @@ const retypedFindings = (scope, params, drift, label) =>
 
 const usesFindings = (scope, source, drift, entry, label) =>
 	drift.missing.map((name) => {
-		const message = `${label} uses ${paramTag(name)}, not declared in ${paramsName(scope.name)}`;
+		const message = `${label} uses ${paramTag(name)}, not in ${paramsName(scope.name)}`;
 		const where = paramPositionOf(source.text, entry.ulid, name);
 		const at = { ...where, column: PARAMS, ...keyOf(entry) };
 
@@ -394,11 +418,11 @@ const usesFindings = (scope, source, drift, entry, label) =>
 // declares on the very field that declares it.
 function driftFindings(scope, params, source, drift) {
 	const entry = scope.keys.entries.find((item) => item.value === drift.key);
-	const label = entry ? `${entry.name} (${drift.key})` : drift.key;
+	const label = entry ? labelOf(scope, entry.name) : drift.key;
 
 	if (drift.removed) {
 		const at = { ...FILE_START, ...entryLineOf(params.current, drift.key), column: PARAMS };
-		const message = `${drift.key} is no longer declared`;
+		const message = 'this ULID is no longer declared in keys.ts';
 
 		return [finding('stale-params', scope.name, params.file, message, at)];
 	}

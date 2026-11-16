@@ -124,7 +124,7 @@ describe('analyse', () => {
 			type: 'empty-translation',
 			scope: 'demo',
 			file: fileOf(catalogue, 'en-GB.json'),
-			message: `GREET (${ulidOf(1)})`,
+			message: `demo.GREET is empty`,
 			line: 3,
 			col: 2,
 			lang: 'en-GB',

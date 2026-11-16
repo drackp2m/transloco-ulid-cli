@@ -105,10 +105,10 @@ describe('check — the keys', () => {
 		rewrite(scopeFile(catalogue, 'keys.ts'), `demo.${ULID}`, 'demo.not-a-ulid');
 
 		deepStrictEqual(findings(catalogue), [
-			'error invalid-ulid: SAVE = "demo.not-a-ulid"',
-			'error missing-translation [en-GB]: SAVE (not-a-ulid) has no "en-GB" entry',
-			`warning orphan-translation [en-GB]: ${ULID} is not declared`,
-			`warning orphan-translation [es-ES]: ${ULID} is not declared`,
+			'error invalid-ulid: SAVE = "demo.not-a-ulid", not a ULID',
+			'error missing-translation [en-GB]: demo.SAVE has no en-GB translation',
+			'warning orphan-translation [en-GB]: this ULID is not declared in keys.ts',
+			'warning orphan-translation [es-ES]: this ULID is not declared in keys.ts',
 		]);
 	});
 
@@ -144,7 +144,7 @@ describe('check — the translations', () => {
 		rewrite(scopeFile(catalogue, 'es-ES.json'), '{', `{\n\t"${ulidOf(7)}": "Huérfano",`);
 
 		deepStrictEqual(findings(catalogue), [
-			`warning orphan-translation [es-ES]: ${ulidOf(7)} is not declared`,
+			'warning orphan-translation [es-ES]: this ULID is not declared in keys.ts',
 		]);
 		deepStrictEqual(placesOf(catalogue)[0], {
 			type: 'orphan-translation',
@@ -158,7 +158,7 @@ describe('check — the translations', () => {
 		const catalogue = catalogueWith([SAVE, { name: 'GONE', texts: { 'en-GB': null, 'es-ES': null } }]);
 
 		deepStrictEqual(findings(catalogue), [
-			`error missing-translation [en-GB]: GONE (${ulidOf(1)}) has no "en-GB" entry`,
+			'error missing-translation [en-GB]: demo.GONE has no en-GB translation',
 		]);
 		deepStrictEqual(placesOf(catalogue)[0], {
 			type: 'missing-translation',
@@ -202,7 +202,7 @@ describe('check — params.ts', () => {
 		});
 
 		deepStrictEqual(findings(catalogue), [
-			`error stale-params: DemoI18nParams declares {extra} for GREET (${KEY}), absent from the default language`,
+			'error stale-params: DemoI18nParams declares {extra} for demo.GREET, not in its source text',
 		]);
 		deepStrictEqual(placesOf(catalogue)[0], {
 			type: 'stale-params',
@@ -216,8 +216,8 @@ describe('check — params.ts', () => {
 		const catalogue = catalogueWith([GREET], { params: declaring(KEY, ['other: string']) });
 
 		deepStrictEqual(findings(catalogue), [
-			`error stale-params: GREET (${KEY}) uses {name}, not declared in DemoI18nParams`,
-			`error stale-params: DemoI18nParams declares {other} for GREET (${KEY}), absent from the default language`,
+			'error stale-params: demo.GREET uses {name}, not in DemoI18nParams',
+			'error stale-params: DemoI18nParams declares {other} for demo.GREET, not in its source text',
 		]);
 		deepStrictEqual(placesOf(catalogue)[0].file, 'i18n/demo/en-GB.json');
 	});
@@ -226,7 +226,7 @@ describe('check — params.ts', () => {
 		const catalogue = catalogueWith([COUNT], { params: declaring(KEY, ['count: string']) });
 
 		deepStrictEqual(findings(catalogue), [
-			`error stale-params: DemoI18nParams declares {count} as string for COUNT (${KEY}), ICU says number`,
+			'error stale-params: DemoI18nParams declares {count} for demo.COUNT as string, not as number',
 		]);
 	});
 
@@ -240,7 +240,9 @@ describe('check — params.ts', () => {
 		const gone = `demo.${ulidOf(5)}`;
 		const catalogue = catalogueWith([SAVE], { params: declaring(gone, ['name: string']) });
 
-		deepStrictEqual(findings(catalogue), [`error stale-params: ${gone} is no longer declared`]);
+		deepStrictEqual(findings(catalogue), [
+			'error stale-params: this ULID is no longer declared in keys.ts',
+		]);
 	});
 
 	test('asks for a regeneration when only the layout of the file is off', () => {

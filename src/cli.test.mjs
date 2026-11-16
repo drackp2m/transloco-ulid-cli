@@ -69,7 +69,7 @@ describe('transloco-ulid check', () => {
 
 		deepStrictEqual([quiet.status, verbose.status], [0, 0]);
 		ok(quiet.stdout.includes('1 warning hidden — re-run with --verbose to list them'));
-		ok(verbose.stdout.includes(`DELETE (${ulidOf(1)})  empty-translation`));
+		ok(verbose.stdout.includes(`demo.DELETE is empty  empty-translation`));
 	});
 
 	test('fails on an error, and says --fix can solve it', () => {
@@ -77,7 +77,7 @@ describe('transloco-ulid check', () => {
 		const { status, stdout } = runCli(catalogue.root, ['check']);
 
 		strictEqual(status, 1);
-		ok(stdout.includes('has no "es-ES" entry  missing-translation'));
+		ok(stdout.includes('has no es-ES translation  missing-translation'));
 		ok(stdout.includes('1 problem potentially fixable with the --fix option.'));
 	});
 
@@ -115,7 +115,7 @@ describe('transloco-ulid check', () => {
 		deepStrictEqual([quiet.status, verbose.status], [0, 0]);
 		ok(quiet.stdout.includes('1 note hidden — re-run with --verbose to list them'));
 		ok(verbose.stdout.includes('━━ Info ━━'));
-		ok(verbose.stdout.includes('3:2  info  KEY is only referenced from a comment  commented-usage'));
+		ok(verbose.stdout.includes('3:2  info  demo.KEY is only used in a comment  commented-usage'));
 		ok(verbose.stdout.includes('ℹ 1 note'));
 	});
 

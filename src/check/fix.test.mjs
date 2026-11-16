@@ -51,7 +51,7 @@ describe('applyFix', () => {
 		deepStrictEqual(fix(catalogue), ['i18n/demo/es-ES.json']);
 		deepStrictEqual(spanish(catalogue), { [ulidOf(0)]: 'Guardar', [ulidOf(1)]: '' });
 		deepStrictEqual(linesOf(findingsOf(catalogue)), [
-			`warning empty-translation [es-ES]: DELETE (${ulidOf(1)})`,
+			`warning empty-translation [es-ES]: demo.DELETE is empty`,
 		]);
 	});
 

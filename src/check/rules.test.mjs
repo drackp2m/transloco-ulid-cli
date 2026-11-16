@@ -69,27 +69,53 @@ describe('syntaxPositionOf', () => {
 
 describe('comparePair', () => {
 	const base = 'Al menos {length} caracteres.';
+	const label = 'demo.MIN';
 
 	test('reports a param an up-to-date translation drops', () => {
-		deepStrictEqual(comparePair(base, 'At least a few characters.', ULID, false), [
-			`${ULID} drops {length}`,
+		deepStrictEqual(comparePair(base, 'At least a few characters.', label, false), [
+			'demo.MIN has no {length}',
 		]);
 	});
 
 	test('lets a stale translation owe the param it has yet to pick up', () => {
-		deepStrictEqual(comparePair(base, 'At least a few characters.', ULID, true), []);
+		deepStrictEqual(comparePair(base, 'At least a few characters.', label, true), []);
 	});
 
 	test('still reports a param a stale translation adds', () => {
-		deepStrictEqual(comparePair(base, 'At least {length} {unit}.', ULID, true), [
-			`${ULID} adds {unit}`,
+		deepStrictEqual(comparePair(base, 'At least {length} {unit}.', label, true), [
+			'demo.MIN has an extra {unit}',
 		]);
 	});
 
 	test('still reports a param a stale translation writes as another kind', () => {
 		const plural = '{length, plural, one {# carácter} other {# caracteres}}';
-		const [message] = comparePair(plural, 'At least {length} characters.', ULID, true);
 
-		ok(message.startsWith(`${ULID} writes {length} as`));
+		deepStrictEqual(comparePair(plural, 'At least {length} characters.', label, true), [
+			'demo.MIN uses {length} as a plain value, not as a plural',
+		]);
+	});
+
+	test('lists several params with "and" before the last one', () => {
+		const three = 'Al menos {length} {unit} de {total}.';
+
+		deepStrictEqual(comparePair(three, 'At least a few.', label, false), [
+			'demo.MIN has no {length}, {unit} and {total}',
+		]);
+		deepStrictEqual(comparePair('Hola.', 'Hello {name} and {friend}.', label, false), [
+			'demo.MIN has extra {name} and {friend}',
+		]);
+	});
+
+	test('reports the cases a select adds to the source', () => {
+		const source = '{gender, select, male {Bienvenido} other {Te damos la bienvenida}}';
+		const one = '{gender, select, male {Welcome} neutral {Welcome} other {Welcome}}';
+		const two = '{gender, select, male {Hi} neutral {Hi} group {Hi} other {Hi}}';
+
+		deepStrictEqual(comparePair(source, one, label, false), [
+			'demo.MIN has an extra "neutral" case in {gender}',
+		]);
+		deepStrictEqual(comparePair(source, two, label, false), [
+			'demo.MIN has extra "neutral" and "group" cases in {gender}',
+		]);
 	});
 });

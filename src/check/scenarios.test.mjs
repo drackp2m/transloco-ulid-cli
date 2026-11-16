@@ -81,7 +81,7 @@ describe('a plural param, in the source language', () => {
 		const catalogue = oneKey({ 'es-ES': source, 'en-GB': target });
 
 		deepStrictEqual(findings(catalogue), [
-			`warning stray-plural-param [es-ES]: KEY (${ULID}) names {total} and never the number ` +
+			`warning stray-plural-param [es-ES]: demo.KEY names {total} and never the number ` +
 				'in the "one" and "other" forms of {count} — write # if the number belongs there',
 		]);
 		deepStrictEqual(fieldsOf(catalogue), ['count: number;', 'total: string;']);
@@ -109,7 +109,7 @@ describe('a translation against its source', () => {
 
 	test('is an error when it turns the plural into a plain param', () => {
 		deepStrictEqual(findings(oneKey({ 'es-ES': PLURAL, 'en-GB': '{count} challenges' })), [
-			`error param-mismatch [en-GB]: ${ULID} writes {count} as plain, not as plural in "en-GB"`,
+			'error param-mismatch [en-GB]: demo.KEY uses {count} as a plain value, not as a plural',
 		]);
 	});
 
@@ -120,7 +120,7 @@ describe('a translation against its source', () => {
 		);
 
 		deepStrictEqual(findings(catalogue), [
-			`error param-mismatch [en-GB]: ${ULID} drops {length} in "en-GB"`,
+			'error param-mismatch [en-GB]: demo.KEY has no {length}',
 		]);
 	});
 
@@ -132,8 +132,8 @@ describe('a translation against its source', () => {
 		);
 
 		deepStrictEqual(findings(catalogue), [
-			`error stale-params: DemoI18nParams declares {extra} for KEY (demo.${ULID}), absent from the default language`,
-			`error param-mismatch [en-GB]: ${ULID} drops {length} in "en-GB"`,
+			'error stale-params: DemoI18nParams declares {extra} for demo.KEY, not in its source text',
+			'error param-mismatch [en-GB]: demo.KEY has no {length}',
 		]);
 	});
 
@@ -144,7 +144,7 @@ describe('a translation against its source', () => {
 		);
 
 		deepStrictEqual(findings(catalogue), [
-			`warning stale-translation [en-GB]: KEY (${ULID}) was translated from an older "es-ES"`,
+			'warning stale-translation [en-GB]: demo.KEY was translated from an older text',
 		]);
 	});
 
@@ -157,8 +157,8 @@ describe('a translation against its source', () => {
 		});
 
 		deepStrictEqual(findings(catalogue), [
-			`warning empty-translation [en-GB]: EMPTY (${ulidOf(0)})`,
-			`error missing-translation [en-GB]: MISSING (${ulidOf(1)}) has no "en-GB" entry`,
+			`warning empty-translation [en-GB]: demo.EMPTY is empty`,
+			'error missing-translation [en-GB]: demo.MISSING has no en-GB translation',
 		]);
 	});
 });
@@ -168,7 +168,7 @@ describe('a key and where it is used', () => {
 
 	test('is a warning when nothing references it', () => {
 		deepStrictEqual(findings(oneKey(SAVE, { key: { used: false } })), [
-			'warning unused-key: KEY is never referenced',
+			'warning unused-key: demo.KEY is never used',
 		]);
 	});
 
@@ -179,7 +179,7 @@ describe('a key and where it is used', () => {
 		});
 
 		deepStrictEqual(findings(catalogue), [
-			'info commented-usage: KEY is only referenced from a comment',
+			'info commented-usage: demo.KEY is only used in a comment',
 		]);
 	});
 
@@ -252,8 +252,8 @@ describe('the source language decides the forms', () => {
 		const catalogue = oneKey({ 'ru-RU': TWO, 'en-GB': TWO }, RU);
 
 		deepStrictEqual(findings(catalogue), [
-			`error missing-plural-category [ru-RU]: KEY (${ULID}) {count} has no "few" branch, which "ru-RU" needs`,
-			`error missing-plural-category [ru-RU]: KEY (${ULID}) {count} has no "many" branch, which "ru-RU" needs`,
+			`error missing-plural-category [ru-RU]: demo.KEY {count} has no "few" branch, which "ru-RU" needs`,
+			`error missing-plural-category [ru-RU]: demo.KEY {count} has no "many" branch, which "ru-RU" needs`,
 		]);
 	});
 
@@ -267,8 +267,8 @@ describe('the source language decides the forms', () => {
 		const catalogue = oneKey({ 'ru-RU': FOUR, 'en-GB': FOUR }, RU);
 
 		deepStrictEqual(findings(catalogue), [
-			`error unknown-plural-category [en-GB]: KEY (${ULID}) {count} branches on "few", which "en-GB" never selects`,
-			`error unknown-plural-category [en-GB]: KEY (${ULID}) {count} branches on "many", which "en-GB" never selects`,
+			`error unknown-plural-category [en-GB]: demo.KEY {count} branches on "few", which "en-GB" never selects`,
+			`error unknown-plural-category [en-GB]: demo.KEY {count} branches on "many", which "en-GB" never selects`,
 		]);
 	});
 
@@ -277,14 +277,14 @@ describe('the source language decides the forms', () => {
 
 		deepStrictEqual(findings(oneKey({ 'ja-JP': alone, 'en-GB': TWO }, JA)), []);
 		deepStrictEqual(findings(oneKey({ 'ja-JP': TWO, 'en-GB': TWO }, JA)), [
-			`error unknown-plural-category [ja-JP]: KEY (${ULID}) {count} branches on "one", which "ja-JP" never selects`,
+			`error unknown-plural-category [ja-JP]: demo.KEY {count} branches on "one", which "ja-JP" never selects`,
 		]);
 	});
 });
 
 describe('a sentence that counts two things', () => {
 	const ES_RU = { langs: ['es-ES', 'ru-RU'] };
-	const EMPTY = `warning empty-translation [ru-RU]: KEY (${ULID})`;
+	const EMPTY = `warning empty-translation [ru-RU]: demo.KEY is empty`;
 	const branch = 'one {x} other {y}';
 
 	test('passes with each number written by name, while the Russian slot is still empty', () => {
@@ -303,7 +303,7 @@ describe('a sentence that counts two things', () => {
 
 		deepStrictEqual(findings(oneKey({ 'es-ES': source, 'ru-RU': '' }, ES_RU)), [
 			EMPTY,
-			`error ambiguous-hash [es-ES]: KEY (${ULID}) writes # under {messages} and {friends}, ` +
+			`error ambiguous-hash [es-ES]: demo.KEY writes # under {messages} and {friends}, ` +
 				'and once its forms are split nothing says which number each # is — ' +
 				'write {messages, number} or {friends, number} instead',
 		]);
@@ -314,7 +314,7 @@ describe('a sentence that counts two things', () => {
 
 		deepStrictEqual(findings(oneKey({ 'es-ES': source, 'ru-RU': '' }, ES_RU)), [
 			EMPTY,
-			`error too-many-forms [es-ES]: KEY (${ULID}) opens into 64 forms in "ru-RU", ` +
+			`error too-many-forms [es-ES]: demo.KEY opens into 64 forms in "ru-RU", ` +
 				'over the 16 allowed — split the sentence instead of branching it further',
 		]);
 	});

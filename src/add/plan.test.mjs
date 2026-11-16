@@ -93,8 +93,8 @@ describe('planKey — what it writes', () => {
 		apply(planIn(catalogue, 'CHALLENGES', PLURAL));
 
 		deepStrictEqual(linesOf(findingsOf(catalogue)), [
-			`warning empty-translation [en-GB]: CHALLENGES (${ULID})`,
-			'warning unused-key: CHALLENGES is never referenced',
+			`warning empty-translation [en-GB]: demo.CHALLENGES is empty`,
+			'warning unused-key: demo.CHALLENGES is never used',
 		]);
 	});
 });

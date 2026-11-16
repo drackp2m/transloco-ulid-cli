@@ -158,7 +158,7 @@ describe('export, translate, import', () => {
 
 		deepStrictEqual(messagesOf(plan), ['placeholders differ from en-GB']);
 		deepStrictEqual(linesOf(findingsOf(catalogue)), [
-			`error param-mismatch [es-ES]: ${ulidOf(0)} drops {name} in "es-ES"`,
+			'error param-mismatch [es-ES]: demo.GREET has no {name}',
 		]);
 	});
 });
@@ -196,7 +196,7 @@ describe('import — freshness', () => {
 		strictEqual(plan.outdated.length, 1);
 		strictEqual(sealOf(catalogue, 0), '000000000000');
 		deepStrictEqual(linesOf(findingsOf(catalogue)), [
-			`warning stale-translation [es-ES]: GREET (${ulidOf(0)}) was translated from an older "en-GB"`,
+			'warning stale-translation [es-ES]: demo.GREET was translated from an older text',
 		]);
 	});
 });
