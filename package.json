@@ -4,6 +4,7 @@
 	"description": "Checks, adds, exports and imports keys of a ULID-keyed Transloco catalogue, with XLIFF 2.0 round-trips for translators.",
 	"author": "Marc Jovaní González",
 	"license": "MIT",
+	"packageManager": "pnpm@12.18.0",
 	"homepage": "https://github.com/drackp2m/transloco-ulid-cli#readme",
 	"repository": {
 		"type": "git",
