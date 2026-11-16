@@ -53,6 +53,12 @@ export const AuthI18n = {
 npm install --save-dev @drackp2m/transloco-ulid-cli
 ```
 
+With pnpm:
+
+```sh
+pnpm add --save-dev @drackp2m/transloco-ulid-cli
+```
+
 Requires Node 22 or later and TypeScript 5.0 or later, which it takes from your project as a peer
 dependency. The command is `transloco-ulid`; most projects wrap it in scripts:
 
@@ -872,6 +878,8 @@ in English. It keeps every value already written and never removes one.
 - name: Check the i18n catalogue
   run: npx transloco-ulid check
 ```
+
+With pnpm, the step runs `pnpm exec transloco-ulid check`.
 
 The command fails on errors only. On GitHub Actions it also writes a report into the job summary:
 the table of scopes, the problems counted by rule, and how many of them `--fix` could solve.
