@@ -19,6 +19,13 @@ const GREET = {
 };
 const EMPTY = { name: 'EMPTY', texts: { 'en-GB': 'Delete', 'es-ES': '', 'fr-FR': 'Supprimer' } };
 const BROKEN = { name: 'BROKEN', texts: { 'en-GB': 'Open', 'es-ES': 'Abrir {name', 'fr-FR': 'Ouvrir' } };
+const COUNTED = '{count, plural, one {# item} other {# items}}';
+const NO_ONE = { name: 'NO_ONE', texts: { 'en-GB': COUNTED, 'es-ES': '{count, plural, other {# cosas}}' } };
+const EXTRA = { name: 'EXTRA', texts: { 'en-GB': 'Open', 'es-ES': 'Abrir {name}' } };
+const RETYPED = {
+	name: 'RETYPED',
+	texts: { 'en-GB': '{count} items', 'es-ES': '{count, plural, one {# cosa} other {# cosas}}' },
+};
 
 function optionsOf(keys) {
 	const catalogue = createCatalogue({ langs: LANGS, keys });
@@ -103,6 +110,20 @@ describe('planSeal', () => {
 		deepStrictEqual(placesOf(plan.seals), ['GREET.es-ES', 'BROKEN.fr-FR']);
 		deepStrictEqual(placesOf(plan.refused), ['GREET.fr-FR', 'BROKEN.es-ES']);
 		deepStrictEqual(plan.refused[0].reasons, ['demo.GREET has no {name}']);
+	});
+
+	test('refuses a plural without a form the language needs, a parameter added and one retyped', () => {
+		const plan = planSeal(optionsOf([NO_ONE, EXTRA, RETYPED, SAVE]), ['demo.es-ES']);
+
+		deepStrictEqual(placesOf(plan.seals), ['SAVE.es-ES']);
+		deepStrictEqual(
+			plan.refused.map(({ reasons }) => reasons),
+			[
+				['demo.NO_ONE {count} has no "one" branch, which "es-ES" needs'],
+				['demo.EXTRA has an extra {name}'],
+				['demo.RETYPED uses {count} as a plural, not as a plain value'],
+			],
+		);
 	});
 
 	test('names every target that points at nothing', () => {

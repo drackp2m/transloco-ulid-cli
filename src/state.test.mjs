@@ -108,6 +108,45 @@ describe('transloco-ulid state', () => {
 		});
 	});
 
+	test('seals a whole scope, and a scope in one language', () => {
+		const whole = threeLanguages();
+		const french = threeLanguages();
+		const greet = { 'es-ES': hashOf('Hello'), 'fr-FR': hashOf('Hello') };
+
+		strictEqual(runCli(whole.root, ['state', '--adopt', 'demo']).status, 0);
+		strictEqual(runCli(french.root, ['state', '--adopt', 'demo.fr-FR']).status, 0);
+		deepStrictEqual(stateOf(whole), {
+			[ulidOf(0)]: { 'es-ES': hashOf('Save'), 'fr-FR': hashOf('Save') },
+			[ulidOf(1)]: greet,
+		});
+		deepStrictEqual(stateOf(french), {
+			[ulidOf(0)]: { 'fr-FR': hashOf('Save') },
+			[ulidOf(1)]: greet,
+		});
+	});
+
+	test('refuses an empty translation asked for by its key, and skips it in a wider target', () => {
+		const catalogue = project();
+		const named = runCli(catalogue.root, ['state', '--adopt', 'demo.DELETE.es-ES']);
+		const wide = runCli(catalogue.root, ['state', '--adopt', 'demo']);
+
+		deepStrictEqual([named.status, wide.status], [1, 0]);
+		ok(named.stdout.includes('demo.DELETE [es-ES]: has no translation to seal'));
+		ok(!wide.stdout.includes('not sealed'));
+		ok(wide.stdout.includes('es-ES  1 fresh · 0 stale · 1 missing'));
+	});
+
+	test('fails on a target that is not written as one', () => {
+		const adopted = runCli(project().root, ['state', '--adopt', 'demo.SAVE.es-ES.more']);
+
+		strictEqual(adopted.status, 1);
+		ok(
+			adopted.stderr.includes(
+				'✖ demo.SAVE.es-ES.more is not scope, scope.KEY, scope.KEY.lang or scope.lang',
+			),
+		);
+	});
+
 	test('does not seal a translation whose parameters do not match, and says why', () => {
 		const catalogue = project([
 			{ name: 'SAVE', texts: { 'en-GB': 'Save', 'es-ES': 'Guardar' } },
