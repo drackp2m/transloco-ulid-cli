@@ -155,8 +155,11 @@ function unitsFor(scope, entry, options) {
 	}));
 }
 
+const isUsed = (usages, scope, entry) =>
+	undefined === usages || null === usages || usages.has(`${scope.name}:${entry.name}`);
+
 function unitsOf(scope, options) {
-	const { defaultLang, lang, filter, usages, root, context, state, blank } = options;
+	const { defaultLang, lang, filter, usages, root, context, state, blank, unused } = options;
 	const source = scope.translations.get(defaultLang)?.data ?? {};
 	const target = scope.translations.get(lang)?.data ?? {};
 	const declared = readDeclaredParams(paramsFile(scope.dir));
@@ -176,15 +179,24 @@ function unitsOf(scope, options) {
 		noteTexts: options.noteTexts,
 	};
 
-	return scope.keys.entries
+	const picked = scope.keys.entries
 		.filter((entry) => isUlid(entry.ulid))
-		.flatMap((entry) => unitsFor(scope, entry, shared))
-		.filter((unit) => keep(unit.status));
+		.map((entry) => ({
+			entry,
+			used: isUsed(usages, scope, entry),
+			units: unitsFor(scope, entry, shared).filter((unit) => keep(unit.status)),
+		}))
+		.filter(({ units }) => 0 !== units.length);
+	const left = picked.filter(({ used }) => !used && true !== unused);
+
+	return {
+		units: picked.filter((item) => !left.includes(item)).flatMap(({ units }) => units),
+		unused: left.map(({ entry }) => ({ scope: scope.name, key: entry.name })),
+	};
 }
 
-function fileOf(scope, options) {
+function fileOf(scope, units, options) {
 	const { lang, root, context, xliffPrefix, noteTexts } = options;
-	const units = unitsOf(scope, options);
 
 	return {
 		id: scope.name,
@@ -192,6 +204,14 @@ function fileOf(scope, options) {
 		notes: fileNotes(scope, { context, lang, units, xliffPrefix, noteTexts }),
 		units,
 	};
+}
+
+function partsOf(scopes, shared, states) {
+	return scopes.map((scope) => {
+		const options = { ...shared, state: states.get(scope.name) };
+
+		return { scope, options, ...unitsOf(scope, options) };
+	});
 }
 
 function countOf(files, status) {
@@ -209,7 +229,8 @@ function contextOf(options) {
 }
 
 export function buildExport(options) {
-	const { scopes, defaultLang, lang, filter, usages, only, root = null, blank = false } = options;
+	const { scopes, defaultLang, lang, filter, usages, only, root = null } = options;
+	const { blank = false, unused = false } = options;
 	const context = contextOf(options);
 	const noteTexts = usableNoteTexts(context.notes);
 	const wanted = scopes.filter(
@@ -225,16 +246,19 @@ export function buildExport(options) {
 		root,
 		context,
 		blank,
+		unused,
 		xliffPrefix,
 		noteTexts,
 	};
-	const files = wanted
-		.map((scope) => fileOf(scope, { ...shared, state: states.get(scope.name) }))
-		.filter((file) => 0 !== file.units.length);
+	const parts = partsOf(wanted, shared, states);
+	const files = parts
+		.filter(({ units }) => 0 !== units.length)
+		.map(({ scope, units, options: scoped }) => fileOf(scope, units, scoped));
 
 	return {
 		lang,
 		files,
+		unused: parts.flatMap((part) => part.unused),
 		total: files.reduce((count, file) => count + file.units.length, 0),
 		untranslated: countOf(files, 'missing'),
 		outdated: countOf(files, 'stale'),

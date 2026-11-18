@@ -42,6 +42,7 @@ const exportOf = (catalogue, filter = 'all') =>
 		lang: 'es-ES',
 		filter,
 		usages: new Map(),
+		unused: true,
 		root: catalogue.root,
 	}).content;
 

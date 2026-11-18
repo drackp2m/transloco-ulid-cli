@@ -745,6 +745,7 @@ says so.
 
 ```sh
 transloco-ulid export [--lang <codes>] [--scope <names>] [--missing | --stale | --pending] [--blank]
+                      [--include-unused]
 ```
 
 Writes one bilingual XLIFF 2.0 file per target language, `translations/<lang>.xlf` by default.
@@ -755,21 +756,28 @@ Writes one bilingual XLIFF 2.0 file per target language, `translations/<lang>.xl
 - A plural or gender select travels as one unit per form the target language needs, with ids such
   as `auth.01KZ…#plural:few`.
 
-| Option            | What it does                                                            |
-| ----------------- | ----------------------------------------------------------------------- |
-| `--lang <codes>`  | Comma-separated target languages. Defaults to every one but the source. |
-| `--scope <names>` | Comma-separated scopes. Defaults to all of them.                        |
-| `--out <path>`    | The directory the files are written to. Defaults to `translations`.     |
-| `--missing`       | Only the keys with no translation yet.                                  |
-| `--stale`         | Only the keys translated before the source changed.                     |
-| `--pending`       | Both.                                                                   |
-| `--blank`         | Sends every selected unit with an empty target and no `outdated` note.  |
+| Option             | What it does                                                            |
+| ------------------ | ----------------------------------------------------------------------- |
+| `--lang <codes>`   | Comma-separated target languages. Defaults to every one but the source. |
+| `--scope <names>`  | Comma-separated scopes. Defaults to all of them.                        |
+| `--out <path>`     | The directory the files are written to. Defaults to `translations`.     |
+| `--missing`        | Only the keys with no translation yet.                                  |
+| `--stale`          | Only the keys translated before the source changed.                     |
+| `--pending`        | Both.                                                                   |
+| `--blank`          | Sends every selected unit with an empty target and no `outdated` note.  |
+| `--include-unused` | Also sends the keys nothing in the sources uses.                        |
 
 Without `--missing`, `--stale` or `--pending`, the whole catalogue is exported. A key always
 travels whole: if one of its forms is selected, all of them are sent.
 
 Use `--blank` when nothing in the file should seed a machine translation, or let an old string
 pass as a new answer.
+
+A key nothing in `sourceDirs` uses — the `unused-key` and `commented-usage` of `check` — stays out
+of the file, and the command lists the ones it left out. It may be dead, or its usage may have been
+lost in a refactor; either way it is not worth paying a translator for until that is settled. Pass
+`--include-unused` when the text is ready before the screen that shows it. `buildExport()` does the
+same with `unused: true`, and returns the keys it left out as `unused`.
 
 ### import
 

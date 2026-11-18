@@ -241,6 +241,36 @@ describe('buildExport — the language of the notes', () => {
 	});
 });
 
+describe('buildExport — the keys nothing uses', () => {
+	const without = (name) => new Map([...base.usages].filter(([id]) => id !== `demo:${name}`));
+	const idsOf = (document) => readXliff(document.content).files[0].units.map((unit) => unit.id);
+
+	test('leaves them out of the file and returns them', () => {
+		const document = exported('es-ES', 'all', { usages: without('SAVE') });
+
+		deepStrictEqual(document.unused, [{ scope: 'demo', key: 'SAVE' }]);
+		ok(!idsOf(document).includes(idOf(0)));
+	});
+
+	test('sends them too with unused: true', () => {
+		const document = exported('es-ES', 'all', { usages: without('SAVE'), unused: true });
+
+		deepStrictEqual(document.unused, []);
+		ok(idsOf(document).includes(idOf(0)));
+	});
+
+	test('returns only the ones the selection would have sent', () => {
+		deepStrictEqual(exported('es-ES', 'missing', { usages: without('SAVE') }).unused, []);
+	});
+
+	test('sends every key when it is handed no usages', () => {
+		const document = exported('es-ES', 'all', { usages: undefined });
+
+		deepStrictEqual(document.unused, []);
+		ok(idsOf(document).includes(idOf(0)));
+	});
+});
+
 describe('exportLangs', () => {
 	const options = { langs: LANGS, defaultLang: 'en-GB' };
 

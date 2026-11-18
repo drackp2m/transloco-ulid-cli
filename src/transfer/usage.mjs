@@ -21,6 +21,8 @@ const exportLines = (defaults) => [
 	`  ${c.cyan}--pending${c.reset}          both of the above`,
 	`  ${c.cyan}--blank${c.reset}            send every unit with an empty <target> and without its`,
 	'                     outdated note, so the file cannot seed a machine translator',
+	`  ${c.cyan}--include-unused${c.reset}   also send the keys nothing in the sources uses — left out`,
+	'                     and listed otherwise',
 	`  ${c.cyan}--dir${c.reset} <path>       catalogue directory (default: ${defaults.i18nDir})`,
 	`  ${c.cyan}--languages${c.reset} <file> file LANGUAGES / DEFAULT_LANGUAGE are read from`,
 	`  ${c.cyan}--help${c.reset}, ${c.cyan}-h${c.reset}         print this text`,

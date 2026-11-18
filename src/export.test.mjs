@@ -64,6 +64,19 @@ describe('transloco-ulid export', () => {
 		ok(!read(xliffOf(catalogue)).includes('<target>Hola'));
 	});
 
+	test('leaves out and lists the keys nothing uses, and sends them with --include-unused', () => {
+		const catalogue = project([SAVE, { ...DELETE, used: false }]);
+		const left = runCli(catalogue.root, ['export']);
+		const leftOut = read(xliffOf(catalogue));
+		const sent = runCli(catalogue.root, ['export', '--include-unused']);
+
+		ok(left.stdout.includes('⚠ 1 key nobody uses left out: demo.DELETE'));
+		ok(left.stdout.includes('Send them too with --include-unused.'));
+		ok(!leftOut.includes('<source>Delete</source>'));
+		ok(!sent.stdout.includes('nobody uses'));
+		ok(read(xliffOf(catalogue)).includes('<source>Delete</source>'));
+	});
+
 	test('fails without scopes, and without a language to translate into', () => {
 		const single = createCatalogue({ langs: ['en-GB'], keys: [{ name: 'SAVE', texts: { 'en-GB': 'Save' } }] });
 		const scopeless = runCli(withoutScopes().root, ['export']);

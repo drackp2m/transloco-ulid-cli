@@ -3,7 +3,7 @@ import { collectUsages, readScopes } from './catalogue/collect.mjs';
 import { listOf, readDefaults, readLanguages, valueOf } from './catalogue/config.mjs';
 import { readContext } from './catalogue/context.mjs';
 import { isNotesWarning } from './catalogue/note-texts.mjs';
-import { c } from './shared/terminal.mjs';
+import { c, plural } from './shared/terminal.mjs';
 import { DEFAULT_OUT_DIR, buildExport, exportLangs, writeExport } from './transfer/build.mjs';
 import { printExportHeader, printExported, printHint } from './transfer/report.mjs';
 import { printExportUsage } from './transfer/usage.mjs';
@@ -34,7 +34,25 @@ function parseExportArgs(argv) {
 		only: listOf(argv, '--scope') ?? [],
 		filter: filterOf(argv),
 		blank: argv.includes('--blank'),
+		unused: argv.includes('--include-unused'),
 	};
+}
+
+function unusedOf(built) {
+	const names = built.flatMap(({ unused }) => unused.map(({ scope, key }) => `${scope}.${key}`));
+
+	return [...new Set(names)];
+}
+
+function printUnused(names, included) {
+	if (included || 0 === names.length) {
+		return;
+	}
+
+	const what = `${plural(names.length, 'key')} nobody uses left out: ${names.join(', ')}`;
+
+	console.log(`  ${c.yellow}⚠ ${what}${c.reset}`);
+	console.log(`  ${c.dim}Send them too with --include-unused.${c.reset}\n`);
 }
 
 const argv = process.argv.slice(2);
@@ -89,6 +107,9 @@ if (options.blank) {
 const { usages } = collectUsages(options.sourceDirs);
 const built = targets.map((lang) => buildExport({ ...options, scopes, lang, usages, context }));
 const empty = built.filter((document) => 0 === document.total);
+
+printUnused(unusedOf(built), options.unused);
+
 const documents = built
 	.filter((document) => 0 !== document.total)
 	.map((document) => writeExport(document, options.out));
