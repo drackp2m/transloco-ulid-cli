@@ -991,8 +991,9 @@ they are internals, and change freely between versions.
 **Transloco ULID i18n**, in the VS Code Marketplace and in Open VSX, is built on this API: inline
 translations over every key, hover, go-to-definition, completion, the findings of `check` as
 diagnostics, a status view of the catalogue, and `add`, `export`, `import`, `state --adopt` and
-`prune` from the editor. It lives in [`vscode/`](vscode) and is released on its own, by pushing a
-`vscode-v<version>` tag.
+`prune` from the editor. It lives in [`vscode/`](vscode) and is released with the CLI, under the
+same version: every push to `main` that semantic-release finds a `feat`, `fix`, `perf`, `refactor`,
+`style` or `revert` in publishes both.
 
 ## License
 
