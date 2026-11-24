@@ -45,6 +45,7 @@ export const AuthI18n = {
 - [Commands](#commands)
 - [Running it in CI](#running-it-in-ci)
 - [Using it from code](#using-it-from-code)
+- [VS Code extension](#vs-code-extension)
 - [License](#license)
 
 ## Install
@@ -984,6 +985,14 @@ it needs. Additions do not change it.
 Every file under `src/` can still be imported by path, as
 `@drackp2m/transloco-ulid-cli/catalogue/message.mjs`, but none of them is part of that contract:
 they are internals, and change freely between versions.
+
+## VS Code extension
+
+**Transloco ULID i18n**, in the VS Code Marketplace and in Open VSX, is built on this API: inline
+translations over every key, hover, go-to-definition, completion, the findings of `check` as
+diagnostics, a status view of the catalogue, and `add`, `export`, `import`, `state --adopt` and
+`prune` from the editor. It lives in [`vscode/`](vscode) and is released on its own, by pushing a
+`vscode-v<version>` tag.
 
 ## License
 

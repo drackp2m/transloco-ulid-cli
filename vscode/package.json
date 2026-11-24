@@ -1,0 +1,425 @@
+{
+	"name": "transloco-ulid-i18n",
+	"displayName": "Transloco ULID i18n",
+	"description": "Inline translations, hover, go-to-definition and diagnostics for the ULID-based transloco keys",
+	"version": "0.3.0",
+	"publisher": "drackp2m",
+	"license": "MIT",
+	"homepage": "https://github.com/drackp2m/transloco-ulid-cli/tree/main/vscode#readme",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/drackp2m/transloco-ulid-cli.git",
+		"directory": "vscode"
+	},
+	"bugs": {
+		"url": "https://github.com/drackp2m/transloco-ulid-cli/issues"
+	},
+	"engines": {
+		"vscode": "^1.90.0"
+	},
+	"categories": [
+		"Linters",
+		"Other"
+	],
+	"main": "./src/extension.js",
+	"activationEvents": [
+		"onLanguage:typescript",
+		"onLanguage:html",
+		"onLanguage:json",
+		"onLanguage:jsonc"
+	],
+	"contributes": {
+		"commands": [
+			{
+				"command": "translocoUlidI18n.filter",
+				"title": "Filter keys and checks",
+				"category": "i18n",
+				"icon": "$(filter)"
+			},
+			{
+				"command": "translocoUlidI18n.clearFilter",
+				"title": "Clear the filter",
+				"category": "i18n",
+				"icon": "$(clear-all)"
+			},
+			{
+				"command": "translocoUlidI18n.showPending",
+				"title": "Show only untranslated and outdated",
+				"category": "i18n",
+				"icon": "$(tasklist)"
+			},
+			{
+				"command": "translocoUlidI18n.showAll",
+				"title": "Show every state",
+				"category": "i18n",
+				"icon": "$(list-flat)"
+			},
+			{
+				"command": "translocoUlidI18n.collapseAll",
+				"title": "Collapse all",
+				"category": "i18n",
+				"icon": "$(collapse-all)"
+			},
+			{
+				"command": "translocoUlidI18n.expandAll",
+				"title": "Expand all",
+				"category": "i18n",
+				"icon": "$(expand-all)"
+			},
+			{
+				"command": "translocoUlidI18n.search",
+				"title": "Search translation keys",
+				"category": "i18n",
+				"icon": "$(search)"
+			},
+			{
+				"command": "translocoUlidI18n.createKey",
+				"title": "Create translation key",
+				"category": "i18n",
+				"icon": "$(add)"
+			},
+			{
+				"command": "translocoUlidI18n.reload",
+				"title": "Reload translation index",
+				"category": "i18n",
+				"icon": "$(refresh)"
+			},
+			{
+				"command": "translocoUlidI18n.toggleInlineText",
+				"title": "Toggle inline translations",
+				"category": "i18n"
+			},
+			{
+				"command": "translocoUlidI18n.exportTranslations",
+				"title": "Export translations to XLIFF",
+				"category": "i18n",
+				"icon": "$(cloud-upload)"
+			},
+			{
+				"command": "translocoUlidI18n.importTranslations",
+				"title": "Import translations from XLIFF",
+				"category": "i18n",
+				"icon": "$(cloud-download)"
+			},
+			{
+				"command": "translocoUlidI18n.pruneUnused",
+				"title": "Remove unused keys…",
+				"category": "i18n"
+			},
+			{
+				"command": "translocoUlidI18n.exportPending",
+				"title": "Export pending translations",
+				"category": "i18n",
+				"icon": "$(cloud-upload)"
+			},
+			{
+				"command": "translocoUlidI18n.openKey",
+				"title": "Open translation",
+				"category": "i18n"
+			},
+			{
+				"command": "translocoUlidI18n.copyReference",
+				"title": "Copy key reference",
+				"category": "i18n"
+			},
+			{
+				"command": "translocoUlidI18n.copyUlid",
+				"title": "Copy ULID",
+				"category": "i18n"
+			},
+			{
+				"command": "translocoUlidI18n.findUsages",
+				"title": "Find usages",
+				"category": "i18n"
+			},
+			{
+				"command": "translocoUlidI18n.openDeclaration",
+				"title": "Go to keys.ts",
+				"category": "i18n"
+			},
+			{
+				"command": "translocoUlidI18n.openConfig",
+				"title": "Open i18n.config.json",
+				"category": "i18n"
+			},
+			{
+				"command": "translocoUlidI18n.showOutput",
+				"title": "Show the output channel",
+				"category": "i18n"
+			},
+			{
+				"command": "translocoUlidI18n.seal",
+				"title": "Seal as up to date",
+				"category": "i18n",
+				"icon": "$(verified)"
+			}
+		],
+		"viewsContainers": {
+			"activitybar": [
+				{
+					"id": "translocoUlidI18n",
+					"title": "Transloco ULID",
+					"icon": "media/activity.svg"
+				}
+			]
+		},
+		"views": {
+			"translocoUlidI18n": [
+				{
+					"id": "translocoUlidI18n.status",
+					"name": "Transloco ULID"
+				}
+			]
+		},
+		"viewsWelcome": [
+			{
+				"view": "translocoUlidI18n.status",
+				"contents": "The translation catalogue could not be loaded. The reason is in the line above and in the output channel.\n[Reload](command:translocoUlidI18n.reload)\n[Open i18n.config.json](command:translocoUlidI18n.openConfig)\n[Show the output channel](command:translocoUlidI18n.showOutput)",
+				"when": "translocoUlidI18n.failed"
+			}
+		],
+		"menus": {
+			"view/title": [
+				{
+					"command": "translocoUlidI18n.filter",
+					"when": "view == translocoUlidI18n.status",
+					"group": "navigation@0"
+				},
+				{
+					"command": "translocoUlidI18n.clearFilter",
+					"when": "view == translocoUlidI18n.status && translocoUlidI18n.filtering",
+					"group": "navigation@1"
+				},
+				{
+					"command": "translocoUlidI18n.showPending",
+					"when": "view == translocoUlidI18n.status && !translocoUlidI18n.pendingOnly",
+					"group": "navigation@2"
+				},
+				{
+					"command": "translocoUlidI18n.showAll",
+					"when": "view == translocoUlidI18n.status && translocoUlidI18n.pendingOnly",
+					"group": "navigation@2"
+				},
+				{
+					"command": "translocoUlidI18n.search",
+					"when": "view == translocoUlidI18n.status",
+					"group": "navigation@3"
+				},
+				{
+					"command": "translocoUlidI18n.collapseAll",
+					"when": "view == translocoUlidI18n.status && translocoUlidI18n.opened",
+					"group": "navigation@4"
+				},
+				{
+					"command": "translocoUlidI18n.expandAll",
+					"when": "view == translocoUlidI18n.status && !translocoUlidI18n.opened",
+					"group": "navigation@4"
+				},
+				{
+					"command": "translocoUlidI18n.createKey",
+					"when": "view == translocoUlidI18n.status",
+					"group": "1_keys@1"
+				},
+				{
+					"command": "translocoUlidI18n.pruneUnused",
+					"when": "view == translocoUlidI18n.status && translocoUlidI18n.hasUnused",
+					"group": "1_keys@2"
+				},
+				{
+					"command": "translocoUlidI18n.exportTranslations",
+					"when": "view == translocoUlidI18n.status",
+					"group": "2_transfer@1"
+				},
+				{
+					"command": "translocoUlidI18n.importTranslations",
+					"when": "view == translocoUlidI18n.status",
+					"group": "2_transfer@2"
+				},
+				{
+					"command": "translocoUlidI18n.reload",
+					"when": "view == translocoUlidI18n.status",
+					"group": "3_index@1"
+				}
+			],
+			"view/item/context": [
+				{
+					"command": "translocoUlidI18n.exportPending",
+					"when": "view == translocoUlidI18n.status && viewItem == languagePending",
+					"group": "inline"
+				},
+				{
+					"command": "translocoUlidI18n.exportPending",
+					"when": "view == translocoUlidI18n.status && viewItem == languagePending",
+					"group": "export"
+				},
+				{
+					"command": "translocoUlidI18n.findUsages",
+					"when": "view == translocoUlidI18n.status && viewItem =~ /^key/",
+					"group": "1_go@1"
+				},
+				{
+					"command": "translocoUlidI18n.openDeclaration",
+					"when": "view == translocoUlidI18n.status && viewItem =~ /^key/",
+					"group": "1_go@2"
+				},
+				{
+					"command": "translocoUlidI18n.copyReference",
+					"when": "view == translocoUlidI18n.status && viewItem =~ /^key/",
+					"group": "2_copy@1"
+				},
+				{
+					"command": "translocoUlidI18n.copyUlid",
+					"when": "view == translocoUlidI18n.status && viewItem =~ /^key/",
+					"group": "2_copy@2"
+				},
+				{
+					"command": "translocoUlidI18n.seal",
+					"when": "view == translocoUlidI18n.status && viewItem =~ /Sealable$/",
+					"group": "3_seal@1"
+				},
+				{
+					"command": "translocoUlidI18n.pruneUnused",
+					"when": "view == translocoUlidI18n.status && viewItem =~ /Unused$/",
+					"group": "4_prune@1"
+				}
+			],
+			"commandPalette": [
+				{
+					"command": "translocoUlidI18n.clearFilter",
+					"when": "translocoUlidI18n.filtering"
+				},
+				{
+					"command": "translocoUlidI18n.collapseAll",
+					"when": "false"
+				},
+				{
+					"command": "translocoUlidI18n.expandAll",
+					"when": "false"
+				},
+				{
+					"command": "translocoUlidI18n.exportPending",
+					"when": "false"
+				},
+				{
+					"command": "translocoUlidI18n.openKey",
+					"when": "false"
+				},
+				{
+					"command": "translocoUlidI18n.copyReference",
+					"when": "false"
+				},
+				{
+					"command": "translocoUlidI18n.copyUlid",
+					"when": "false"
+				},
+				{
+					"command": "translocoUlidI18n.findUsages",
+					"when": "false"
+				},
+				{
+					"command": "translocoUlidI18n.openDeclaration",
+					"when": "false"
+				},
+				{
+					"command": "translocoUlidI18n.showPending",
+					"when": "!translocoUlidI18n.pendingOnly"
+				},
+				{
+					"command": "translocoUlidI18n.showAll",
+					"when": "translocoUlidI18n.pendingOnly"
+				},
+				{
+					"command": "translocoUlidI18n.seal",
+					"when": "false"
+				}
+			]
+		},
+		"keybindings": [
+			{
+				"command": "translocoUlidI18n.filter",
+				"key": "ctrl+f",
+				"mac": "cmd+f",
+				"when": "focusedView == translocoUlidI18n.status"
+			}
+		],
+		"configurationDefaults": {
+			"[html]": {
+				"editor.suggest.showWords": false
+			},
+			"[typescript]": {
+				"editor.suggest.showWords": false
+			}
+		},
+		"configuration": {
+			"title": "Transloco ULID i18n",
+			"properties": {
+				"translocoUlidI18n.cliDir": {
+					"type": "string",
+					"default": "",
+					"markdownDescription": "Folder holding the `api.mjs` of `@drackp2m/transloco-ulid-cli` (its `src/`). Relative paths resolve from the workspace root. Empty means the copy installed in the workspace's `node_modules`, so the extension always runs the same version as `transloco-ulid check`."
+				},
+				"translocoUlidI18n.pipeImport": {
+					"type": "string",
+					"default": "@jsverse/transloco",
+					"markdownDescription": "Module `#translocoUlidI18n.pipeClass#` is imported from when a template starts using a key. The catalogue import comes from `importAlias` in `i18n.config.json`."
+				},
+				"translocoUlidI18n.pipeClass": {
+					"type": "string",
+					"default": "TranslocoPipe",
+					"markdownDescription": "Class of the translating pipe, added to the component's `imports` when a template starts using a key. The name used in templates is `pipe` in `i18n.config.json`."
+				},
+				"translocoUlidI18n.keyFunctions": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					},
+					"default": [
+						"translate"
+					],
+					"markdownDescription": "Functions that take a key and then its parameters, as `translate(I18n.auth.LOG_IN, { … })`. Completing a key with parameters inside one of their calls appends `, { … }`."
+				},
+				"translocoUlidI18n.languageFile": {
+					"type": "string",
+					"default": "",
+					"markdownDescription": "File declaring `LANGUAGES` and `DEFAULT_LANGUAGE`, read the way `transloco-ulid check` reads it. Relative paths resolve from the workspace root. Empty means the `languageFile` of `i18n.config.json`. Anything missing or malformed in it stops the extension and is reported in the *Transloco ULID i18n* output channel."
+				},
+				"translocoUlidI18n.langs": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					},
+					"default": [],
+					"markdownDescription": "Languages to resolve. Empty means every language `LANGUAGES` declares in `#translocoUlidI18n.languageFile#`. A language it does not declare, or a list leaving the source language out, is an error."
+				},
+				"translocoUlidI18n.displayLang": {
+					"type": "string",
+					"default": "",
+					"markdownDescription": "Language rendered inline over each key usage, and in the completion descriptions. Empty means the `DEFAULT_LANGUAGE` declared in `#translocoUlidI18n.languageFile#`."
+				},
+				"translocoUlidI18n.inlineText": {
+					"type": "boolean",
+					"default": true,
+					"markdownDescription": "Render the `#translocoUlidI18n.displayLang#` translation in place of every key usage."
+				},
+				"translocoUlidI18n.transferDir": {
+					"type": "string",
+					"default": "translations",
+					"description": "Where the XLIFF export lands and the import dialog opens. Relative paths resolve from the workspace root."
+				},
+				"translocoUlidI18n.inlineTextMaxLength": {
+					"type": "number",
+					"default": 60,
+					"description": "Characters shown before the inline translation is ellipsised."
+				}
+			}
+		}
+	},
+	"keywords": [
+		"transloco",
+		"i18n",
+		"ulid",
+		"xliff",
+		"angular",
+		"translation"
+	]
+}

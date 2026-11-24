@@ -1,0 +1,49 @@
+name: VS Code extension
+
+on:
+  push:
+    tags: ['vscode-v*']
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: Package and validate the extension without publishing it
+        type: boolean
+        default: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Check the tag matches the manifest
+        if: github.event_name == 'push'
+        run: |
+          version=$(node -p "require('./vscode/package.json').version")
+          if [ "${GITHUB_REF_NAME}" != "vscode-v${version}" ]; then
+            echo "::error::tag ${GITHUB_REF_NAME} does not match vscode/package.json ${version}"
+            exit 1
+          fi
+
+      - name: Publish to Open VSX
+        id: openvsx
+        uses: HaaLeo/publish-vscode-extension@v2
+        with:
+          pat: ${{ secrets.OVSX_PAT }}
+          packagePath: ./vscode
+          dependencies: false
+          dryRun: ${{ github.event_name == 'workflow_dispatch' && inputs.dry-run }}
+
+      - name: Publish to the VS Code Marketplace
+        uses: HaaLeo/publish-vscode-extension@v2
+        with:
+          pat: ${{ secrets.VSCE_PAT }}
+          registryUrl: https://marketplace.visualstudio.com
+          extensionFile: ${{ steps.openvsx.outputs.vsixPath }}
+          dryRun: ${{ github.event_name == 'workflow_dispatch' && inputs.dry-run }}
