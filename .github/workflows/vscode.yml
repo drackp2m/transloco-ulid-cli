@@ -10,9 +10,22 @@ on:
         type: boolean
         default: true
 
+env:
+  VSIX: transloco-ulid-i18n.vsix
+  VSCE: '@vscode/vsce@4.1.1'
+  OVSX: ovsx@1.4.0
+
 jobs:
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      OVSX_PAT: ${{ secrets.OVSX_PAT }}
+    defaults:
+      run:
+        working-directory: vscode
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -25,25 +38,25 @@ jobs:
       - name: Check the tag matches the manifest
         if: github.event_name == 'push'
         run: |
-          version=$(node -p "require('./vscode/package.json').version")
+          version=$(node -p "require('./package.json').version")
           if [ "${GITHUB_REF_NAME}" != "vscode-v${version}" ]; then
             echo "::error::tag ${GITHUB_REF_NAME} does not match vscode/package.json ${version}"
             exit 1
           fi
 
-      - name: Publish to Open VSX
-        id: openvsx
-        uses: HaaLeo/publish-vscode-extension@v2
-        with:
-          pat: ${{ secrets.OVSX_PAT }}
-          packagePath: ./vscode
-          dependencies: false
-          dryRun: ${{ github.event_name == 'workflow_dispatch' && inputs.dry-run }}
+      - name: Package
+        id: package
+        run: npx --yes "$VSCE" package --no-dependencies --out "$VSIX"
 
       - name: Publish to the VS Code Marketplace
-        uses: HaaLeo/publish-vscode-extension@v2
-        with:
-          pat: ${{ secrets.VSCE_PAT }}
-          registryUrl: https://marketplace.visualstudio.com
-          extensionFile: ${{ steps.openvsx.outputs.vsixPath }}
-          dryRun: ${{ github.event_name == 'workflow_dispatch' && inputs.dry-run }}
+        if: ${{ !cancelled() && steps.package.outcome == 'success' && (github.event_name == 'push' || !inputs.dry-run) }}
+        run: npx --yes "$VSCE" publish --oidc --packagePath "$VSIX"
+
+      - name: Publish to Open VSX
+        if: ${{ !cancelled() && steps.package.outcome == 'success' && (github.event_name == 'push' || !inputs.dry-run) }}
+        run: |
+          if [ -n "$OVSX_PAT" ]; then
+            npx --yes "$OVSX" publish "$VSIX" --pat "$OVSX_PAT"
+          else
+            npx --yes "$OVSX" publish "$VSIX" --trusted-publishing
+          fi
