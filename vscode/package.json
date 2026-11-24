@@ -4,6 +4,7 @@
 	"description": "Inline translations, hover, go-to-definition and diagnostics for the ULID-based transloco keys",
 	"version": "0.3.0",
 	"publisher": "drackp2m",
+	"icon": "media/icon.png",
 	"license": "MIT",
 	"homepage": "https://github.com/drackp2m/transloco-ulid-cli/tree/main/vscode#readme",
 	"repository": {
