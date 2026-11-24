@@ -4,7 +4,19 @@ import { after, describe, test } from 'node:test';
 
 import { SPANISH_NOTES, createCatalogue, removeCatalogues } from './testing/catalogue.mjs';
 import { runCli } from './testing/cli.mjs';
-import { DELETE, LANGS, PLURAL, SAVE, STALE, project, read, withoutScopes, xliffOf } from './testing/project.mjs';
+import {
+	COMMENTED,
+	DELETE,
+	IN_A_COMMENT,
+	LANGS,
+	PLURAL,
+	SAVE,
+	STALE,
+	project,
+	read,
+	withoutScopes,
+	xliffOf,
+} from './testing/project.mjs';
 
 after(removeCatalogues);
 
@@ -75,6 +87,14 @@ describe('transloco-ulid export', () => {
 		ok(!leftOut.includes('<source>Delete</source>'));
 		ok(!sent.stdout.includes('nobody uses'));
 		ok(read(xliffOf(catalogue)).includes('<source>Delete</source>'));
+	});
+
+	test('sends a key only a comment mentions, as a key in use', () => {
+		const catalogue = createCatalogue({ langs: LANGS, keys: [SAVE, COMMENTED], usages: IN_A_COMMENT });
+		const { stdout } = runCli(catalogue.root, ['export']);
+
+		ok(!stdout.includes('nobody uses'));
+		ok(read(xliffOf(catalogue)).includes('<source>Key</source>'));
 	});
 
 	test('fails without scopes, and without a language to translate into', () => {

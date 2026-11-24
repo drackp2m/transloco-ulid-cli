@@ -47,6 +47,7 @@ export {
 	typesOf,
 } from './check/findings.mjs';
 export { applySeal, planSeal } from './check/seal.mjs';
+export { applyPrune, planPrune, unusedKeys } from './prune/plan.mjs';
 export { DEFAULT_OUT_DIR, buildExport, exportLangs, writeExport } from './transfer/build.mjs';
 export { applyImport, planImport } from './transfer/merge.mjs';
 export { readXliff } from './transfer/xliff.mjs';

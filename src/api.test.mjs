@@ -39,6 +39,7 @@ describe('the public API', () => {
 			'STATUSES',
 			'analyse',
 			'applyImport',
+			'applyPrune',
 			'applySeal',
 			'buildExport',
 			'checkText',
@@ -55,6 +56,7 @@ describe('the public API', () => {
 			'paramNameProblem',
 			'planImport',
 			'planKey',
+			'planPrune',
 			'planSeal',
 			'pluralSource',
 			'readLanguages',
@@ -67,6 +69,7 @@ describe('the public API', () => {
 			'toKebabCase',
 			'toPascalCase',
 			'typesOf',
+			'unusedKeys',
 			'usagesIn',
 			'writeExport',
 		]);

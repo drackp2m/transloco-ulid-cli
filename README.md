@@ -636,11 +636,12 @@ other value as it is.
 | [`import`](#import) | Merges translated XLIFF files back.                                |
 | [`state`](#state)   | Counts fresh, stale and missing translations.                      |
 | [`clear`](#clear)   | Empties the translations of some languages.                        |
+| [`prune`](#prune)   | Removes the keys nothing uses, after asking.                       |
 | [`notes`](#notes)   | Writes the notes file of a language from the English template.     |
 
 Every command takes `--dir <path>` for another catalogue directory and `--languages <file>` for
-another language file. `check`, `add`, `export`, `import` and `notes` print their options with
-`--help`.
+another language file. `check`, `add`, `export`, `import`, `notes` and `prune` print their options
+with `--help`.
 
 ### check
 
@@ -773,11 +774,13 @@ travels whole: if one of its forms is selected, all of them are sent.
 Use `--blank` when nothing in the file should seed a machine translation, or let an old string
 pass as a new answer.
 
-A key nothing in `sourceDirs` uses — the `unused-key` and `commented-usage` of `check` — stays out
-of the file, and the command lists the ones it left out. It may be dead, or its usage may have been
-lost in a refactor; either way it is not worth paying a translator for until that is settled. Pass
-`--include-unused` when the text is ready before the screen that shows it. `buildExport()` does the
-same with `unused: true`, and returns the keys it left out as `unused`.
+A key nothing in `sourceDirs` uses — the `unused-key` of `check` — stays out of the file, and the
+command lists the ones it left out. It may be dead, or its usage may have been lost in a refactor;
+either way it is not worth paying a translator for until that is settled. A key only a comment
+mentions still travels: commented-out markup tends to come back. Pass `--include-unused` when the
+text is ready before the screen that shows it. `buildExport()` does the same with `unused: true`,
+and returns the keys it left out as `unused`; hand it `commented` next to `usages` so a commented
+key counts as used.
 
 ### import
 
@@ -868,6 +871,31 @@ fingerprints from `state/`.
 
 To send a fresh batch out without touching the catalogue, prefer `export --blank`.
 
+### prune
+
+```sh
+transloco-ulid prune [--scope <names>] [--dry-run] [--yes]
+```
+
+Lists the keys nothing in `sourceDirs` references — the `unused-key` of `check` — and removes the
+ones you confirm: their line in `keys.ts`, their entry in every `<lang>.json`, their seals in
+`state/` and their entry in `params.ts`. A key only a comment mentions is kept: commented-out
+markup tends to come back.
+
+It asks before writing anything, `Remove them? [y/N/s]`: `y` removes every one, `N` or nothing
+removes none, and `s` opens a list with every key ticked, to untick the ones to keep. A key may be
+unused because a refactor lost its usage, which is why it never deletes on its own.
+
+| Option            | What it does                                                          |
+| ----------------- | --------------------------------------------------------------------- |
+| `--scope <names>` | Comma-separated scopes to look in. Defaults to all of them.           |
+| `--dry-run`       | Lists them and the files that would change, and writes nothing.       |
+| `--yes`, `-y`     | Removes every one without asking. Without a terminal it is required.  |
+
+Like `add`, it rewrites `params.ts` only when the file was in step before, and says so otherwise. A
+context section that names a removed key is left alone; `check` reports it as
+`unknown-context-key`.
+
 ### notes
 
 ```sh
@@ -943,6 +971,7 @@ The rest of the public API:
 | `planKey()`, `keyNameProblem()`, `paramNameProblem()`, `textProblems()`, `formProblem()`, `formDoubt()`, `formsToAsk()`, `pluralSource()` | What `add` does, without writing: the plan of a new key and the rules for its name, its text and each plural form.                        |
 | `exportLangs()`, `buildExport()`, `writeExport()`                                                                                         | What `export` does.                                                                                                                       |
 | `readXliff()`, `planImport()`, `applyImport()`                                                                                            | What `import` does.                                                                                                                       |
+| `unusedKeys({ scopes, defaultLang, usages, commented })`, `planPrune({ ...project, scopes, keys })`, `applyPrune({ plan })`               | What `prune` does: the keys nothing uses, every write removing some of them takes and what it refuses, and writing them.                  |
 | `planSeal(project, targets)`, `applySeal(project, plan)`                                                                                  | What `state --adopt` does: the seals a list of targets would write, what it refuses and why, and writing them. `project` carries the `scopes` of `analyse()`. |
 | `tallyOf()`, `STATUSES`                                                                                                                   | The freshness statuses and their count.                                                                                                   |
 | `readLanguages()`, `isUlid()`, `toKebabCase()`, `toPascalCase()`, `CONFIG_FILE`                                                           | Small helpers most integrations end up needing.                                                                                           |

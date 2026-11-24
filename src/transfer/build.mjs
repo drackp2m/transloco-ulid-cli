@@ -155,11 +155,15 @@ function unitsFor(scope, entry, options) {
 	}));
 }
 
-const isUsed = (usages, scope, entry) =>
-	undefined === usages || null === usages || usages.has(`${scope.name}:${entry.name}`);
+// A key only a comment mentions travels: commented-out markup tends to come back.
+function isUsed({ usages, commented }, scope, entry) {
+	const id = `${scope.name}:${entry.name}`;
+
+	return undefined === usages || null === usages || usages.has(id) || true === commented?.has(id);
+}
 
 function unitsOf(scope, options) {
-	const { defaultLang, lang, filter, usages, root, context, state, blank, unused } = options;
+	const { defaultLang, lang, filter, usages, commented, root, context, state, blank } = options;
 	const source = scope.translations.get(defaultLang)?.data ?? {};
 	const target = scope.translations.get(lang)?.data ?? {};
 	const declared = readDeclaredParams(paramsFile(scope.dir));
@@ -183,11 +187,11 @@ function unitsOf(scope, options) {
 		.filter((entry) => isUlid(entry.ulid))
 		.map((entry) => ({
 			entry,
-			used: isUsed(usages, scope, entry),
+			used: isUsed({ usages, commented }, scope, entry),
 			units: unitsFor(scope, entry, shared).filter((unit) => keep(unit.status)),
 		}))
 		.filter(({ units }) => 0 !== units.length);
-	const left = picked.filter(({ used }) => !used && true !== unused);
+	const left = picked.filter(({ used }) => !used && true !== options.unused);
 
 	return {
 		units: picked.filter((item) => !left.includes(item)).flatMap(({ units }) => units),
@@ -229,7 +233,7 @@ function contextOf(options) {
 }
 
 export function buildExport(options) {
-	const { scopes, defaultLang, lang, filter, usages, only, root = null } = options;
+	const { scopes, defaultLang, lang, filter, usages, commented, only, root = null } = options;
 	const { blank = false, unused = false } = options;
 	const context = contextOf(options);
 	const noteTexts = usableNoteTexts(context.notes);
@@ -243,6 +247,7 @@ export function buildExport(options) {
 		lang,
 		filter,
 		usages,
+		commented,
 		root,
 		context,
 		blank,

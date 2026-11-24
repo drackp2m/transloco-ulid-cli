@@ -104,8 +104,9 @@ if (options.blank) {
 	printHint('Targets go out empty — no existing translation travels with the file.');
 }
 
-const { usages } = collectUsages(options.sourceDirs);
-const built = targets.map((lang) => buildExport({ ...options, scopes, lang, usages, context }));
+const { usages, commented } = collectUsages(options.sourceDirs);
+const sources = { usages, commented };
+const built = targets.map((lang) => buildExport({ ...options, ...sources, scopes, lang, context }));
 const empty = built.filter((document) => 0 === document.total);
 
 printUnused(unusedOf(built), options.unused);

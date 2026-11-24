@@ -12,7 +12,7 @@ describe('transloco-ulid', () => {
 		const { status, stderr } = runCli(project().root, []);
 
 		strictEqual(status, 1);
-		ok(stderr.includes('Usage: transloco-ulid <check|add|export|import|state|clear|notes>'));
+		ok(stderr.includes('Usage: transloco-ulid <check|add|export|import|state|clear|notes|prune>'));
 	});
 
 	test('prints the help of check, add, export, import and notes', () => {
