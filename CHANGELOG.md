@@ -1,3 +1,13 @@
+# v0.6.2 (2026-11-25)
+## What's Changed
+
+### 🎨 Styles
+* add a fourth line to the activity bar icon at full opacity ([e3c946d](https://github.com/drackp2m/transloco-ulid-cli/commit/e3c946da96850569dc30ab6fde72675a29f90585)) by Marc Jovaní González
+### 💻 Continuous Integration
+* let the release workflow republish the extension of a given tag ([926e084](https://github.com/drackp2m/transloco-ulid-cli/commit/926e08422231c2c5ad2f1d678a0e115563565b39)) by Marc Jovaní González
+
+**Full Changelog**: https://github.com/drackp2m/transloco-ulid-cli/compare/v0.6.1...v0.6.2
+
 # v0.6.1 (2026-11-25)
 ## What's Changed
 
