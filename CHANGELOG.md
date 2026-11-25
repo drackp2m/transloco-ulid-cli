@@ -1,3 +1,12 @@
+# v0.6.1 (2026-11-25)
+## What's Changed
+
+### 🎨 Styles
+* match the activity bar icon to the new extension icon ([c23baf3](https://github.com/drackp2m/transloco-ulid-cli/commit/c23baf3ca44d7637c855c1894f0eb77fbff0e1ec)) by Marc Jovaní González
+* redraw the extension icon as an inline translation in the editor ([a765399](https://github.com/drackp2m/transloco-ulid-cli/commit/a76539909ce88a6e74a8fc4fc35872ea558f17ac)) by Marc Jovaní González
+
+**Full Changelog**: https://github.com/drackp2m/transloco-ulid-cli/compare/v0.6.0...v0.6.1
+
 # v0.6.0 (2026-11-24)
 ## What's Changed
 
