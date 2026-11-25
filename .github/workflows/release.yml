@@ -3,6 +3,12 @@ name: Release
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag whose VS Code extension is published again, e.g. v0.6.1'
+        required: true
+        type: string
 
 permissions: {}
 
@@ -11,7 +17,67 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  extension:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    env:
+      TAG: ${{ inputs.tag }}
+    steps:
+      - name: Check the tag
+        run: |
+          case "$TAG" in
+            v[0-9]*.[0-9]*.[0-9]*) ;;
+            *) echo "'$TAG' is not a release tag like v1.2.3" >&2; exit 1 ;;
+          esac
+
+      - name: Checkout the release scripts
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Checkout the tag
+        uses: actions/checkout@v6
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+          path: tagged
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Package the extension
+        id: package
+        working-directory: tagged
+        run: sh "$GITHUB_WORKSPACE/scripts/release/extension.sh" prepare "${TAG#v}"
+
+      - name: Publish to the stores
+        working-directory: tagged
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: sh "$GITHUB_WORKSPACE/scripts/release/extension.sh" publish "${TAG#v}"
+
+      - name: Attach it to the GitHub release
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
+        working-directory: tagged
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          asset='transloco-ulid-i18n.vsix#VS Code extension'
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" "$asset" --clobber
+          else
+            git log -1 --format=%b "$TAG" > notes.md
+            gh release create "$TAG" "$asset" --verify-tag --title "$TAG" --notes-file notes.md
+          fi
+
   release:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: write

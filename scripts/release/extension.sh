@@ -23,12 +23,12 @@ prepare() {
 publish() {
 	failed=''
 
-	(cd vscode && npx --yes "$VSCE" publish --oidc --packagePath "$VSIX") || failed="$failed Marketplace"
+	(cd vscode && npx --yes "$VSCE" publish --oidc --skip-duplicate --packagePath "$VSIX") || failed="$failed Marketplace"
 
 	if [ -n "${OVSX_PAT:-}" ]; then
-		npx --yes "$OVSX" publish "$VSIX" --pat "$OVSX_PAT" || failed="$failed Open-VSX"
+		npx --yes "$OVSX" publish "$VSIX" --skip-duplicate --pat "$OVSX_PAT" || failed="$failed Open-VSX"
 	else
-		npx --yes "$OVSX" publish "$VSIX" --trusted-publishing || failed="$failed Open-VSX"
+		npx --yes "$OVSX" publish "$VSIX" --skip-duplicate --trusted-publishing || failed="$failed Open-VSX"
 	fi
 
 	if [ -n "$failed" ]; then
